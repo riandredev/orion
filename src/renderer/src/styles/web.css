@@ -1,0 +1,129 @@
+.web-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--adw-window-bg) 82%, #2a2a2a);
+}
+
+.web-viewport {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #0c0c0c;
+  border-top: 1px solid var(--adw-border);
+}
+
+.web-viewport__webview {
+  display: flex;
+  flex: none;
+  border: none;
+  background: #0c0c0c;
+}
+
+.web-viewport__empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  color: var(--adw-fg-muted);
+}
+
+.web-viewport__empty-icon {
+  color: var(--adw-fg-muted);
+  margin-bottom: 4px;
+}
+
+.web-viewport__empty .adw-title-2 {
+  margin: 0;
+  color: var(--adw-fg);
+}
+
+.web-viewport__empty .adw-caption {
+  max-width: 28rem;
+  margin: 0;
+}
+
+.web-status {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-top: 1px solid var(--adw-border);
+  background: var(--adw-view-bg);
+  color: var(--adw-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.web-ribbon .order-ribbon__row {
+  flex-wrap: nowrap;
+}
+
+.web-ribbon__url-section {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.web-ribbon__url-form {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 6px 0 8px;
+  border-radius: var(--adw-radius-xs);
+  border: 1px solid var(--adw-border-strong);
+  background: var(--adw-card-bg);
+}
+
+.web-ribbon__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.web-ribbon__url-icon {
+  flex-shrink: 0;
+  color: var(--adw-fg-muted);
+  display: inline-flex;
+}
+
+.web-ribbon__url-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--adw-fg);
+  font-size: 13px;
+  outline: none;
+}
+
+.web-ribbon__url-input::placeholder {
+  color: var(--adw-fg-muted);
+}
+
+.web-ribbon__go-btn {
+  flex-shrink: 0;
+}
+
+.projector-preview__webhost {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.projector-preview__webview {
+  display: flex;
+  flex: none;
+  border: none;
+  pointer-events: none;
+}

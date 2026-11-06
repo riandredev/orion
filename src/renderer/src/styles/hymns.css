@@ -1,0 +1,610 @@
+.hymns-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--adw-window-bg) 82%, #2a2a2a);
+}
+
+.hymns-search-bar {
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--adw-border);
+  background: var(--adw-view-bg);
+}
+
+.hymns-search-bar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.hymns-search-bar__query-wrap {
+  position: relative;
+  flex: 1;
+  min-width: min(100%, 220px);
+}
+
+.hymns-search-bar__query {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  min-height: 28px;
+  border-radius: var(--adw-radius-xs);
+  border: 1px solid var(--adw-border-strong);
+  background: var(--adw-card-bg);
+}
+
+.hymns-search-bar__search-icon {
+  flex-shrink: 0;
+  color: var(--adw-fg-muted);
+}
+
+.hymns-search-bar__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--adw-fg);
+  font-size: 13px;
+  outline: none;
+}
+
+.hymns-search-bar__input::placeholder {
+  color: var(--adw-fg-muted);
+}
+
+.hymns-search-bar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px 8px;
+  margin-left: auto;
+}
+
+.hymns-search-bar__controls .order-ribbon__field--select .adw-select {
+  min-width: 8.5rem;
+}
+
+.hymns-search-bar__hymnal .adw-select {
+  min-width: 5.25rem;
+}
+
+.hymns-search-bar__hymnal-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.hymns-search-bar__hymnals-btn {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+}
+
+.hymns-workspace__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.hymns-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--adw-border);
+  background: var(--adw-view-bg);
+}
+
+.hymns-sidebar__count {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--adw-border);
+  color: var(--adw-fg-muted);
+}
+
+.hymns-entry-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 4px 6px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hymns-entry-list__item {
+  display: grid;
+  grid-template-columns: 2.25rem 1fr;
+  gap: 8px;
+  align-items: start;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--adw-radius-xs);
+  background: transparent;
+  color: var(--adw-fg);
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.hymns-entry-list__item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hymns-entry-list__item--selected {
+  background: rgba(53, 132, 228, 0.22);
+}
+
+.hymns-entry-list__item--selected .hymns-entry-list__title {
+  font-weight: 600;
+}
+
+.hymns-entry-list__item--selected .hymns-entry-list__number {
+  color: var(--adw-fg);
+}
+
+.hymns-entry-list__number {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--adw-fg-muted);
+  padding-top: 1px;
+}
+
+.hymns-entry-list__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hymns-entry-list__title {
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hymns-entry-list__meta {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--adw-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hymns-entry-list__item--selected .hymns-entry-list__meta {
+  color: color-mix(in srgb, var(--adw-fg) 72%, var(--adw-fg-muted));
+}
+
+.hymns-entry-list__lang {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--adw-fg-muted);
+}
+
+.hymns-detail {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 24px;
+}
+
+.hymns-detail__layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px 28px;
+}
+
+.hymns-detail__layout .hymns-stanzas {
+  flex: 1 1 22rem;
+  min-width: min(100%, 22rem);
+}
+
+.hymns-detail__aside {
+  flex: 0 1 280px;
+  min-width: min(100%, 240px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: stretch;
+}
+
+.hymns-inspector {
+  flex: 0 1 300px;
+  min-width: min(100%, 260px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-self: flex-start;
+}
+
+.hymns-inspector .adw-list-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hymns-inspector .adw-list-row--current {
+  background: color-mix(in srgb, var(--adw-accent) 32%, transparent);
+}
+
+.hymns-inspector .adw-list-row--current .adw-list-row__main {
+  background: transparent;
+  box-shadow: none;
+}
+
+.hymns-inspector .adw-list-row--current .bible-library-dialog__row-select:hover {
+  background: transparent;
+}
+
+.hymns-inspector .bible-library-dialog__row-select:hover {
+  background: color-mix(in srgb, var(--adw-fg) 6%, transparent);
+}
+
+.hymns-inspector__badge {
+  font-variant-numeric: tabular-nums;
+}
+
+.hymns-inspector__value {
+  font-size: 13px;
+  color: var(--adw-fg-muted);
+  text-align: right;
+}
+
+.hymns-inspector__value--wrap {
+  max-width: 11rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.hymns-detail__panel {
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--adw-view-bg) 88%, var(--adw-sidebar-bg));
+  border: 1px solid var(--adw-border);
+  border-radius: var(--adw-radius-lg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.hymns-detail__panel + .hymns-detail__panel {
+  margin-top: 0;
+}
+
+.hymns-detail__slide-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 10px;
+}
+
+.hymns-detail__slide-count {
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.hymns-detail__slide-tag {
+  color: var(--adw-accent-fg);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.hymns-detail__slide-nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.hymns-detail__slide-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(40vh, 280px);
+  overflow: auto;
+}
+
+.hymns-detail__slide-item {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--adw-radius-sm);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.hymns-detail__slide-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hymns-detail__slide-item--active {
+  background: color-mix(in srgb, var(--adw-accent-bg) 28%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--adw-accent-bg) 35%, transparent);
+}
+
+.hymns-detail__slide-item-num {
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--adw-fg-muted);
+  text-align: right;
+}
+
+.hymns-detail__slide-item-label {
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hymns-detail__readonly-hint {
+  margin: 6px 0 0;
+  max-width: 14rem;
+  line-height: 1.35;
+  color: var(--adw-fg-muted);
+}
+
+.hymns-search-bar__add-btn {
+  flex-shrink: 0;
+}
+
+.hymns-detail__info,
+.hymns-detail__sing {
+  padding: 14px 16px;
+}
+
+.hymns-detail__panel-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--adw-fg);
+}
+
+.hymns-detail__sing-hint {
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.hymns-detail__sing-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hymns-detail__sing-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.hymns-detail__sing-option input {
+  accent-color: var(--adw-accent-bg);
+}
+
+.hymns-detail__info-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hymns-detail__info-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.hymns-detail__info-row dt {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--adw-fg-muted);
+}
+
+.hymns-detail__info-row dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.hymns-detail__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.hymns-detail__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 20px;
+}
+
+.hymns-detail__number {
+  width: 100%;
+  color: var(--adw-fg-muted);
+}
+
+.hymns-detail__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.hymns-detail__badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.hymns-detail__badge--en {
+  background: color-mix(in srgb, #3584e4 25%, transparent);
+  color: #62a0ea;
+}
+
+.hymns-detail__badge--af {
+  background: color-mix(in srgb, #e66100 22%, transparent);
+  color: #ff7800;
+}
+
+.hymns-detail__badge--other {
+  background: color-mix(in srgb, var(--adw-fg-muted) 18%, transparent);
+  color: var(--adw-fg-muted);
+}
+
+.hymns-stanzas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 22rem;
+  min-width: min(100%, 22rem);
+}
+
+.hymns-stanza {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--adw-border);
+  border-radius: var(--adw-radius-md);
+  background: var(--adw-view-bg);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hymns-stanza--active {
+  border-color: color-mix(in srgb, var(--adw-accent-bg) 70%, var(--adw-border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--adw-accent-bg) 40%, transparent);
+  background: color-mix(in srgb, var(--adw-accent-bg) 12%, var(--adw-view-bg));
+}
+
+.hymns-stanza--skipped {
+  opacity: 0.45;
+}
+
+.hymns-stanza__label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  color: var(--adw-accent-fg);
+}
+
+.hymns-stanza__line {
+  margin: 0 0 0.35em;
+  line-height: 1.45;
+  font-size: 1.05rem;
+}
+
+.hymns-stanza__line:last-child {
+  margin-bottom: 0;
+}
+
+.hymns-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.hymn-editor-dialog__frame {
+  width: min(680px, calc(100vw - 40px));
+}
+
+.hymn-editor-dialog__body {
+  gap: 12px;
+}
+
+.hymn-editor-dialog__fields {
+  display: flex;
+  gap: 10px;
+}
+
+.hymn-editor-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 5rem;
+}
+
+.hymn-editor-dialog__field--grow {
+  flex: 1;
+}
+
+.hymn-editor-dialog__body-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hymn-editor-dialog__textarea {
+  min-height: 180px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+  border-radius: var(--adw-radius-md);
+  padding: 10px 12px;
+}
+
+.hymn-editor-dialog__preview-section {
+  margin-top: 4px;
+}
+
+.hymn-editor-dialog__preview .adw-list-box {
+  border-radius: var(--adw-radius-md);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--adw-card-bg) 94%, black);
+}
+
+.hymn-editor-dialog__preview .adw-list-row:last-child {
+  border-bottom: none;
+}
+
+.hymn-editor-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--adw-border);
+  background: var(--adw-headerbar-bg);
+  flex-shrink: 0;
+}

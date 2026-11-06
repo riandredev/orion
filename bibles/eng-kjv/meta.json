@@ -1,0 +1,9 @@
+{
+  "id": "eng-kjv",
+  "label": "King James Version",
+  "abbr": "KJV",
+  "format": "orion-json",
+  "sourceName": "eng_kjv.helloao.json",
+  "importedAt": "2026-11-05T09:26:01.790Z",
+  "catalogSourceId": "eng_kjv"
+}

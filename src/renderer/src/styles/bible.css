@@ -1,0 +1,818 @@
+.bible-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--adw-window-bg) 82%, #2a2a2a);
+}
+
+.bible-search-bar {
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--adw-border);
+  background: var(--adw-view-bg);
+}
+
+.bible-search-bar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.bible-search-bar__query-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+.bible-search-suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--adw-border-strong);
+  border-radius: var(--adw-radius-sm);
+  background: var(--adw-view-bg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+}
+
+.bible-search-suggestions__status {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--adw-fg-muted);
+}
+
+.bible-search-suggestions__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--adw-radius-xs, 6px);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bible-search-suggestions__item:hover,
+.bible-search-suggestions__item--active {
+  background: color-mix(in srgb, var(--adw-fg) 8%, transparent);
+}
+
+.bible-search-suggestions__label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.bible-search-suggestions__detail {
+  color: var(--adw-fg-muted);
+  line-height: 1.35;
+}
+
+.bible-search-bar__query {
+  flex: 1;
+  min-width: min(100%, 220px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  min-height: 28px;
+  border-radius: var(--adw-radius-xs);
+  border: 1px solid var(--adw-border-strong);
+  background: var(--adw-card-bg);
+}
+
+.bible-search-bar__search-icon {
+  flex-shrink: 0;
+  color: var(--adw-fg-muted);
+}
+
+.bible-search-bar__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--adw-fg);
+  font-size: 13px;
+  outline: none;
+}
+
+.bible-search-bar__input::placeholder {
+  color: var(--adw-fg-muted);
+}
+
+.bible-search-bar__auto {
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--adw-radius-xs);
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--adw-fg-muted);
+}
+
+.bible-search-bar__auto--on {
+  background: rgba(53, 132, 228, 0.25);
+  color: var(--adw-accent-hover);
+}
+
+.bible-search-bar__submit {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.bible-search-bar__row .order-ribbon__field--select .adw-select {
+  min-width: 8.5rem;
+}
+
+.bible-search-bar__translation .adw-select {
+  min-width: 5.25rem;
+}
+
+.bible-search-bar__translation-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.bible-search-bar__translations-btn {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+}
+
+.bible-browser {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  border-bottom: 1px solid var(--adw-border);
+}
+
+.bible-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--adw-border);
+  background: color-mix(in srgb, var(--adw-view-bg) 94%, black);
+}
+
+.bible-panel--books {
+  flex: 0 0 168px;
+}
+
+.bible-panel--chapters {
+  flex: 0 0 72px;
+}
+
+.bible-panel--verses {
+  flex: 1;
+  min-width: 0;
+  border-right: none;
+}
+
+.bible-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.bible-panel__list--grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bible-panel__item {
+  width: 100%;
+  border: none;
+  border-radius: var(--adw-radius-xs);
+  background: transparent;
+  color: var(--adw-fg);
+  text-align: left;
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.bible-panel__item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.bible-panel__item--selected {
+  background: rgba(53, 132, 228, 0.22);
+  color: var(--adw-fg);
+  font-weight: 600;
+}
+
+.bible-panel__item--chapter {
+  text-align: center;
+  padding: 6px 4px;
+  font-weight: 600;
+}
+
+.bible-verse-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--adw-border);
+  background: color-mix(in srgb, var(--adw-view-bg) 88%, black);
+}
+
+.bible-verse-toolbar__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.bible-verse-toolbar__ref {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bible-verse-toolbar__translation {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--adw-radius-xs);
+  border: 1px solid var(--adw-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--adw-fg-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.bible-verse-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.bible-verse-toolbar__hint {
+  padding: 0 4px;
+  color: var(--adw-fg-muted);
+}
+
+.bible-verse-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px 10px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bible-verse {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  gap: 8px;
+  align-items: start;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--adw-radius-xs);
+  background: transparent;
+  color: var(--adw-fg);
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.bible-verse:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bible-verse--selected {
+  background: rgba(53, 132, 228, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(53, 132, 228, 0.35);
+}
+
+.bible-verse__num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--adw-fg-muted);
+  text-align: right;
+  padding-top: 2px;
+}
+
+.bible-verse__text {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.bible-verse__refs {
+  min-width: 1.5rem;
+  text-align: center;
+  padding: 2px 6px;
+  border-radius: var(--adw-radius-xs);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--adw-fg-muted);
+}
+
+.bible-history {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: color-mix(in srgb, var(--adw-view-bg) 92%, black);
+}
+
+.bible-history--collapsed {
+  height: auto;
+}
+
+.bible-history__resize-wrap {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 10px;
+  margin-top: -5px;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.bible-history__resize {
+  pointer-events: auto;
+  flex-shrink: 0;
+  width: 40px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid var(--adw-border);
+  border-bottom: none;
+  border-radius: var(--adw-radius-xs) var(--adw-radius-xs) 0 0;
+  background: color-mix(in srgb, var(--adw-view-bg) 88%, #3a3a3a);
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.15);
+  cursor: ns-resize;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bible-history__resize::after {
+  content: '';
+  display: block;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--adw-border-strong);
+  opacity: 0.9;
+}
+
+.bible-history__resize:hover,
+.bible-history__resize:active {
+  border-color: var(--adw-border-strong);
+  background: color-mix(in srgb, var(--adw-view-bg) 82%, white);
+}
+
+.bible-history__resize:hover::after,
+.bible-history__resize:active::after {
+  background: var(--adw-accent);
+  opacity: 1;
+}
+
+.bible-history__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 4px 4px;
+  border-bottom: 1px solid var(--adw-border);
+}
+
+.bible-history__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--adw-fg);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--adw-radius-xs);
+}
+
+.bible-history__toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.bible-history__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 6px 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bible-history__empty {
+  padding: 8px 10px;
+  margin: 0;
+}
+
+.bible-history__item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--adw-radius-xs);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.bible-history__item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.bible-history__ref {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--adw-accent-hover);
+}
+
+.bible-history__preview {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+body.orion-bible-history-resize {
+  cursor: ns-resize;
+  user-select: none;
+}
+
+body.orion-bible-history-resize * {
+  cursor: ns-resize !important;
+}
+
+.bible-library-dialog {
+  border: none;
+  padding: 28px;
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  box-sizing: border-box;
+  background: transparent;
+  color: var(--adw-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.bible-library-dialog__frame {
+  opacity: 0;
+  transform: scale(0.97) translateY(14px);
+  transition:
+    opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  width: min(720px, calc(100vw - 40px));
+  max-height: calc(100vh - 56px);
+  background: var(--adw-view-bg);
+  border: 1px solid var(--adw-border-strong);
+  border-radius: var(--adw-radius-lg);
+  overflow: hidden;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.bible-library-dialog--visible .bible-library-dialog__frame {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.bible-library-dialog--closing .bible-library-dialog__frame {
+  opacity: 0;
+  transform: scale(0.98) translateY(8px);
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+.bible-library-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.58);
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.bible-library-dialog--visible::backdrop {
+  opacity: 1;
+}
+
+.bible-library-dialog--closing::backdrop {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.bible-library-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--adw-border);
+  background: var(--adw-headerbar-bg);
+  flex-shrink: 0;
+}
+
+.bible-library-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bible-library-dialog__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.bible-library-dialog__search {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.bible-library-dialog__catalog-hint {
+  margin: 0 0 10px;
+  color: var(--adw-fg-muted);
+}
+
+.bible-library-dialog__catalog-panel {
+  flex: 1;
+  min-height: min(48vh, 420px);
+  max-height: min(48vh, 420px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bible-library-dialog__catalog-status {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px 16px;
+  text-align: center;
+  color: var(--adw-fg-muted);
+}
+
+.bible-library-dialog__catalog-status-title {
+  margin: 0;
+  color: var(--adw-fg);
+  font-weight: 600;
+}
+
+.bible-library-dialog__catalog-status-detail {
+  margin: 0;
+  max-width: 28rem;
+  line-height: 1.45;
+}
+
+.bible-library-dialog__catalog-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bible-library-dialog__section-label {
+  margin: 0 0 8px;
+}
+
+.bible-library-dialog__row-select {
+  cursor: pointer;
+}
+
+.bible-library-dialog__row-select:hover {
+  background: color-mix(in srgb, var(--adw-fg) 6%, transparent);
+}
+
+.bible-library-dialog .adw-list-row--current .adw-list-row__main {
+  background: transparent;
+  box-shadow: none;
+}
+
+.bible-library-dialog .adw-list-row--current .adw-list-row__subtitle::after {
+  content: ' · In use';
+}
+
+.adw-spinner--sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.bible-library-dialog__catalog-row .adw-list-row__main {
+  gap: 6px;
+}
+
+.bible-library-dialog__download-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.bible-library-dialog__download-progress .adw-progress-bar {
+  flex: 1 1 120px;
+  min-width: 80px;
+}
+
+.bible-library-dialog__row-action {
+  flex-shrink: 0;
+  align-self: center;
+  margin-right: 6px;
+  font-weight: 600;
+}
+
+/* Legacy eyebrow style — prefer .adw-section-label in dialogs */
+.adw-list-group__heading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adw-fg-muted);
+}
+
+.adw-list-group__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--adw-fg);
+  background: color-mix(in srgb, var(--adw-headerbar-bg) 88%, black);
+  border: 1px solid var(--adw-border);
+  border-bottom: none;
+  border-radius: var(--adw-radius-sm) var(--adw-radius-sm) 0 0;
+}
+
+.adw-list-box {
+  border: 1px solid var(--adw-border);
+  border-radius: var(--adw-radius-sm);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--adw-card-bg) 94%, black);
+}
+
+.adw-list-group .adw-list-box {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.adw-list-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--adw-border);
+}
+
+.adw-list-row:last-child {
+  border-bottom: none;
+}
+
+.adw-list-row__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.adw-list-row__main:hover {
+  background: color-mix(in srgb, var(--adw-fg) 6%, transparent);
+}
+
+.adw-list-row__main--active {
+  background: color-mix(in srgb, var(--adw-accent) 14%, transparent);
+  box-shadow: inset 3px 0 0 var(--adw-accent);
+}
+
+.adw-list-row__main--static {
+  cursor: default;
+}
+
+.adw-list-row__main--static:hover {
+  background: transparent;
+}
+
+.adw-list-row__title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.adw-list-row__subtitle {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--adw-fg-muted);
+}
+
+.adw-list-row > .adw-button {
+  align-self: center;
+  margin-right: 6px;
+}
+
+.bible-library-dialog__section--catalog {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bible-library-dialog__subtitle a {
+  color: var(--adw-accent-hover);
+}
+
+.bible-library-dialog__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.bible-library-dialog__subtitle {
+  margin: 4px 0 0;
+  max-width: 42rem;
+}
+
+.bible-library-dialog__error {
+  margin: 0;
+  color: #f87171;
+}
+
+.bible-library-dialog__empty {
+  padding: 12px 8px;
+  color: var(--adw-fg-muted);
+  margin: 0;
+}

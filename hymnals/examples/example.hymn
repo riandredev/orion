@@ -1,0 +1,13 @@
+@number 1
+@title Example import hymn
+
+[V1]
+First line of verse one
+Second line
+
+{Refrain}
+Refrain line one
+Refrain line two
+
+[V2]
+Verse two line one

@@ -1,0 +1,9 @@
+{
+  "id": "bss-afri",
+  "label": "Afrikaans 1953",
+  "abbr": "Afrikaans",
+  "format": "orion-json",
+  "sourceName": "afri.biblesupersearch.json",
+  "importedAt": "2026-11-05T09:46:50.690Z",
+  "catalogSourceId": "bss:afri"
+}

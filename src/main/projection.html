@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orion Output</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Lora:ital,wght@0,600;0,700;1,600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @keyframes orion-order-fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes orion-order-fade-out {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+      @keyframes orion-order-wipe {
+        from { clip-path: inset(0 100% 0 0); }
+        to { clip-path: inset(0); }
+      }
+      @keyframes orion-order-split {
+        from { clip-path: inset(0 50% 0 50%); }
+        to { clip-path: inset(0); }
+      }
+      @keyframes orion-order-push-in {
+        from { transform: translateX(100%); }
+        to { transform: none; }
+      }
+      @keyframes orion-order-push-out {
+        from { transform: none; }
+        to { transform: translateX(-100%); }
+      }
+      @keyframes orion-deck-fade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes orion-deck-wipe {
+        from { clip-path: inset(0 100% 0 0); }
+        to { clip-path: inset(0); }
+      }
+      @keyframes orion-deck-split {
+        from { clip-path: inset(0 50% 0 50%); }
+        to { clip-path: inset(0); }
+      }
+      @keyframes orion-deck-push {
+        from { transform: translateX(100%); }
+        to { transform: none; }
+      }
+      @keyframes orion-deck-uncover {
+        from { clip-path: inset(0 0 0 100%); }
+        to { clip-path: inset(0); }
+      }
+
+      :root {
+        --orion-content-inset-top: 3.5vmin;
+        --orion-content-inset-right: 4.5vmin;
+        --orion-content-inset-bottom: 4vmin;
+        --orion-content-inset-left: 4.5vmin;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+        color: #fff;
+        font-family: Cantarell, 'Segoe UI', sans-serif;
+      }
+
+      #stage {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      #stage video,
+      #stage audio {
+        pointer-events: none;
+      }
+
+      #stage video::-webkit-media-controls,
+      #stage video::-webkit-media-controls-enclosure,
+      #stage audio::-webkit-media-controls,
+      #stage audio::-webkit-media-controls-enclosure {
+        display: none !important;
+      }
+
+      #base-layer {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      #overlay-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background: #000;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity 420ms ease,
+          visibility 0ms linear 420ms;
+      }
+
+      #overlay-layer.overlay-visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transition:
+          opacity 420ms ease,
+          visibility 0ms linear 0ms;
+      }
+
+      #overlay-layer.scrim {
+        background-color: #000;
+      }
+
+      #base-layer img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      #base-layer img.orion-order-slide {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        margin: auto;
+      }
+
+      .bible-proj {
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: var(--orion-content-inset-top) var(--orion-content-inset-right)
+          var(--orion-content-inset-bottom) var(--orion-content-inset-left);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2.4vmin;
+        color: #fff;
+        direction: ltr;
+        --bible-serif: Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+        --bible-panel: rgba(15, 27, 46, 0.66);
+        --bible-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
+      }
+
+      .bible-proj__top {
+        position: relative;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: var(--bible-reference-justify, center);
+        gap: 2vmin;
+        min-height: 0;
+        margin: 0;
+        padding: 0.42em 1.4em;
+        background: var(--bible-reference-panel, rgba(15, 27, 46, 0.66));
+      }
+
+      .bible-proj__location {
+        margin: 0;
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow-wrap: anywhere;
+        font-family: var(--bible-reference-font, var(--bible-serif));
+        font-weight: 700;
+        font-size: var(--bible-reference-size, 52px);
+        line-height: 1.15;
+        color: var(--bible-reference-color, #fff9a7);
+        text-shadow: var(--bible-shadow);
+        text-align: var(--bible-reference-align, center);
+      }
+
+      .bible-proj__translation {
+        position: absolute;
+        right: 0.8em;
+        top: 50%;
+        transform: translateY(-50%);
+        margin: 0;
+        max-width: 28%;
+        font-family: var(--bible-translation-font, var(--bible-serif));
+        font-weight: 600;
+        font-size: var(--bible-translation-size, 28px);
+        line-height: 1.2;
+        color: var(--bible-translation-color, rgba(255, 255, 255, 0.82));
+        text-align: right;
+        text-shadow: var(--bible-shadow);
+      }
+
+      .bible-proj__body {
+        flex: 0 1 auto;
+        min-height: 0;
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        max-height: 68%;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: stretch;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .bible-proj__text {
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        max-height: 100%;
+        overflow: hidden;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        padding: 0.75em 1.15em;
+        background: var(--bible-verse-panel, rgba(15, 27, 46, 0.66));
+        font-family: var(--bible-verse-font, var(--bible-serif));
+        font-weight: 500;
+        font-size: var(--bible-verse-size, 64px);
+        line-height: var(--bible-line-height, 1.55);
+        color: var(--bible-verse-color, #fff);
+        text-align: var(--bible-verse-align, center);
+        text-wrap: pretty;
+        text-shadow: var(--bible-shadow);
+      }
+
+      .bible-proj__verse-num {
+        font-family: var(--bible-verse-num-font, var(--bible-serif));
+        font-size: var(--bible-verse-num-size, 64px);
+        font-weight: 700;
+        margin-right: 0.28em;
+        color: var(--bible-verse-num-color, rgba(255, 255, 255, 0.95));
+      }
+
+      .bible-proj__verse-words {
+        font-weight: 500;
+      }
+
+      .dictionary-proj {
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        max-width: 68rem;
+        margin-inline: auto;
+        padding: var(--orion-content-inset-top) var(--orion-content-inset-right)
+          var(--orion-content-inset-bottom) var(--orion-content-inset-left);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.65em;
+        overflow: hidden;
+        text-align: center;
+      }
+
+      .dictionary-proj__ref {
+        margin: 0 0 0.35em;
+        padding: 0.12em 0.45em;
+        font-family: var(--dictionary-strongs-font, Cantarell, "Segoe UI", sans-serif);
+        font-size: var(--dictionary-strongs-size, 36px);
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.55);
+        text-align: var(--dictionary-strongs-align, center);
+        background: var(--dictionary-strongs-panel, transparent);
+      }
+
+      .dictionary-proj__ref-id {
+        color: var(--dictionary-strongs-color, rgba(255, 255, 255, 0.92));
+      }
+
+      .dictionary-proj__lemma {
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: var(--dictionary-lemma-justify, center);
+        gap: 0.28em;
+        padding: 0.06em 0.3em;
+        color: var(--dictionary-lemma-color, #fff);
+        background: var(--dictionary-lemma-panel, transparent);
+        font-family: var(--dictionary-lemma-font, Cantarell, "Segoe UI", sans-serif);
+        font-size: var(--dictionary-lemma-size, 96px);
+        font-weight: 700;
+        line-height: 1.12;
+      }
+
+      .dictionary-proj__lemma-reading {
+        font-size: 1em;
+        font-family: Palatino, "Palatino Linotype", "Times New Roman", serif;
+        font-weight: 700;
+        color: #fff9a7;
+      }
+
+      .dictionary-proj__lemma-arrow {
+        width: 1em;
+        height: 1em;
+        flex: 0 0 auto;
+        align-self: center;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .dictionary-proj__lemma-original {
+        font-size: 1em;
+      }
+
+      .dictionary-proj__infobar {
+        display: flex;
+        width: 100%;
+        max-width: 52rem;
+        margin: 0.5em auto 1.1em;
+        background: var(--dictionary-details-panel, transparent);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .dictionary-proj__infobar-seg {
+        flex: 1 1 0;
+        min-width: 0;
+        margin: 0;
+        padding: 0.65em 0.75em;
+        font-family: var(--dictionary-details-font, "Segoe UI", sans-serif);
+        font-size: var(--dictionary-details-size, 28px);
+        font-weight: 600;
+        line-height: 1.25;
+        color: var(--dictionary-details-color, rgba(255, 255, 255, 0.72));
+        text-align: var(--dictionary-details-align, center);
+        background: rgba(255, 255, 255, 0.04);
+        border: none;
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      .dictionary-proj__infobar-seg:last-child {
+        border-right: none;
+      }
+
+      .dictionary-proj__infobar-seg--active {
+        color: rgba(255, 255, 255, 0.96);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .dictionary-proj__reading {
+        margin: 0 0 1.25em;
+        font-size: clamp(1.5rem, 3.4vmin, 2.85rem);
+        font-weight: 600;
+        line-height: 1.35;
+        color: rgba(255, 255, 255, 0.82);
+      }
+
+      .dictionary-proj__reading em {
+        font-style: normal;
+        color: rgba(255, 255, 255, 0.58);
+        font-weight: 600;
+      }
+
+      .dictionary-proj__definition {
+        margin: 0;
+        padding-top: 1.15em;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        text-align: var(--dictionary-definition-align, left);
+        background: var(--dictionary-definition-panel, transparent);
+        padding-inline: 0.55em;
+        white-space: pre-wrap;
+        font-family: var(--dictionary-definition-font, "Segoe UI", sans-serif);
+        font-size: var(--dictionary-definition-size, 36px);
+        line-height: var(--dictionary-line-height, 1.5);
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.72);
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 8;
+      }
+
+      .dictionary-proj__definition-en {
+        color: var(--dictionary-definition-color, #fff9a7);
+        font-weight: 700;
+      }
+
+      .hymn-proj {
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: var(--orion-content-inset-top) var(--orion-content-inset-right)
+          var(--orion-content-inset-bottom) var(--orion-content-inset-left);
+        display: flex;
+        flex-direction: column;
+        font-family: "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif;
+        font-weight: 700;
+        font-stretch: condensed;
+        color: #fff;
+        --hymn-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
+      }
+
+      .hymn-proj--title {
+        justify-content: center;
+        align-items: center;
+      }
+
+      .hymn-proj__title-hero {
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 0.35em;
+        text-align: center;
+        padding: 0 3vmin;
+      }
+
+      .hymn-proj__title-number {
+        margin: 0;
+        font-family: inherit;
+        font-weight: 700;
+        font-stretch: condensed;
+        font-size: clamp(3.75rem, 13vmin, 9.5rem);
+        line-height: 1.05;
+        text-shadow: var(--hymn-shadow);
+      }
+
+      .hymn-proj__title-name {
+        margin: 0;
+        font-family: inherit;
+        font-weight: 700;
+        font-stretch: condensed;
+        font-size: clamp(3.25rem, 11vmin, 8.25rem);
+        line-height: 1.08;
+        text-shadow: var(--hymn-shadow);
+      }
+
+      .hymn-proj__top {
+        position: relative;
+        flex-shrink: 0;
+        min-height: 3.5rem;
+        width: 100%;
+        margin-bottom: 1vmin;
+      }
+
+      .hymn-proj__corner {
+        position: absolute;
+        top: 0;
+        left: var(--hymn-corner-left, 0);
+        right: var(--hymn-corner-right, auto);
+        transform: var(--hymn-corner-shift, none);
+        padding: 0.06em 0.2em;
+        font-family: var(--hymn-corner-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+        font-size: var(--hymn-corner-size, 60px);
+        font-weight: 700;
+        line-height: 1;
+        color: var(--hymn-corner-color, #ffd400);
+        background: var(--hymn-corner-panel, transparent);
+        letter-spacing: 0.02em;
+        text-shadow: var(--hymn-shadow);
+      }
+
+      .hymn-proj__heading {
+        margin: 0;
+        padding: 0.12em 0.45em;
+        text-align: var(--hymn-number-align, center);
+        font-family: var(--hymn-number-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+        font-weight: 700;
+        font-stretch: condensed;
+        font-size: var(--hymn-number-size, 72px);
+        line-height: 1.04;
+        color: var(--hymn-number-color, #fff);
+        background: var(--hymn-number-panel, transparent);
+        text-shadow: var(--hymn-shadow);
+      }
+
+      .hymn-proj__lines {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: stretch;
+        gap: 0;
+        text-align: var(--hymn-lyrics-align, center);
+        color: var(--hymn-lyrics-color, #fff);
+        background: var(--hymn-lyrics-panel, transparent);
+        padding: 0.2em 2vmin;
+        font-family: var(--hymn-lyrics-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+        font-size: var(--hymn-lyrics-size, 84px);
+        line-height: var(--hymn-line-height, 1.32);
+      }
+
+      .hymn-proj__line {
+        margin: 0;
+        font-family: inherit;
+        font-weight: 700;
+        font-stretch: condensed;
+        font-size: 1em;
+        line-height: inherit;
+        text-shadow: var(--hymn-shadow);
+      }
+
+      .hymn-proj__author {
+        flex-shrink: 0;
+        align-self: stretch;
+        margin: 0;
+        margin-top: auto;
+        padding: 1.25vmin 2vmin 0;
+        text-align: var(--hymn-author-align, center);
+        background: var(--hymn-author-panel, transparent);
+        font-family: var(--hymn-author-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+        font-style: italic;
+        font-weight: 700;
+        font-stretch: condensed;
+        font-size: var(--hymn-author-size, 28px);
+        line-height: 1.2;
+        color: var(--hymn-author-color, #ffd400);
+        text-shadow: var(--hymn-shadow);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <script src="./projection-client.js"></script>
+  </body>
+</html>

@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Orion
 
-## Getting Started
+Desktop church presentation control — **Electron + Vite + React**, styled with **Libadwaita-inspired** tokens (not native GTK).
 
-First, run the development server:
+## Preserved assets
+
+| Folder | Purpose |
+|--------|---------|
+| `order-images/` | Service-order slide folders (one subfolder per block) |
+| `images/` | Branding and static art |
+
+## Develop (live preview)
+
+From `C:\Development\orion`:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Opens the Electron window with hot reload. Use this while building UI.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production build (see the packaged UI locally)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run preview
+```
 
-## Learn More
+`build` compiles main, preload, and renderer into `out/`. `preview` runs that build in Electron (no dev server).
 
-To learn more about Next.js, take a look at the following resources:
+## Fonts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Cantarell** is bundled via `@fontsource/cantarell` (same family GNOME uses for Adwaita). It ships inside the app build — no system install required on Windows.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Icons:** [Coolicons](https://coolicons.cool/) (`*-fill-round` style) via `@iconify/react` — MIT, bundled offline. Map: `src/renderer/src/components/icons.ts`. Browse variants at [icon-sets.iconify.design/coolicons](https://icon-sets.iconify.design/coolicons/).
 
-## Deploy on Vercel
+## Preserved assets
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/main/       Electron main process (windows, IPC, filesystem)
+src/preload/    contextBridge API exposed as window.orion
+src/renderer/   React operator UI
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Installers
+
+Two editions, each with a Windows setup and a Linux AppImage:
+
+| Edition | What is inside |
+|---------|----------------|
+| **Orion** | Empty libraries. Add order images, hymnals, and Bibles yourself. |
+| **Orion Panorama** | This church's order images, Afrikaans and English hymnals, King James, and Afrikaans 1953. |
+
+Panorama and the standard app install side by side. Bundled libraries are copied into the app's data folder on first launch, so later edits are kept.
+
+```bash
+npm run dist:win
+npm run dist:linux
+```
+
+```bash
+npm run dist:panorama:win
+npm run dist:panorama:linux
+```
+
+Installers are written to `dist/standard` and `dist/panorama`.
