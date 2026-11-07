@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="images/orion-wordmark.png" />
-    <img src="images/orion-wordmark-light.png" alt="Orion" width="360" />
-  </picture>
+  <img src="images/orion-logo.png" alt="Orion" width="360" />
 </p>
 
 <p align="center">
@@ -25,7 +22,7 @@ Orion runs a church service from one computer and sends hymns, scripture, and sl
 
 | Edition | Library |
 | --- | --- |
-| [Orion](https://github.com/riandredev/orion/releases/tag/v1.0.1) | Empty. Add your own service-order images, hymnals, and Bibles. |
+| [Orion](https://github.com/riandredev/orion/releases/tag/v1.0.1) | King James Version. Order images and hymnals start empty. |
 | [Orion Panorama](https://github.com/riandredev/orion/releases/tag/v1.0.1-panorama) | Service-order images, Afrikaans and English Adventist hymnals, the King James Version, and Afrikaans 1953. |
 
 The two editions install side by side and do not share libraries.

@@ -50,7 +50,8 @@ module.exports = {
     : [
         { from: 'build/icon.png', to: 'icon.png' },
         { from: 'build/edition-standard.json', to: 'edition.json' },
-        { from: 'build/content-standard/hymnals', to: 'content/hymnals' }
+        { from: 'build/content-standard/hymnals', to: 'content/hymnals' },
+        { from: 'bibles/eng-kjv', to: 'content/bibles/eng-kjv' }
       ],
   asarUnpack: ['**/*.node', '**/7zip-bin/**'],
   npmRebuild: false,
