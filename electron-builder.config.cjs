@@ -8,7 +8,6 @@ module.exports = {
   extraMetadata: {
     desktopName: panorama ? 'orion-panorama.desktop' : 'orion.desktop'
   },
-  syncDesktopName: true,
   directories: {
     output: panorama ? 'dist/panorama' : 'dist/standard'
   },
@@ -60,6 +59,7 @@ module.exports = {
     icon: 'build/icon.png'
   },
   linux: {
+    syncDesktopName: true,
     target: [{ target: 'AppImage', arch: ['x64'] }],
     category: 'Office',
     icon: 'build/icons',
