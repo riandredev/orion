@@ -282,6 +282,244 @@ const imageMotionTimers = new WeakMap()
  * @param {HTMLElement} target
  * @param {{ mediaUrl?: string; animation?: string; durationMs?: number }} data
  */
+/**
+ * @param {HTMLElement} layer
+ * @param {{ backgroundMediaUrl?: string; backgroundColor?: string; backgroundDimOpacity?: number; backgroundFit?: string }} data
+ */
+function paintBackdrop(layer, data) {
+  layer.style.backgroundImage = ''
+  layer.style.backgroundColor = data.backgroundColor || '#000000'
+  const url = typeof data.backgroundMediaUrl === 'string' ? data.backgroundMediaUrl : ''
+  let photo = layer.querySelector(':scope > img.orion-layer-bg')
+  let veil = layer.querySelector(':scope > .orion-layer-dim')
+  if (!url) {
+    photo?.remove()
+    veil?.remove()
+    return
+  }
+  if (!(photo instanceof HTMLImageElement)) {
+    photo = document.createElement('img')
+    photo.className = 'orion-layer-bg'
+    photo.alt = ''
+    layer.insertBefore(photo, layer.firstChild)
+  }
+  if (photo.getAttribute('src') !== url) photo.src = url
+  photo.style.objectFit = data.backgroundFit === 'contain' ? 'contain' : 'cover'
+  const dim =
+    typeof data.backgroundDimOpacity === 'number'
+      ? Math.min(95, Math.max(0, data.backgroundDimOpacity)) / 100
+      : 0.55
+  if (!veil) {
+    veil = document.createElement('div')
+    veil.className = 'orion-layer-dim'
+    photo.after(veil)
+  }
+  veil.style.background = `rgba(0, 0, 0, ${dim})`
+}
+
+const HYMN_MOTIONS = ['crossfade', 'fade', 'wipe', 'push', 'cover', 'uncover', 'split']
+
+function hymnSignature(data) {
+  return [
+    data.number ?? '',
+    data.slideKind || 'lyrics',
+    data.stanzaKind || '',
+    data.verse ?? '',
+    data.versePart ?? '',
+    data.title ?? '',
+    (data.lines || []).join('\n'),
+    data.author || ''
+  ].join('\u001f')
+}
+
+function hymnMotionOf(data) {
+  const animation = HYMN_MOTIONS.includes(data.animation) ? data.animation : 'none'
+  const durationMs = Math.min(5000, Math.max(0, Math.round(Number(data.durationMs) || 0)))
+  if (animation === 'none' || durationMs <= 0) return { animation: 'none', durationMs: 0 }
+  return { animation, durationMs }
+}
+
+function clearSlideMotion(node) {
+  node.style.animation = ''
+  node.style.opacity = ''
+  node.style.transform = ''
+  node.style.clipPath = ''
+  node.style.zIndex = ''
+}
+
+/**
+ * @param {HTMLElement} previous
+ * @param {HTMLElement | null} incoming
+ * @param {string} animation
+ * @param {number} durationMs
+ */
+function animateHymnSwap(previous, incoming, animation, durationMs) {
+  const pending = imageMotionTimers.get(previous.parentElement || previous)
+  if (pending) window.clearTimeout(pending)
+  pendingSettleMs = Math.max(pendingSettleMs, durationMs)
+  const host = previous.parentElement
+
+  const finish = (ms) => {
+    const timer = window.setTimeout(() => {
+      if (previous.isConnected) previous.remove()
+      if (incoming) clearSlideMotion(incoming)
+      schedulePreviewSettle(0)
+    }, ms + 40)
+    if (host) imageMotionTimers.set(host, timer)
+  }
+
+  if (!incoming) {
+    previous.style.animation = `orion-order-fade-out ${durationMs}ms ease forwards`
+    finish(durationMs)
+    return
+  }
+
+  incoming.style.zIndex = animation === 'uncover' ? '1' : '2'
+  previous.style.zIndex = animation === 'uncover' ? '2' : '1'
+
+  if (animation === 'crossfade') {
+    incoming.style.opacity = '0'
+    incoming.style.animation = `orion-order-fade-in ${durationMs}ms ease forwards`
+    finish(durationMs)
+    return
+  }
+
+  if (animation === 'fade') {
+    const half = Math.max(1, Math.round(durationMs / 2))
+    incoming.style.opacity = '0'
+    previous.style.animation = `orion-order-fade-out ${half}ms ease forwards`
+    const timer = window.setTimeout(() => {
+      if (previous.isConnected) previous.remove()
+      incoming.style.animation = `orion-order-fade-in ${half}ms ease forwards`
+      const done = window.setTimeout(() => {
+        clearSlideMotion(incoming)
+        schedulePreviewSettle(0)
+      }, half + 40)
+      if (host) imageMotionTimers.set(host, done)
+    }, half)
+    if (host) imageMotionTimers.set(host, timer)
+    pendingSettleMs = Math.max(pendingSettleMs, durationMs)
+    return
+  }
+
+  if (animation === 'wipe') {
+    incoming.style.animation = `orion-order-wipe ${durationMs}ms ease forwards`
+  } else if (animation === 'split') {
+    incoming.style.animation = `orion-order-split ${durationMs}ms ease forwards`
+  } else if (animation === 'push') {
+    incoming.style.animation = `orion-order-push-in ${durationMs}ms ease forwards`
+    previous.style.animation = `orion-order-push-out ${durationMs}ms ease forwards`
+  } else if (animation === 'cover') {
+    incoming.style.animation = `orion-order-push-in ${durationMs}ms ease forwards`
+  } else if (animation === 'uncover') {
+    previous.style.animation = `orion-order-push-out ${durationMs}ms ease forwards`
+  }
+  finish(durationMs)
+}
+
+/**
+ * @param {HTMLElement} target
+ * @param {{ number?: number; title?: string; author?: string; slideKind?: string; stanzaKind?: string; verse?: number; versePart?: number; versePartCount?: number; lines?: string[]; animation?: string; durationMs?: number; backgroundMediaUrl?: string; backgroundColor?: string; backgroundDimOpacity?: number; backgroundFit?: string }} data
+ */
+function renderHymnPayload(target, data) {
+  const sig = hymnSignature(data)
+  if (target.dataset.hymnSlide === sig) {
+    paintBackdrop(target, data)
+    return
+  }
+  const motion = hymnMotionOf(data)
+  const previous = target.querySelector(':scope > .hymn-proj')
+  const animate = previous instanceof HTMLElement && motion.animation !== 'none'
+  target.dataset.hymnSlide = sig
+
+  const mount = () => {
+    const slideKind = data.slideKind || 'lyrics'
+    if (slideKind === 'end') return null
+    const wrap = document.createElement('div')
+    wrap.className = slideKind === 'title' ? 'hymn-proj hymn-proj--title' : 'hymn-proj'
+    wrap.dataset.slide = sig
+    applyInsetsToElement(wrap, contentInsetsByCategory.hymns)
+
+    if (slideKind === 'title') {
+      const hero = document.createElement('div')
+      hero.className = 'hymn-proj__title-hero'
+      const numEl = document.createElement('p')
+      numEl.className = 'hymn-proj__title-number'
+      numEl.textContent = data.number != null ? String(data.number) : ''
+      const titleEl = document.createElement('p')
+      titleEl.className = 'hymn-proj__title-name'
+      titleEl.textContent = data.title ?? ''
+      hero.appendChild(numEl)
+      hero.appendChild(titleEl)
+      wrap.appendChild(hero)
+      appendHymnAuthor(wrap, data.author)
+      if (animate && motion.animation === 'uncover') target.insertBefore(wrap, previous)
+      else target.appendChild(wrap)
+      fitHymnTitleSlide(hero)
+      return wrap
+    }
+
+    const top = document.createElement('div')
+    top.className = 'hymn-proj__top'
+    const corner = document.createElement('span')
+    corner.className = 'hymn-proj__corner'
+    const kind = data.stanzaKind || 'verse'
+    if (kind === 'refrain') {
+      corner.textContent = 'Refrain'
+    } else if (kind === 'chorus' || kind === 'bridge' || kind === 'intro') {
+      corner.textContent = kind
+    } else if (data.verse != null && data.verse > 0) {
+      const part = data.versePart
+      const count = data.versePartCount
+      corner.textContent =
+        typeof part === 'number' && typeof count === 'number' && count > 1 && part > 0
+          ? `${data.verse} - ${part}`
+          : String(data.verse)
+    }
+    const heading = document.createElement('p')
+    heading.className = 'hymn-proj__heading'
+    heading.textContent = data.number != null ? String(data.number) : ''
+    top.appendChild(corner)
+    top.appendChild(heading)
+    wrap.appendChild(top)
+    const body = document.createElement('div')
+    body.className = 'hymn-proj__lines'
+    for (const line of data.lines ?? []) {
+      const p = document.createElement('p')
+      p.className = 'hymn-proj__line'
+      p.textContent = line
+      body.appendChild(p)
+    }
+    wrap.appendChild(body)
+    appendHymnAuthor(wrap, data.author)
+    if (animate && motion.animation === 'uncover') target.insertBefore(wrap, previous)
+    else target.appendChild(wrap)
+    return wrap
+  }
+
+  if (!animate) {
+    silenceMedia(target)
+    target.replaceChildren()
+    paintBackdrop(target, data)
+    mount()
+    return
+  }
+
+  silenceMedia(target)
+  for (const child of [...target.children]) {
+    if (
+      child !== previous &&
+      !child.classList.contains('orion-layer-bg') &&
+      !child.classList.contains('orion-layer-dim')
+    ) {
+      child.remove()
+    }
+  }
+  paintBackdrop(target, data)
+  const incoming = mount()
+  animateHymnSwap(previous, incoming, motion.animation, motion.durationMs)
+}
+
 function renderOrderImage(target, data) {
   if (target === baseLayer) {
     baseLayer.style.backgroundColor = '#000000'
@@ -439,7 +677,13 @@ function renderPayload(target, payload) {
     return
   }
 
+  if (p.type === 'hymn') {
+    renderHymnPayload(target, payload)
+    return
+  }
+
   silenceMedia(target)
+  delete target.dataset.hymnSlide
   target.replaceChildren()
 
   if (p.type === 'deck-slide') {
@@ -523,20 +767,7 @@ function renderPayload(target, payload) {
     const data = /** @type {{ reference?: string; locationLabel?: string; translationLabel?: string; verses?: { number: number; text: string }[]; highlightVerse?: number; backgroundMediaUrl?: string; backgroundColor?: string; backgroundDimOpacity?: number; backgroundFit?: string }} */ (
       payload
     )
-    if (target === baseLayer) {
-      baseLayer.style.backgroundColor = data.backgroundColor || '#000000'
-      baseLayer.style.backgroundSize = data.backgroundFit === 'contain' ? 'contain' : 'cover'
-      baseLayer.style.backgroundPosition = 'center'
-      baseLayer.style.backgroundRepeat = 'no-repeat'
-      if (data.backgroundMediaUrl) {
-        const dim = typeof data.backgroundDimOpacity === 'number'
-          ? Math.min(95, Math.max(0, data.backgroundDimOpacity)) / 100
-          : 0.55
-        baseLayer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})), url(${JSON.stringify(data.backgroundMediaUrl)})`
-      } else {
-        baseLayer.style.backgroundImage = ''
-      }
-    }
+    if (target === baseLayer) paintBackdrop(baseLayer, data)
 
     const verses = data.verses ?? []
     const active =
@@ -590,20 +821,7 @@ function renderPayload(target, payload) {
     const data = /** @type {{ strongs?: string; lemma?: string; transliteration?: string | null; gloss?: string | null; definition?: string; language?: string; infoBar?: string[]; infoBarActive?: number; backgroundMediaUrl?: string; backgroundColor?: string; backgroundDimOpacity?: number; backgroundFit?: string }} */ (
       payload
     )
-    if (target === baseLayer) {
-      baseLayer.style.backgroundColor = data.backgroundColor || '#000000'
-      baseLayer.style.backgroundSize = data.backgroundFit === 'contain' ? 'contain' : 'cover'
-      baseLayer.style.backgroundPosition = 'center'
-      baseLayer.style.backgroundRepeat = 'no-repeat'
-      if (data.backgroundMediaUrl) {
-        const dim = typeof data.backgroundDimOpacity === 'number'
-          ? Math.min(95, Math.max(0, data.backgroundDimOpacity)) / 100
-          : 0.55
-        baseLayer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})), url(${JSON.stringify(data.backgroundMediaUrl)})`
-      } else {
-        baseLayer.style.backgroundImage = ''
-      }
-    }
+    if (target === baseLayer) paintBackdrop(baseLayer, data)
 
     const langRaw = typeof data.language === 'string' ? data.language : 'hebrew'
     const langLabel =
@@ -709,94 +927,6 @@ function renderPayload(target, payload) {
     target.appendChild(wrap)
     return
   }
-
-  if (p.type === 'hymn') {
-    const data = /** @type {{ number?: number; title?: string; author?: string; slideKind?: string; stanzaKind?: string; verse?: number; versePart?: number; versePartCount?: number; lines?: string[]; backgroundMediaUrl?: string; backgroundColor?: string; backgroundDimOpacity?: number; backgroundFit?: string }} */ (
-      payload
-    )
-    if (target === baseLayer) {
-      baseLayer.style.backgroundColor = data.backgroundColor || '#000000'
-      baseLayer.style.backgroundSize = data.backgroundFit === 'contain' ? 'contain' : 'cover'
-      baseLayer.style.backgroundPosition = 'center'
-      baseLayer.style.backgroundRepeat = 'no-repeat'
-      if (data.backgroundMediaUrl) {
-        const dim = typeof data.backgroundDimOpacity === 'number'
-          ? Math.min(95, Math.max(0, data.backgroundDimOpacity)) / 100
-          : 0.55
-        baseLayer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})), url(${JSON.stringify(data.backgroundMediaUrl)})`
-      } else {
-        baseLayer.style.backgroundImage = ''
-      }
-    }
-
-    const slideKind = data.slideKind || 'lyrics'
-
-    if (slideKind === 'end') {
-      return
-    }
-
-    const wrap = document.createElement('div')
-    wrap.className = slideKind === 'title' ? 'hymn-proj hymn-proj--title' : 'hymn-proj'
-    applyInsetsToElement(wrap, contentInsetsByCategory.hymns)
-
-    if (slideKind === 'title') {
-      const hero = document.createElement('div')
-      hero.className = 'hymn-proj__title-hero'
-      const numEl = document.createElement('p')
-      numEl.className = 'hymn-proj__title-number'
-      numEl.textContent = data.number != null ? String(data.number) : ''
-      const titleEl = document.createElement('p')
-      titleEl.className = 'hymn-proj__title-name'
-      titleEl.textContent = data.title ?? ''
-      hero.appendChild(numEl)
-      hero.appendChild(titleEl)
-      wrap.appendChild(hero)
-      appendHymnAuthor(wrap, data.author)
-      target.appendChild(wrap)
-      fitHymnTitleSlide(hero)
-      return
-    }
-
-    const top = document.createElement('div')
-    top.className = 'hymn-proj__top'
-
-    const corner = document.createElement('span')
-    corner.className = 'hymn-proj__corner'
-    const kind = data.stanzaKind || 'verse'
-    if (kind === 'refrain') {
-      corner.textContent = 'Refrain'
-    } else if (kind === 'chorus' || kind === 'bridge' || kind === 'intro') {
-      corner.textContent = kind
-    } else if (data.verse != null && data.verse > 0) {
-      const part = data.versePart
-      const count = data.versePartCount
-      corner.textContent =
-        typeof part === 'number' && typeof count === 'number' && count > 1 && part > 0
-          ? `${data.verse} - ${part}`
-          : String(data.verse)
-    }
-
-    const heading = document.createElement('p')
-    heading.className = 'hymn-proj__heading'
-    heading.textContent = data.number != null ? String(data.number) : ''
-
-    top.appendChild(corner)
-    top.appendChild(heading)
-    wrap.appendChild(top)
-
-    const body = document.createElement('div')
-    body.className = 'hymn-proj__lines'
-    for (const line of data.lines ?? []) {
-      const p = document.createElement('p')
-      p.className = 'hymn-proj__line'
-      p.textContent = line
-      body.appendChild(p)
-    }
-    wrap.appendChild(body)
-    appendHymnAuthor(wrap, data.author)
-    target.appendChild(wrap)
-    return
-  }
 }
 
 /** @param {{ base?: unknown; overlay?: unknown } | null | undefined} state */
@@ -819,22 +949,14 @@ function renderStage(state) {
     overlayLayer.style.visibility = ''
     const overlayPayload = /** @type {{ type?: string; backgroundMediaUrl?: string; backgroundColor?: string; backgroundDimOpacity?: number; backgroundFit?: string }} */ (overlay)
     overlayLayer.classList.add('scrim')
-    overlayLayer.style.backgroundColor = overlayPayload.backgroundColor || '#000000'
-    overlayLayer.style.backgroundSize = overlayPayload.backgroundFit === 'contain' ? 'contain' : 'cover'
+    const overlayWasVisible = overlayLayer.classList.contains('overlay-visible')
+    renderPayload(overlayLayer, overlay)
     const overlayHasBg =
       overlayPayload.type === 'bible' ||
       overlayPayload.type === 'dictionary' ||
       overlayPayload.type === 'hymn'
-    if (overlayHasBg && overlayPayload.backgroundMediaUrl) {
-      const dim = typeof overlayPayload.backgroundDimOpacity === 'number'
-        ? Math.min(95, Math.max(0, overlayPayload.backgroundDimOpacity)) / 100
-        : 0.55
-      overlayLayer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})), url(${JSON.stringify(overlayPayload.backgroundMediaUrl)})`
-    } else {
-      overlayLayer.style.backgroundImage = ''
-    }
-    const overlayWasVisible = overlayLayer.classList.contains('overlay-visible')
-    renderPayload(overlayLayer, overlay)
+    if (overlayHasBg) paintBackdrop(overlayLayer, overlayPayload)
+    else overlayLayer.style.backgroundImage = ''
     // Trigger CSS fade-in
     void overlayLayer.offsetWidth
     overlayLayer.classList.add('overlay-visible')

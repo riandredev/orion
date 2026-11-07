@@ -7,6 +7,8 @@ export type HymnSequenceCue = {
   stepIndex: number
   disabledVerseNumbers: number[]
   includeRefrain: boolean
+  includeTitle: boolean
+  includeEnd: boolean
 }
 
 export type BibleSequenceCue = {

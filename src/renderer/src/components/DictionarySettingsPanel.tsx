@@ -20,7 +20,7 @@ import {
   PROJECTION_PREVIEW_STAGE_WIDTH
 } from './BackgroundStagePreview'
 import { ContentInsetCard } from './ContentInsetCard'
-import { LineHeightField, TextPanelFields, TypeStyleFields } from './TypeStyleFields'
+import { LineHeightField, TextPanelFields, TextShadowField, TypeStyleFields } from './TypeStyleFields'
 
 function fileUrl(filePath: string | null): string | undefined {
   if (!filePath) return undefined
@@ -142,6 +142,7 @@ export function DictionarySettingsPanel(): ReactElement {
               value={typography.lineHeight.dictionary}
               label="Definition line height"
             />
+            <TextShadowField category="dictionary" value={typography.textShadow.dictionary} />
           </div>
         </div>
       </div>

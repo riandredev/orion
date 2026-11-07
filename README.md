@@ -1,71 +1,43 @@
 # Orion
 
-Desktop church presentation control — **Electron + Vite + React**, styled with **Libadwaita-inspired** tokens (not native GTK).
+Presentation software for church services. Run the service from one computer and send hymns, scripture, and slides to the displays.
 
-## Preserved assets
+## Install
 
-| Folder | Purpose |
-|--------|---------|
-| `order-images/` | Service-order slide folders (one subfolder per block) |
-| `images/` | Branding and static art |
+Download a build from the [releases](https://github.com/riandredev/orion/releases).
 
-## Develop (live preview)
+| Edition | What you get |
+| --- | --- |
+| **Orion** | Empty libraries. Add your own service-order images, hymnals, and Bibles. |
+| **Orion Panorama** | A prepared library: service-order images, Afrikaans and English Adventist hymnals, the King James Version, and Afrikaans 1953. |
 
-From `C:\Development\orion`:
+Each edition has a Windows setup and a Linux AppImage. They install side by side and do not share libraries.
+
+Windows may warn that the installer is unsigned.
+
+## What it does
+
+- Project a service order, hymns, and Bible passages
+- Play slide decks, video, and web pages on the outputs
+- Send the picture to more than one display, with a preview of each
+- Save settings as profiles you can export and import
+
+## Develop
 
 ```bash
 npm install
 npm run dev
 ```
 
-Opens the Electron window with hot reload. Use this while building UI.
-
-## Production build (see the packaged UI locally)
-
-```bash
-npm run build
-npm run preview
-```
-
-`build` compiles main, preload, and renderer into `out/`. `preview` runs that build in Electron (no dev server).
-
-## Fonts
-
-**Cantarell** is bundled via `@fontsource/cantarell` (same family GNOME uses for Adwaita). It ships inside the app build — no system install required on Windows.
-
-**Icons:** [Coolicons](https://coolicons.cool/) (`*-fill-round` style) via `@iconify/react` — MIT, bundled offline. Map: `src/renderer/src/components/icons.ts`. Browse variants at [icon-sets.iconify.design/coolicons](https://icon-sets.iconify.design/coolicons/).
-
-## Preserved assets
-
-```
-src/main/       Electron main process (windows, IPC, filesystem)
-src/preload/    contextBridge API exposed as window.orion
-src/renderer/   React operator UI
-```
-
-## Installers
-
-Two editions, each with a Windows setup and a Linux AppImage:
-
-| Edition | What is inside |
-|---------|----------------|
-| **Orion** | Empty libraries. Add order images, hymnals, and Bibles yourself. |
-| **Orion Panorama** | This church's order images, Afrikaans and English hymnals, King James, and Afrikaans 1953. |
-
-Panorama and the standard app install side by side. Bundled libraries are copied into the app's data folder on first launch, so later edits are kept.
+`npm run build` then `npm run preview` runs the packaged interface locally.
 
 ```bash
 npm run dist:win
 npm run dist:linux
-```
-
-```bash
 npm run dist:panorama:win
 npm run dist:panorama:linux
 ```
 
-Installers are written to `dist/standard` and `dist/panorama`.
-
 ## License
 
-Orion is free software under the [GNU General Public License v3](LICENSE). Bundled order images, hymnals, and Bible texts keep their own terms.
+[GNU GPL v3](LICENSE). The license covers the Orion program. Bundled order images, hymnals, and Bible texts keep their own terms.

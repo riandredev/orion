@@ -75,7 +75,7 @@
 
 .presentation-workspace {
   display: grid;
-  grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 308px) minmax(0, 1fr);
   gap: 12px;
   width: 100%;
   min-width: 0;
@@ -91,12 +91,17 @@
   flex-direction: column;
 }
 
+.presentation-workspace__sidebar.adw-card {
+  padding: 16px 0 12px;
+}
+
 .presentation-workspace__sidebar-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
+  padding: 0 16px;
 }
 
 .presentation-workspace__deck-list {

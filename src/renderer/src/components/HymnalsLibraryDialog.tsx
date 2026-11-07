@@ -85,8 +85,7 @@ export function HymnalsLibraryDialog({
               Hymnals
             </h2>
             <p className="adw-caption bible-library-dialog__subtitle">
-              Import Orion packages, migrate Bibsoft <code>AdventistHymnals.mdb</code>, or author hymns with [V1] /{' '}
-              {'{Refrain}'} headers.
+              Import an Orion package, an .mdb hymnal, or author hymns with [V1] / {'{Refrain}'} headers.
             </p>
           </div>
           <button
@@ -105,7 +104,7 @@ export function HymnalsLibraryDialog({
               Add hymn…
             </button>
             <button type="button" className="adw-button" onClick={onImportBibsoftMdb}>
-              Import Bibsoft (.mdb)…
+              Import MDB…
             </button>
             <button type="button" className="adw-button" onClick={onImportFile}>
               Import file…

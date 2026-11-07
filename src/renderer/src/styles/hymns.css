@@ -104,10 +104,58 @@
   background: var(--adw-view-bg);
 }
 
-.hymns-sidebar__count {
-  padding: 10px 12px;
+.hymns-sidebar__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
   border-bottom: 1px solid var(--adw-border);
+}
+
+.hymns-sidebar__count {
+  margin: 0;
+  padding: 0;
   color: var(--adw-fg-muted);
+}
+
+.hymns-pin-filter {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.hymns-pin-filter__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.hymns-pin-filter__btn:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.hymns-pin-filter__btn--active,
+.hymns-pin-filter__btn--active:hover {
+  background: var(--adw-accent);
+  color: var(--adw-accent-fg);
+}
+
+.hymns-entry-list__empty {
+  padding: 16px 12px;
+  text-align: center;
 }
 
 .hymns-entry-list {
@@ -122,11 +170,73 @@
   gap: 2px;
 }
 
+.hymns-entry-list__row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.hymns-entry-list__pin {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--adw-radius-xs);
+  background: transparent;
+  color: var(--adw-fg-muted);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.hymns-entry-list__row:hover .hymns-entry-list__pin,
+.hymns-entry-list__row:focus-within .hymns-entry-list__pin,
+.hymns-entry-list__pin--on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hymns-entry-list__row:hover .hymns-entry-list__item,
+.hymns-entry-list__row:focus-within .hymns-entry-list__item,
+.hymns-entry-list__row:has(.hymns-entry-list__pin--on) .hymns-entry-list__item {
+  padding-right: 36px;
+}
+
+.hymns-entry-list__pin:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--adw-fg);
+}
+
+.hymns-entry-list__pin--on {
+  color: var(--adw-accent);
+}
+
+.hymns-detail__pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hymns-detail__pin--on {
+  color: var(--adw-accent);
+}
+
 .hymns-entry-list__item {
   display: grid;
   grid-template-columns: 2.25rem 1fr;
   gap: 8px;
   align-items: start;
+  flex: 1;
+  min-width: 0;
   width: 100%;
   padding: 6px 8px;
   border: none;

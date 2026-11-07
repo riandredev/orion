@@ -26,6 +26,8 @@ export type ServiceSequenceHymn = {
   title: string
   disabledVerseNumbers: number[]
   includeRefrain: boolean
+  includeTitle?: boolean
+  includeEnd?: boolean
   steps: ServiceSequenceHymnStep[]
 }
 
@@ -223,6 +225,8 @@ function sequenceItem(value: unknown, index: number): ServiceSequenceItem | null
         ? value.disabledVerseNumbers.filter((n) => typeof n === 'number').slice(0, 40)
         : [],
       includeRefrain: value.includeRefrain !== false,
+      includeTitle: value.includeTitle !== false,
+      includeEnd: value.includeEnd !== false,
       steps
     }
   }

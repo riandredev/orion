@@ -2,7 +2,13 @@ import { Icon } from '@iconify/react'
 import { useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
 import type { OrderFolderImage, OrderFolderInfo } from '../env'
-import { dropMarkerRect, hitTestColumnDrop, type ColumnDropTarget } from '../lib/column-drag'
+import {
+  dropMarkerRect,
+  hitTestColumnDrop,
+  hitTestListDrop,
+  rowDropMarkerRect,
+  type ColumnDropTarget
+} from '../lib/column-drag'
 import { writeSequenceDrag } from '../lib/sequence-drag'
 import type { OrderLibraryView, OrderThumbSize } from './OrderBlockRibbon'
 import { AdwTooltip, orderFolderPath } from './AdwTooltip'
@@ -63,7 +69,10 @@ function OrderBrowser({
   onSelectFolder,
   onSelectImage,
   thumbSize,
-  onNewFolder
+  onNewFolder,
+  folderRefs,
+  onReorderPointerDown,
+  shouldIgnoreFolderClick
 }: {
   view: OrderLibraryView
   loading: boolean
@@ -74,6 +83,9 @@ function OrderBrowser({
   onSelectImage: (folderName: string, path: string) => void
   thumbSize: OrderThumbSize
   onNewFolder: () => void
+  folderRefs: Map<string, HTMLElement>
+  onReorderPointerDown: (event: ReactPointerEvent<HTMLButtonElement>, name: string) => void
+  shouldIgnoreFolderClick: () => boolean
 }): ReactElement {
   const active = folderData.find(({ folder }) => folder.name === activeFolderName) ?? null
 
@@ -92,11 +104,22 @@ function OrderBrowser({
             {folderData.map(({ folder, images }) => {
               const selected = folder.name === activeFolderName
               return (
-                <li key={folder.name}>
+                <li
+                  key={folder.name}
+                  className="order-folder-list__row"
+                  ref={(el) => {
+                    if (el) folderRefs.set(folder.name, el)
+                    else folderRefs.delete(folder.name)
+                  }}
+                >
                   <button
                     type="button"
                     className={selected ? 'order-folder-list__item order-folder-list__item--selected' : 'order-folder-list__item'}
-                    onClick={() => onSelectFolder(folder.name)}
+                    onPointerDown={(event) => onReorderPointerDown(event, folder.name)}
+                    onClick={() => {
+                      if (shouldIgnoreFolderClick()) return
+                      onSelectFolder(folder.name)
+                    }}
                   >
                     <span className="order-folder-list__name">{folder.name}</span>
                     <span className="order-folder-list__count adw-caption">{images.length}</span>
@@ -113,7 +136,11 @@ function OrderBrowser({
         ) : !active ? (
           <p className="adw-caption order-browser__status">Select a folder</p>
         ) : active.images.length === 0 ? (
-          <p className="adw-caption order-browser__status">No images in this folder</p>
+          <div className="order-browser__status-page">
+            <Icon icon={AppIcons.images} width={32} height={32} />
+            <p className="order-browser__status-title">No images</p>
+            <p className="adw-caption">This folder is empty.</p>
+          </div>
         ) : view === 'grid' ? (
           <ul className={`order-image-grid order-image-grid--${thumbSize}`}>
             {active.images.map((image) => {
@@ -202,8 +229,11 @@ export function OrderKanbanBoard({
   const getRect = (name: string): DOMRect | undefined =>
     columnRefs.current.get(name)?.getBoundingClientRect()
 
+  const rowDragOwned = useRef(false)
+  const ignoreFolderClick = useRef(false)
+
   useEffect(() => {
-    if (!drag) return
+    if (!drag || rowDragOwned.current) return
 
     document.body.classList.add('orion-column-drag')
     const pointerId = drag.pointerId
@@ -211,7 +241,10 @@ export function OrderKanbanBoard({
 
     const onPointerMove = (e: PointerEvent): void => {
       if (e.pointerId !== pointerId) return
-      const dropTarget = hitTestColumnDrop(e.clientX, folderNames, getRect)
+      const dropTarget =
+        view === 'columns'
+          ? hitTestColumnDrop(e.clientX, folderNames, getRect)
+          : hitTestListDrop(e.clientY, folderNames, getRect)
       setDrag((prev) =>
         prev && prev.pointerId === pointerId
           ? {
@@ -226,7 +259,10 @@ export function OrderKanbanBoard({
 
     const onPointerUp = (e: PointerEvent): void => {
       if (e.pointerId !== pointerId) return
-      const dropTarget = hitTestColumnDrop(e.clientX, folderNames, getRect)
+      const dropTarget =
+        view === 'columns'
+          ? hitTestColumnDrop(e.clientX, folderNames, getRect)
+          : hitTestListDrop(e.clientY, folderNames, getRect)
       if (dropTarget) {
         onReorderFolders(fromName, dropTarget.targetName, dropTarget.position)
       }
@@ -247,7 +283,7 @@ export function OrderKanbanBoard({
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerCancel)
     }
-  }, [drag?.pointerId, folderNamesKey, onReorderFolders])
+  }, [drag?.pointerId, folderNamesKey, onReorderFolders, view])
 
   function startColumnDrag(e: ReactPointerEvent<HTMLButtonElement>, name: string): void {
     if (e.button !== 0) return
@@ -270,11 +306,82 @@ export function OrderKanbanBoard({
     })
   }
 
+  function startFolderRowDrag(e: ReactPointerEvent<HTMLButtonElement>, name: string): void {
+    if (e.button !== 0) return
+    const pointerId = e.pointerId
+    const startX = e.clientX
+    const startY = e.clientY
+    const button = e.currentTarget
+    button.setPointerCapture(pointerId)
+    let started = false
+
+    const onPointerMove = (event: PointerEvent): void => {
+      if (event.pointerId !== pointerId) return
+      if (!started) {
+        if (Math.hypot(event.clientX - startX, event.clientY - startY) < 4) return
+        const row = columnRefs.current.get(name)
+        if (!row) return
+        started = true
+        rowDragOwned.current = true
+        document.body.classList.add('orion-column-drag')
+        const rect = row.getBoundingClientRect()
+        setDrag({
+          folderName: name,
+          pointerId,
+          offsetX: event.clientX - rect.left,
+          offsetY: event.clientY - rect.top,
+          width: rect.width,
+          height: rect.height,
+          x: rect.left,
+          y: rect.top,
+          dropTarget: null
+        })
+        return
+      }
+      const dropTarget = hitTestListDrop(event.clientY, folderNames, getRect)
+      setDrag((prev) =>
+        prev && prev.pointerId === pointerId
+          ? {
+              ...prev,
+              x: event.clientX - prev.offsetX,
+              y: event.clientY - prev.offsetY,
+              dropTarget
+            }
+          : prev
+      )
+    }
+
+    const finish = (event: PointerEvent): void => {
+      if (event.pointerId !== pointerId) return
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', finish)
+      window.removeEventListener('pointercancel', finish)
+      if (!started) return
+      ignoreFolderClick.current = true
+      window.setTimeout(() => {
+        ignoreFolderClick.current = false
+      }, 50)
+      const dropTarget = hitTestListDrop(event.clientY, folderNames, getRect)
+      if (dropTarget) onReorderFolders(name, dropTarget.targetName, dropTarget.position)
+      rowDragOwned.current = false
+      document.body.classList.remove('orion-column-drag')
+      setDrag(null)
+    }
+
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', finish)
+    window.addEventListener('pointercancel', finish)
+  }
+
   const dragFolder = drag
     ? folderData.find(({ folder }) => folder.name === drag.folderName)
     : null
   const marker =
-    drag?.dropTarget != null ? dropMarkerRect(drag.dropTarget, getRect) : null
+    drag?.dropTarget != null
+      ? view === 'columns'
+        ? dropMarkerRect(drag.dropTarget, getRect)
+        : rowDropMarkerRect(drag.dropTarget, getRect)
+      : null
 
   return (
     <div className={`order-workspace ${drag ? 'order-workspace--column-drag' : ''}`}>
@@ -379,6 +486,13 @@ export function OrderKanbanBoard({
           onSelectImage={onSelectImage}
           thumbSize={thumbSize}
           onNewFolder={onNewFolder}
+          folderRefs={columnRefs.current}
+          onReorderPointerDown={startFolderRowDrag}
+          shouldIgnoreFolderClick={() => {
+            if (!ignoreFolderClick.current) return false
+            ignoreFolderClick.current = false
+            return true
+          }}
         />
       )}
 
@@ -387,12 +501,16 @@ export function OrderKanbanBoard({
             <>
               {marker ? (
                 <div
-                  className="kanban-drop-marker"
-                  style={{
-                    left: marker.left,
-                    top: marker.top,
-                    height: marker.height
-                  }}
+                  className={
+                    'height' in marker
+                      ? 'kanban-drop-marker'
+                      : 'kanban-drop-marker kanban-drop-marker--row'
+                  }
+                  style={
+                    'height' in marker
+                      ? { left: marker.left, top: marker.top, height: marker.height }
+                      : { left: marker.left, top: marker.top, width: marker.width }
+                  }
                   aria-hidden
                 />
               ) : null}

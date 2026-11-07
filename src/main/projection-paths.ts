@@ -1,5 +1,5 @@
 import { existsSync } from 'fs'
-import { isAbsolute, relative, resolve } from 'path'
+import { basename, isAbsolute, relative, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import type { OrionProjectionPayload } from '../shared/projection'
 import { bibleLocationFromReference } from '../shared/bible-projection-display'
@@ -13,6 +13,24 @@ export function isPathUnderRoot(filePath: string, root: string): boolean {
   if (normalized === rootResolved) return true
   const rel = relative(rootResolved, normalized)
   return rel.length > 0 && !rel.startsWith('..') && !isAbsolute(rel)
+}
+
+/** Backgrounds are stored as names inside the image library, or as full paths. */
+export function resolveBackgroundImagePath(filePath: string): string {
+  const trimmed = filePath.trim()
+  const name = basename(trimmed)
+  const candidates = [
+    isAbsolute(trimmed) ? resolve(trimmed) : resolve(imagesRoot(), trimmed),
+    name ? resolve(imagesRoot(), name) : '',
+    name ? resolve(imagesRoot(), 'backgrounds', name) : ''
+  ].filter((candidate) => candidate.length > 0)
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate) && isPathUnderRoot(candidate, imagesRoot())) {
+      return resolve(candidate)
+    }
+  }
+  return assertAllowedImagePath(trimmed)
 }
 
 export function assertAllowedImagePath(filePath: string): string {
@@ -50,7 +68,7 @@ export function sanitizeProjectionPayload(payload: OrionProjectionPayload): Orio
     let backgroundImagePath: string | null = null
     if (typeof payload.backgroundImagePath === 'string' && payload.backgroundImagePath.trim().length > 0) {
       try {
-        backgroundImagePath = assertAllowedImagePath(payload.backgroundImagePath)
+        backgroundImagePath = resolveBackgroundImagePath(payload.backgroundImagePath)
       } catch {
         backgroundImagePath = null
       }
@@ -149,7 +167,7 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
     let backgroundImagePath: string | null = null
     if (typeof content.backgroundImagePath === 'string' && content.backgroundImagePath.trim().length > 0) {
       try {
-        backgroundImagePath = assertAllowedImagePath(content.backgroundImagePath)
+        backgroundImagePath = resolveBackgroundImagePath(content.backgroundImagePath)
       } catch {
         backgroundImagePath = null
       }
@@ -193,7 +211,7 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
     let backgroundImagePath: string | null = null
     if (typeof content.backgroundImagePath === 'string' && content.backgroundImagePath.trim().length > 0) {
       try {
-        backgroundImagePath = assertAllowedImagePath(content.backgroundImagePath)
+        backgroundImagePath = resolveBackgroundImagePath(content.backgroundImagePath)
       } catch {
         backgroundImagePath = null
       }
@@ -237,7 +255,23 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
       backgroundImagePath,
       backgroundColor,
       backgroundDimOpacity,
-      backgroundFit
+      backgroundFit,
+      animation:
+        content.animation === 'none' ||
+        content.animation === 'crossfade' ||
+        content.animation === 'fade' ||
+        content.animation === 'cut' ||
+        content.animation === 'wipe' ||
+        content.animation === 'push' ||
+        content.animation === 'cover' ||
+        content.animation === 'uncover' ||
+        content.animation === 'split'
+          ? content.animation
+          : 'none',
+      durationMs:
+        typeof content.durationMs === 'number' && Number.isFinite(content.durationMs)
+          ? Math.min(5000, Math.max(0, Math.round(content.durationMs)))
+          : 0
     }
   }
   const bible = sanitizeProjectionPayload({

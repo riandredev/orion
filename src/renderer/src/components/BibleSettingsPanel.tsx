@@ -21,7 +21,7 @@ import {
   PROJECTION_PREVIEW_STAGE_WIDTH
 } from './BackgroundStagePreview'
 import { ContentInsetCard } from './ContentInsetCard'
-import { LineHeightField, TextPanelFields, TypeStyleFields } from './TypeStyleFields'
+import { LineHeightField, TextPanelFields, TextShadowField, TypeStyleFields } from './TypeStyleFields'
 
 function fileUrl(filePath: string | null): string | undefined {
   if (!filePath) return undefined
@@ -92,6 +92,7 @@ export function BibleSettingsPanel(): ReactElement {
               onReset={() => resetBibleTypographyElement(selected)}
             />
             <LineHeightField category="bible" value={typography.lineHeight.bible} label="Verse line height" />
+            <TextShadowField category="bible" value={typography.textShadow.bible} />
             <TextPanelFields
               label="Book name box"
               panel={typography.biblePanels.reference}

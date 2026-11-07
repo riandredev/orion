@@ -1,4 +1,5 @@
 import type { OrderFolderInfo } from '../env'
+import { touchProfileSettings } from './profile-autosave'
 
 const STORAGE_KEY = 'orion-kanban-column-order'
 
@@ -20,6 +21,7 @@ export function saveColumnOrder(names: string[]): void {
   } catch {
     /* ignore quota / private mode */
   }
+  touchProfileSettings()
 }
 
 export function applyFolderOrder(

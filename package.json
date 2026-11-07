@@ -1,8 +1,8 @@
 {
   "name": "orion",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "license": "GPL-3.0-only",
-  "description": "Church presentation control — Electron + Vite + React",
+  "description": "Presentation software for church services",
   "main": "./out/main/index.js",
   "private": true,
   "scripts": {

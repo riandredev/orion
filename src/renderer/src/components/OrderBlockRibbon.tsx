@@ -206,12 +206,6 @@ export function OrderBlockRibbon({
 
         <div className="order-ribbon__section" role="group" aria-label="View">
           <IconButton
-            label="Columns"
-            icon="viewColumns"
-            pressed={view === 'columns'}
-            onClick={() => onViewChange('columns')}
-          />
-          <IconButton
             label="Grid"
             icon="viewGrid"
             pressed={view === 'grid'}
@@ -222,6 +216,12 @@ export function OrderBlockRibbon({
             icon="viewList"
             pressed={view === 'list'}
             onClick={() => onViewChange('list')}
+          />
+          <IconButton
+            label="Columns"
+            icon="viewColumns"
+            pressed={view === 'columns'}
+            onClick={() => onViewChange('columns')}
           />
         </div>
 

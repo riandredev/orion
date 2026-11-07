@@ -10,6 +10,8 @@ export type SequenceHymnRef = {
   title: string
   disabledVerseNumbers: number[]
   includeRefrain: boolean
+  includeTitle?: boolean
+  includeEnd?: boolean
 }
 
 export type SequenceDictionaryRef = {

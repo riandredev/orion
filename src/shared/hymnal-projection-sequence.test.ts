@@ -70,6 +70,15 @@ describe('hymnal-projection-sequence', () => {
     )
   })
 
+  it('can omit the title and end slides', () => {
+    const stanzas: HymnStanza[] = [
+      { kind: 'verse', verse: 1, lines: ['a'] },
+      { kind: 'verse', verse: 2, lines: ['b'] }
+    ]
+    const steps = buildHymnProjectionSteps(stanzas, { includeTitle: false, includeEnd: false })
+    expect(steps.map((step) => step.kind)).toEqual(['lyrics', 'lyrics'])
+  })
+
   it('projection step carries line payload', () => {
     const stanzas: HymnStanza[] = [{ kind: 'verse', verse: 1, lines: ['hello'] }]
     const steps = buildHymnProjectionSteps(stanzas)

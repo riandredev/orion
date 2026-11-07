@@ -55,6 +55,8 @@ export type ProjectionWireHymn = {
   versePartCount?: number
   lines: string[]
   author?: string
+  animation?: string
+  durationMs?: number
   backgroundMediaUrl?: string
   backgroundColor?: string
   backgroundDimOpacity?: number
@@ -299,6 +301,8 @@ export function createStackWire(
         : {}),
       lines: content.lines,
       ...(content.author?.trim() ? { author: content.author.trim() } : {}),
+      ...(content.animation ? { animation: content.animation } : {}),
+      ...(typeof content.durationMs === 'number' ? { durationMs: content.durationMs } : {}),
       ...bgFields
     }
   }

@@ -62,6 +62,7 @@ import trash from '@iconify-icons/coolicons/trash-fill-round'
 import gripVertical from '@iconify-icons/coolicons/menu-alt-4-fill-round'
 import globe from '@iconify-icons/coolicons/globe-fill-round'
 import video from '@iconify-icons/coolicons/video-fill-round'
+import pin from '@iconify-icons/coolicons/pin-fill-round'
 
 export const AppIcons = {
   plus,
@@ -97,7 +98,8 @@ export const AppIcons = {
   trash,
   music,
   folder,
-  save
+  save,
+  pin
 } satisfies Record<string, IconifyIcon>
 
 export type AppIconName = keyof typeof AppIcons

@@ -21,7 +21,7 @@ import {
 } from '../lib/projection-typography-settings'
 import { AdwScale } from './AdwScale'
 import { AdwSelect } from './AdwSelect'
-import { LineHeightField, TextColorField, TextPanelFields } from './TypeStyleFields'
+import { LineHeightField, TextColorField, TextPanelFields, TextShadowField } from './TypeStyleFields'
 import {
   PROJECTION_PREVIEW_STAGE_HEIGHT,
   PROJECTION_PREVIEW_STAGE_WIDTH
@@ -140,6 +140,7 @@ export function HymnsSettingsPanel(): ReactElement {
                 Reset {selectedMeta.label.toLowerCase()}
               </button>
               <LineHeightField category="hymns" value={lineHeight} label="Lyric line height" />
+              <TextShadowField category="hymns" value={projection.textShadow.hymns} />
               {HYMN_BOXES.map((box) => (
                 <TextPanelFields
                   key={box.id}

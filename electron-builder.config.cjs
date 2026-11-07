@@ -5,6 +5,10 @@ module.exports = {
   appId: panorama ? 'com.orion.presenter.panorama' : 'com.orion.presenter',
   productName: panorama ? 'Orion Panorama' : 'Orion',
   executableName: panorama ? 'OrionPanorama' : 'Orion',
+  extraMetadata: {
+    desktopName: panorama ? 'orion-panorama.desktop' : 'orion.desktop'
+  },
+  syncDesktopName: true,
   directories: {
     output: panorama ? 'dist/panorama' : 'dist/standard'
   },
@@ -58,8 +62,15 @@ module.exports = {
   linux: {
     target: [{ target: 'AppImage', arch: ['x64'] }],
     category: 'Office',
-    icon: 'build/icon.png',
-    synopsis: panorama ? 'Orion Panorama church presentation' : 'Orion church presentation'
+    icon: 'build/icons',
+    executableName: panorama ? 'orion-panorama' : 'orion',
+    synopsis: panorama ? 'Orion Panorama church presentation' : 'Orion church presentation',
+    desktop: {
+      entry: {
+        StartupWMClass: panorama ? 'orion-panorama' : 'orion',
+        Icon: panorama ? 'orion-panorama' : 'orion'
+      }
+    }
   },
   nsis: {
     oneClick: false,

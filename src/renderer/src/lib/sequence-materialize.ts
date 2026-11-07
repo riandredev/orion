@@ -10,7 +10,12 @@ import type { SequenceInsertDraft } from './sequence-drag'
 
 export function hymnStepsFromEntry(
   entry: HymnEntry,
-  options: { disabledVerseNumbers: number[]; includeRefrain: boolean }
+  options: {
+    disabledVerseNumbers: number[]
+    includeRefrain: boolean
+    includeTitle?: boolean
+    includeEnd?: boolean
+  }
 ): ServiceSequenceHymnStep[] {
   const steps = buildHymnProjectionSteps(entry.stanzas, options)
   return steps.map((step) => {
@@ -69,6 +74,8 @@ export async function materializeSequenceDraft(
       title: entry.title,
       disabledVerseNumbers: draft.disabledVerseNumbers,
       includeRefrain: draft.includeRefrain,
+      includeTitle: draft.includeTitle,
+      includeEnd: draft.includeEnd,
       steps: hymnStepsFromEntry(entry, draft)
     }
   }
@@ -88,7 +95,12 @@ export function withSequenceId(item: ServiceSequenceDraft): ServiceSequenceItem 
 export function hymnDraftFromEntry(
   entry: HymnEntry,
   hymnalId: string,
-  options: { disabledVerseNumbers: number[]; includeRefrain: boolean }
+  options: {
+    disabledVerseNumbers: number[]
+    includeRefrain: boolean
+    includeTitle?: boolean
+    includeEnd?: boolean
+  }
 ): Extract<ServiceSequenceDraft, { kind: 'hymn' }> {
   return {
     kind: 'hymn',
@@ -98,6 +110,8 @@ export function hymnDraftFromEntry(
     title: entry.title,
     disabledVerseNumbers: options.disabledVerseNumbers,
     includeRefrain: options.includeRefrain,
+    includeTitle: options.includeTitle !== false,
+    includeEnd: options.includeEnd !== false,
     steps: hymnStepsFromEntry(entry, options)
   }
 }

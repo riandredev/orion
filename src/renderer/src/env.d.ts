@@ -186,6 +186,12 @@ export type OrionApi = {
     epoch: number
   }) => void
   setGuestAudioMuted: (webContentsId: number, muted: boolean) => void
+  onAppUpdate: (
+    callback: (status: import('../../shared/app-update').AppUpdateStatus) => void
+  ) => () => void
+  downloadAppUpdate: () => Promise<void>
+  installAppUpdate: () => Promise<void>
+  dismissAppUpdate: () => Promise<void>
   onPresenterSlideFromWindow: (
     callback: (payload: { deckId: string | null; slideIndex: number }) => void
   ) => () => void

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { touchProfileSettings } from './profile-autosave'
+import { flushProfileSettings } from './profile-autosave'
 
 export type BackgroundCategoryId = 'defaults' | 'bible' | 'hymns' | 'dictionary'
 
@@ -30,18 +30,83 @@ export const DEFAULT_BIBLE_BACKGROUND_IMAGE = 'bible-image.png'
 let cachedImagesRoot: string | null = null
 
 /** Call once from the renderer after `orion:get-paths` so relative image names resolve. */
+function normalizePath(value: string): string {
+  return value.replace(/\\/g, '/').replace(/\/+$/, '')
+}
+
 export function setBackgroundImagesRoot(rootPath: string): void {
-  cachedImagesRoot = rootPath.replace(/\\/g, '/').replace(/\/+$/, '')
+  cachedImagesRoot = normalizePath(rootPath)
+  if (!cachedSettings) cachedSettings = loadBackgroundSettings()
+  const stored = storeBackgroundPaths(cachedSettings)
+  const changed = JSON.stringify(stored) !== JSON.stringify(cachedSettings)
+  cachedSettings = stored
+  if (changed) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+    } catch {
+      /* ignore */
+    }
+    flushProfileSettings()
+  }
+  listeners.forEach((l) => l())
+}
+
+function storeImagePath(imagePath: string | null): string | null {
+  if (!imagePath?.trim()) return null
+  const trimmed = normalizePath(imagePath.trim())
+  if (cachedImagesRoot) {
+    const root = cachedImagesRoot.toLowerCase()
+    const path = trimmed.toLowerCase()
+    if (path === root) return null
+    if (path.startsWith(`${root}/`)) return trimmed.slice(cachedImagesRoot.length + 1)
+  }
+  // A full path from another install (user data, an old folder) is not usable by
+  // the projector. Keep the file name so it resolves inside the current library.
+  if (/^[a-zA-Z]:\//.test(trimmed) || trimmed.startsWith('/')) {
+    return trimmed.split('/').pop() || null
+  }
+  return trimmed
+}
+
+function storeBackgroundPaths(settings: AllBackgroundSettings): AllBackgroundSettings {
+  const next = { ...settings }
+  for (const id of Object.keys(next) as BackgroundCategoryId[]) {
+    next[id] = { ...next[id], imagePath: storeImagePath(next[id].imagePath) }
+  }
+  return next
+}
+
+export function backgroundImagesMatch(stored: string | null, candidate: string): boolean {
+  if (!stored?.trim()) return false
+  const norm = (value: string): string => normalizePath(value).toLowerCase()
+  const resolved = resolveStoredBackgroundImagePath(stored)
+  if (resolved && norm(resolved) === norm(candidate)) return true
+  const storedKey = norm(stored)
+  const candidateKey = norm(candidate)
+  if (storedKey === candidateKey) return true
+  if (cachedImagesRoot && candidateKey.startsWith(`${cachedImagesRoot.toLowerCase()}/`)) {
+    const relative = candidateKey.slice(cachedImagesRoot.length + 1)
+    if (storedKey === relative || storedKey.endsWith(`/${relative}`)) return true
+  }
+  const storedName = storedKey.split('/').pop()
+  const candidateName = candidateKey.split('/').pop()
+  return Boolean(storedName && storedName === candidateName && !storedKey.includes('/'))
 }
 
 export function resolveStoredBackgroundImagePath(imagePath: string | null): string | null {
   if (!imagePath?.trim()) return null
-  const trimmed = imagePath.trim()
-  if (/^[a-zA-Z]:[/\\]/.test(trimmed) || trimmed.startsWith('/')) {
-    return trimmed
+  const trimmed = normalizePath(imagePath.trim())
+  const absolute = /^[a-zA-Z]:\//.test(trimmed) || trimmed.startsWith('/')
+  if (absolute) {
+    if (!cachedImagesRoot) return trimmed
+    const root = cachedImagesRoot.toLowerCase()
+    const path = trimmed.toLowerCase()
+    if (path === root || path.startsWith(`${root}/`)) return trimmed
+    const name = trimmed.split('/').pop()
+    return name ? `${cachedImagesRoot}/${name}` : trimmed
   }
   if (cachedImagesRoot) {
-    return `${cachedImagesRoot}/${trimmed.replace(/^[/\\]+/, '')}`
+    return `${cachedImagesRoot}/${trimmed.replace(/^\/+/, '')}`
   }
   return trimmed
 }
@@ -182,15 +247,16 @@ export function reloadBackgroundSettingsFromStorage(): void {
 }
 
 export function saveBackgroundSettings(next: AllBackgroundSettings): AllBackgroundSettings {
-  cachedSettings = next
+  const stored = storeBackgroundPaths(next)
+  cachedSettings = stored
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
   } catch {
     /* ignore */
   }
-  touchProfileSettings()
+  flushProfileSettings()
   listeners.forEach((l) => l())
-  return next
+  return stored
 }
 
 export function updateCategoryBackground(

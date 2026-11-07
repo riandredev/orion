@@ -43,6 +43,14 @@ import {
   getHymnsWorkspaceSession,
   patchHymnsWorkspaceSession
 } from '../lib/hymns-workspace-session'
+import {
+  hymnPinFor,
+  loadHymnPins,
+  removeHymnPin,
+  saveHymnPins,
+  upsertHymnPin,
+  type HymnPin
+} from '../lib/hymn-pins'
 import { AdwSelect } from './AdwSelect'
 import { AdwActionRow } from './AdwActionRow'
 import { AdwSwitch } from './AdwSwitch'
@@ -78,6 +86,8 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
   const [includeRefrain, setIncludeRefrain] = useState(
     () => sessionSeed.includeRefrain !== false
   )
+  const [includeTitle, setIncludeTitle] = useState(() => sessionSeed.includeTitle !== false)
+  const [includeEnd, setIncludeEnd] = useState(() => sessionSeed.includeEnd !== false)
   const [indexRows, setIndexRows] = useState<HymnSummary[]>([])
   const [entry, setEntry] = useState<HymnEntry | null>(null)
   const [indexLoading, setIndexLoading] = useState(false)
@@ -87,6 +97,8 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
   const [editorEntry, setEditorEntry] = useState<HymnEntry | null>(null)
   const [editorHymnalId, setEditorHymnalId] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [pins, setPins] = useState<HymnPin[]>(() => loadHymnPins())
+  const [pinsOnly, setPinsOnly] = useState(false)
   const listScrollRef = useRef<HTMLUListElement>(null)
   const entryLoadGen = useRef(0)
   const hymnCue = useHymnSequenceCue()
@@ -121,41 +133,59 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
     setProjectionStepIndexState(0)
   }, [])
 
+  const applyHymnPlaySettings = useCallback((hymnId: string | null) => {
+    const pin = hymnId ? hymnPinFor(loadHymnPins(), hymnalId, hymnId) : undefined
+    const disabledVerseNumbers = pin?.disabledVerseNumbers ?? []
+    const includeRefrain = pin?.includeRefrain ?? true
+    const includeTitle = pin?.includeTitle !== false
+    const includeEnd = pin?.includeEnd !== false
+    patchHymnsWorkspaceSession({
+      selectedId: hymnId,
+      stanzaIndex: 0,
+      projectionStepIndex: 0,
+      disabledVerseNumbers,
+      includeRefrain,
+      includeTitle,
+      includeEnd
+    })
+    setProjectionStepIndexState(0)
+    setDisabledVerseNumbers(disabledVerseNumbers)
+    setIncludeRefrain(includeRefrain)
+    setIncludeTitle(includeTitle)
+    setIncludeEnd(includeEnd)
+  }, [hymnalId])
+
   const setSelectedId = useCallback((value: SetStateAction<string | null>) => {
     setSelectedIdState((prev) => {
       const next = typeof value === 'function' ? value(prev) : value
-      if (next !== prev) {
-        patchHymnsWorkspaceSession({
-          selectedId: next,
-          stanzaIndex: 0,
-          projectionStepIndex: 0,
-          disabledVerseNumbers: [],
-          includeRefrain: true
-        })
-        queueMicrotask(() => {
-          setProjectionStepIndexState(0)
-          setDisabledVerseNumbers([])
-          setIncludeRefrain(true)
-        })
-      }
+      if (next !== prev) queueMicrotask(() => applyHymnPlaySettings(next))
       return next
     })
-  }, [])
+  }, [applyHymnPlaySettings])
 
-  const listEntries = useMemo(
-    () => queryHymnSummaries(indexRows, query),
-    [indexRows, query]
-  )
+  const listEntries = useMemo(() => {
+    const rows = queryHymnSummaries(indexRows, query)
+    const pinned = new Set(
+      pins.filter((pin) => pin.hymnalId === hymnalId).map((pin) => pin.hymnId)
+    )
+    return rows
+      .map((row, index) => ({ row, index, pinned: pinned.has(row.id) }))
+      .filter((item) => !pinsOnly || item.pinned)
+      .sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.index - b.index)
+      .map((item) => item.row)
+  }, [hymnalId, indexRows, pins, pinsOnly, query])
 
   const projectionSteps = useMemo(
     () =>
       entry
         ? buildHymnProjectionSteps(entry.stanzas, {
             disabledVerseNumbers,
-            includeRefrain
+            includeRefrain,
+            includeTitle,
+            includeEnd
           })
         : [],
-    [entry, disabledVerseNumbers, includeRefrain]
+    [entry, disabledVerseNumbers, includeRefrain, includeTitle, includeEnd]
   )
 
   const activeProjectionStep = useMemo(
@@ -235,6 +265,52 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
   }, [])
 
   useEffect(() => {
+    const reloadPins = (): void => {
+      const next = loadHymnPins()
+      setPins(next)
+      if (!selectedId) return
+      const pin = hymnPinFor(next, hymnalId, selectedId)
+      const disabled = pin?.disabledVerseNumbers ?? []
+      const refrain = pin?.includeRefrain ?? true
+      const title = pin?.includeTitle !== false
+      const end = pin?.includeEnd !== false
+      setDisabledVerseNumbers(disabled)
+      setIncludeRefrain(refrain)
+      setIncludeTitle(title)
+      setIncludeEnd(end)
+      patchHymnsWorkspaceSession({
+        disabledVerseNumbers: disabled,
+        includeRefrain: refrain,
+        includeTitle: title,
+        includeEnd: end
+      })
+    }
+    window.addEventListener('orion-profile-applied', reloadPins)
+    return () => window.removeEventListener('orion-profile-applied', reloadPins)
+  }, [hymnalId, selectedId])
+
+  const togglePin = useCallback(
+    (hymnId: string) => {
+      setPins((prev) => {
+        const existing = hymnPinFor(prev, hymnalId, hymnId)
+        const next = existing
+          ? removeHymnPin(prev, hymnalId, hymnId)
+          : upsertHymnPin(prev, {
+              hymnalId,
+              hymnId,
+              disabledVerseNumbers: hymnId === selectedId ? disabledVerseNumbers : [],
+              includeRefrain: hymnId === selectedId ? includeRefrain : true,
+              includeTitle: hymnId === selectedId ? includeTitle : true,
+              includeEnd: hymnId === selectedId ? includeEnd : true
+            })
+        saveHymnPins(next)
+        return next
+      })
+    },
+    [disabledVerseNumbers, hymnalId, includeEnd, includeRefrain, includeTitle, selectedId]
+  )
+
+  useEffect(() => {
     if (!hymnalId) {
       setIndexRows([])
       return
@@ -258,9 +334,8 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
         })
       }
       setSelectedIdState((prev) => {
-        if (filtered.length === 0) return query.trim() ? null : prev
-        if (prev && filtered.some((e) => e.id === prev)) return prev
-        if (query.trim()) return filtered[0]?.id ?? null
+        if (query.trim()) return prev
+        if (filtered.length === 0) return prev
         if (prev) return prev
         return filtered[0]?.id ?? null
       })
@@ -403,22 +478,89 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
 
   const detailCounts = useMemo(() => (entry ? countHymnStanzas(entry.stanzas) : null), [entry])
 
-  const toggleVerseEnabled = useCallback((verseNum: number, enabled: boolean) => {
-    setDisabledVerseNumbers((prev) => {
-      const next = enabled ? prev.filter((n) => n !== verseNum) : [...prev, verseNum].sort((a, b) => a - b)
-      patchHymnsWorkspaceSession({ disabledVerseNumbers: next })
-      return next
-    })
+  const rememberPinSettings = useCallback(
+    (
+      hymnId: string,
+      play: {
+        disabledVerseNumbers: number[]
+        includeRefrain: boolean
+        includeTitle: boolean
+        includeEnd: boolean
+      }
+    ) => {
+      setPins((prev) => {
+        if (!hymnPinFor(prev, hymnalId, hymnId)) return prev
+        const next = upsertHymnPin(prev, { hymnalId, hymnId, ...play })
+        saveHymnPins(next)
+        return next
+      })
+    },
+    [hymnalId]
+  )
+
+  const resetSlidePosition = useCallback(() => {
     setProjectionStepIndexState(0)
     patchHymnsWorkspaceSession({ projectionStepIndex: 0 })
   }, [])
 
+  const toggleVerseEnabled = useCallback((verseNum: number, enabled: boolean) => {
+    setDisabledVerseNumbers((prev) => {
+      const next = enabled ? prev.filter((n) => n !== verseNum) : [...prev, verseNum].sort((a, b) => a - b)
+      patchHymnsWorkspaceSession({ disabledVerseNumbers: next })
+      if (selectedId) {
+        rememberPinSettings(selectedId, {
+          disabledVerseNumbers: next,
+          includeRefrain,
+          includeTitle,
+          includeEnd
+        })
+      }
+      return next
+    })
+    resetSlidePosition()
+  }, [includeEnd, includeRefrain, includeTitle, rememberPinSettings, resetSlidePosition, selectedId])
+
   const toggleRefrainIncluded = useCallback((on: boolean) => {
     setIncludeRefrain(on)
     patchHymnsWorkspaceSession({ includeRefrain: on })
-    setProjectionStepIndexState(0)
-    patchHymnsWorkspaceSession({ projectionStepIndex: 0 })
-  }, [])
+    if (selectedId) {
+      rememberPinSettings(selectedId, {
+        disabledVerseNumbers,
+        includeRefrain: on,
+        includeTitle,
+        includeEnd
+      })
+    }
+    resetSlidePosition()
+  }, [disabledVerseNumbers, includeEnd, includeTitle, rememberPinSettings, resetSlidePosition, selectedId])
+
+  const toggleTitleIncluded = useCallback((on: boolean) => {
+    setIncludeTitle(on)
+    patchHymnsWorkspaceSession({ includeTitle: on })
+    if (selectedId) {
+      rememberPinSettings(selectedId, {
+        disabledVerseNumbers,
+        includeRefrain,
+        includeTitle: on,
+        includeEnd
+      })
+    }
+    resetSlidePosition()
+  }, [disabledVerseNumbers, includeEnd, includeRefrain, rememberPinSettings, resetSlidePosition, selectedId])
+
+  const toggleEndIncluded = useCallback((on: boolean) => {
+    setIncludeEnd(on)
+    patchHymnsWorkspaceSession({ includeEnd: on })
+    if (selectedId) {
+      rememberPinSettings(selectedId, {
+        disabledVerseNumbers,
+        includeRefrain,
+        includeTitle,
+        includeEnd: on
+      })
+    }
+    resetSlidePosition()
+  }, [disabledVerseNumbers, includeRefrain, includeTitle, rememberPinSettings, resetSlidePosition, selectedId])
 
   useEffect(() => {
     if (projectionSteps.length === 0) return
@@ -429,7 +571,7 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
       patchHymnsWorkspaceSession({ projectionStepIndex: clamped, stanzaIndex: stanzaIdx })
       return clamped
     })
-  }, [projectionSteps.length, disabledVerseNumbers, includeRefrain])
+  }, [projectionSteps.length, disabledVerseNumbers, includeEnd, includeRefrain, includeTitle])
 
   const selectStanzaOffset = useCallback(
     (delta: number) => {
@@ -444,9 +586,14 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
       return
     }
     publishHymnSequenceDraft(
-      hymnDraftFromEntry(entry, hymnalId, { disabledVerseNumbers, includeRefrain })
+      hymnDraftFromEntry(entry, hymnalId, {
+        disabledVerseNumbers,
+        includeRefrain,
+        includeTitle,
+        includeEnd
+      })
     )
-  }, [entry, hymnalId, disabledVerseNumbers, includeRefrain])
+  }, [entry, hymnalId, disabledVerseNumbers, includeEnd, includeRefrain, includeTitle])
 
   useEffect(() => {
     if (!hymnCue) return
@@ -457,13 +604,17 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
     setSelectedIdState(hymnCue.hymnId)
     setDisabledVerseNumbers(hymnCue.disabledVerseNumbers)
     setIncludeRefrain(hymnCue.includeRefrain)
+    setIncludeTitle(hymnCue.includeTitle)
+    setIncludeEnd(hymnCue.includeEnd)
     setProjectionStepIndexState(hymnCue.stepIndex)
     patchHymnsWorkspaceSession({
       hymnalId: hymnCue.hymnalId,
       selectedId: hymnCue.hymnId,
       projectionStepIndex: hymnCue.stepIndex,
       disabledVerseNumbers: hymnCue.disabledVerseNumbers,
-      includeRefrain: hymnCue.includeRefrain
+      includeRefrain: hymnCue.includeRefrain,
+      includeTitle: hymnCue.includeTitle,
+      includeEnd: hymnCue.includeEnd
     })
   }, [hymnCue])
 
@@ -499,11 +650,18 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
       goLive: () => onGoLive?.(),
       addToSequence: () => {
         if (!entry) return
-        pushSequenceDraft(hymnDraftFromEntry(entry, hymnalId, { disabledVerseNumbers, includeRefrain }))
+        pushSequenceDraft(
+          hymnDraftFromEntry(entry, hymnalId, {
+            disabledVerseNumbers,
+            includeRefrain,
+            includeTitle,
+            includeEnd
+          })
+        )
       }
     })
     return () => clearHymnsRibbonActions()
-  }, [selectStanzaOffset, onProjectStanza, onGoLive, entry, hymnalId, disabledVerseNumbers, includeRefrain])
+  }, [selectStanzaOffset, onProjectStanza, onGoLive, entry, hymnalId, disabledVerseNumbers, includeEnd, includeRefrain, includeTitle])
 
   const onImportFile = (): void => {
     void importFile().then((meta) => {
@@ -629,17 +787,46 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
 
       <div className="hymns-workspace__body">
         <aside className="hymns-sidebar">
-          <p className="hymns-sidebar__count adw-caption">
-            {indexLoading
-              ? 'Loading hymnal…'
-              : `${listEntries.length.toLocaleString()} hymn${listEntries.length === 1 ? '' : 's'}`}
-          </p>
+          <div className="hymns-sidebar__bar">
+            <p className="hymns-sidebar__count adw-caption">
+              {indexLoading
+                ? 'Loading hymnal…'
+                : pinsOnly
+                  ? `${listEntries.length.toLocaleString()} pinned`
+                  : `${listEntries.length.toLocaleString()} hymn${listEntries.length === 1 ? '' : 's'}`}
+            </p>
+            <div className="hymns-pin-filter" role="group" aria-label="Hymn list filter">
+              <button
+                type="button"
+                className={pinsOnly ? 'hymns-pin-filter__btn' : 'hymns-pin-filter__btn hymns-pin-filter__btn--active'}
+                aria-pressed={!pinsOnly}
+                onClick={() => setPinsOnly(false)}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className={pinsOnly ? 'hymns-pin-filter__btn hymns-pin-filter__btn--active' : 'hymns-pin-filter__btn'}
+                aria-pressed={pinsOnly}
+                onClick={() => setPinsOnly(true)}
+              >
+                <AppIcon name="pin" size={12} />
+                Pinned
+              </button>
+            </div>
+          </div>
           <ul ref={listScrollRef} className="hymns-entry-list" role="listbox" aria-label="Hymns">
+            {!indexLoading && listEntries.length === 0 ? (
+              <li className="hymns-entry-list__empty adw-caption">
+                {pinsOnly && !query.trim() ? 'No pinned hymns' : 'No matching hymns'}
+              </li>
+            ) : null}
             {listEntries.map((item) => {
               const active = item.id === selectedId
+              const pinned = hymnPinFor(pins, hymnalId, item.id)
               const meta = formatHymnListMeta(item)
               return (
-                <li key={item.id}>
+                <li key={item.id} className="hymns-entry-list__row">
                   <button
                     type="button"
                     role="option"
@@ -652,10 +839,16 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
                     }
                     draggable
                     onDragStart={(event: DragEvent<HTMLButtonElement>) => {
+                      const saved = hymnPinFor(pins, hymnalId, item.id)
                       const toggles =
                         item.id === selectedId
-                          ? { disabledVerseNumbers, includeRefrain }
-                          : { disabledVerseNumbers: [], includeRefrain: true }
+                          ? { disabledVerseNumbers, includeRefrain, includeTitle, includeEnd }
+                          : {
+                              disabledVerseNumbers: saved?.disabledVerseNumbers ?? [],
+                              includeRefrain: saved?.includeRefrain ?? true,
+                              includeTitle: saved?.includeTitle !== false,
+                              includeEnd: saved?.includeEnd !== false
+                            }
                       if (item.id === selectedId && entry) {
                         writeSequenceDrag(event.dataTransfer, {
                           op: 'insert',
@@ -675,13 +868,34 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
                         }
                       })
                     }}
-                    onClick={() => setSelectedId(item.id)}
+                    onClick={() => {
+                      if (query.trim()) {
+                        applyHymnPlaySettings(item.id)
+                        setSelectedIdState(item.id)
+                        setQuery('')
+                        return
+                      }
+                      setSelectedId(item.id)
+                    }}
                   >
                     <span className="hymns-entry-list__number">{item.number}</span>
                     <span className="hymns-entry-list__main">
                       <span className="hymns-entry-list__title">{item.title}</span>
                       {meta ? <span className="hymns-entry-list__meta adw-caption">{meta}</span> : null}
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      pinned
+                        ? 'hymns-entry-list__pin hymns-entry-list__pin--on'
+                        : 'hymns-entry-list__pin'
+                    }
+                    aria-pressed={Boolean(pinned)}
+                    aria-label={pinned ? `Unpin ${item.title}` : `Pin ${item.title}`}
+                    onClick={() => togglePin(item.id)}
+                  >
+                    <AppIcon name="pin" size={14} />
                   </button>
                 </li>
               )
@@ -711,6 +925,19 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
                   ) : null}
                 </div>
                 <div className="hymns-detail__actions">
+                  <button
+                    type="button"
+                    className={
+                      hymnPinFor(pins, hymnalId, entry.id)
+                        ? 'adw-button adw-button--flat hymns-detail__pin hymns-detail__pin--on'
+                        : 'adw-button adw-button--flat hymns-detail__pin'
+                    }
+                    aria-pressed={Boolean(hymnPinFor(pins, hymnalId, entry.id))}
+                    onClick={() => togglePin(entry.id)}
+                  >
+                    <AppIcon name="pin" size={14} />
+                    {hymnPinFor(pins, hymnalId, entry.id) ? 'Pinned' : 'Pin'}
+                  </button>
                   <button
                     type="button"
                     className="adw-button adw-button--flat"
@@ -775,7 +1002,7 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
                       {projectionSteps.length === 0 ? (
                         <AdwActionRow
                           title="No slides"
-                          subtitle="Turn on at least one verse below"
+                          subtitle="Turn on at least one slide below"
                           suffix={<span />}
                         />
                       ) : (
@@ -812,10 +1039,19 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
                     </div>
                   </div>
 
-                  {(verseNumbers.length > 0 || hasRefrain) && (
-                    <div className="adw-list-group">
-                      <div className="adw-list-group__header">Verses to sing</div>
+                  <div className="adw-list-group">
+                      <div className="adw-list-group__header">Slides to show</div>
                       <div className="adw-list-box">
+                        <AdwActionRow
+                          title="Title slide"
+                          suffix={
+                            <AdwSwitch
+                              checked={includeTitle}
+                              aria-label="Include title slide"
+                              onChange={toggleTitleIncluded}
+                            />
+                          }
+                        />
                         {verseNumbers.map((n) => {
                           const on = !disabledVerseNumbers.includes(n)
                           return (
@@ -845,9 +1081,18 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
                             }
                           />
                         ) : null}
+                        <AdwActionRow
+                          title="End slide"
+                          suffix={
+                            <AdwSwitch
+                              checked={includeEnd}
+                              aria-label="Include end slide"
+                              onChange={toggleEndIncluded}
+                            />
+                          }
+                        />
                       </div>
                     </div>
-                  )}
 
                   <div className="adw-list-group">
                     <div className="adw-list-group__header">About</div>

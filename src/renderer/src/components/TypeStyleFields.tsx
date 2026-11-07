@@ -7,14 +7,19 @@ import {
   LINE_HEIGHT_MAX,
   LINE_HEIGHT_MIN,
   PROJECTION_FONTS,
+  TEXT_SHADOW_MAX,
+  TEXT_SHADOW_MIN,
   type BibleTextAlign,
   type BibleTextPanel,
   type ProjectionLineHeight,
+  type ProjectionTextShadow,
   type ProjectionTextStyle
 } from '../../../shared/projection-typography'
 import {
   resetProjectionLineHeight,
-  updateProjectionLineHeight
+  updateProjectionLineHeight,
+  updateProjectionTextShadow,
+  resetProjectionTextShadow
 } from '../lib/projection-typography-settings'
 import { AdwColorPicker, type AdwColorSwatch } from './AdwColorPicker'
 import { AdwScale } from './AdwScale'
@@ -197,6 +202,34 @@ export function LineHeightField({
       </div>
       <button type="button" className="adw-button" onClick={() => resetProjectionLineHeight(category)}>
         Reset line height
+      </button>
+    </div>
+  )
+}
+
+export function TextShadowField({
+  category,
+  value
+}: {
+  category: keyof ProjectionTextShadow
+  value: number
+}): ReactElement {
+  return (
+    <div className="settings-type__block settings-bg__field">
+      <span className="settings-field__label">Text shadow</span>
+      <div className="settings-type__size">
+        <AdwScale
+          aria-label="Text shadow"
+          min={TEXT_SHADOW_MIN}
+          max={TEXT_SHADOW_MAX}
+          step={1}
+          value={value}
+          onChange={(next) => updateProjectionTextShadow(category, next)}
+        />
+        <span className="settings-type__size-value">{value}</span>
+      </div>
+      <button type="button" className="adw-button" onClick={() => resetProjectionTextShadow(category)}>
+        Reset text shadow
       </button>
     </div>
   )

@@ -9,6 +9,7 @@ import {
   DEFAULT_HYMN_TYPOGRAPHY,
   DEFAULT_LINE_HEIGHT,
   DEFAULT_PROJECTION_TYPOGRAPHY,
+  DEFAULT_TEXT_SHADOW,
   type BiblePanelId,
   type BibleTextPanel,
   type BibleTypography,
@@ -21,6 +22,7 @@ import {
   type HymnTypography,
   type HymnTypographyElementId,
   type ProjectionLineHeight,
+  type ProjectionTextShadow,
   type ProjectionTextStyle,
   type ProjectionTypography
 } from '../../../shared/projection-typography'
@@ -175,6 +177,21 @@ export function updateProjectionLineHeight(
 
 export function resetProjectionLineHeight(category: keyof ProjectionLineHeight): ProjectionTypography {
   return updateProjectionLineHeight(category, DEFAULT_LINE_HEIGHT[category])
+}
+
+export function updateProjectionTextShadow(
+  category: keyof ProjectionTextShadow,
+  strength: number
+): ProjectionTypography {
+  const current = getProjectionTypography()
+  return saveProjectionTypography({
+    ...current,
+    textShadow: { ...current.textShadow, [category]: strength }
+  })
+}
+
+export function resetProjectionTextShadow(category: keyof ProjectionTextShadow): ProjectionTypography {
+  return updateProjectionTextShadow(category, DEFAULT_TEXT_SHADOW[category])
 }
 
 export function reloadHymnTypographyFromStorage(): void {

@@ -22,6 +22,8 @@ export function OrganizationSettingsPanel(): ReactElement {
   const [orgName, setOrgName] = useState(active.organizationName)
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('New profile')
 
   useEffect(() => {
     setOrgName(active.organizationName)
@@ -132,10 +134,8 @@ export function OrganizationSettingsPanel(): ReactElement {
               type="button"
               className="adw-button adw-button--flat"
               onClick={() => {
-                const name = window.prompt('Profile name', 'New profile')
-                if (!name?.trim()) return
-                createProfile(name.trim(), { blank: true })
-                flash(`Created “${name.trim()}” and switched to it.`)
+                setNewName('New profile')
+                setCreating(true)
               }}
             >
               New
@@ -144,8 +144,10 @@ export function OrganizationSettingsPanel(): ReactElement {
               type="button"
               className="adw-button adw-button--flat"
               onClick={() => {
-                duplicateActiveProfile()
-                flash('Duplicated the active profile and switched to the copy.')
+                const created = duplicateActiveProfile()
+                setOrgName(created.organizationName)
+                setCreating(false)
+                flash(`Switched to “${created.name}”.`)
               }}
             >
               Duplicate
@@ -168,6 +170,40 @@ export function OrganizationSettingsPanel(): ReactElement {
             </button>
           </div>
         </div>
+
+        {creating ? (
+          <form
+            className="settings-org__profile-create"
+            onSubmit={(event) => {
+              event.preventDefault()
+              const name = newName.trim()
+              if (!name) return
+              const created = createProfile(name, { blank: true })
+              setOrgName(created.organizationName)
+              setCreating(false)
+              flash(`Created “${created.name}” and switched to it.`)
+            }}
+          >
+            <label className="settings-field__label" htmlFor="new-profile-name">
+              New profile name
+            </label>
+            <div className="settings-org__profile-create-row">
+              <input
+                id="new-profile-name"
+                className="adw-input"
+                value={newName}
+                autoFocus
+                onChange={(event) => setNewName(event.target.value)}
+              />
+              <button type="submit" className="adw-button adw-button--suggested">
+                Create
+              </button>
+              <button type="button" className="adw-button adw-button--flat" onClick={() => setCreating(false)}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
 
         <div className="settings-org__io-row">
           <button

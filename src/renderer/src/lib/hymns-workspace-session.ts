@@ -7,6 +7,8 @@ export type HymnsWorkspaceSession = {
   /** Verse numbers excluded from projection for the current hymn. */
   disabledVerseNumbers: number[]
   includeRefrain: boolean
+  includeTitle: boolean
+  includeEnd: boolean
   listScrollTop: number
 }
 
@@ -18,6 +20,8 @@ let session: HymnsWorkspaceSession = {
   projectionStepIndex: 0,
   disabledVerseNumbers: [],
   includeRefrain: true,
+  includeTitle: true,
+  includeEnd: true,
   listScrollTop: 0
 }
 

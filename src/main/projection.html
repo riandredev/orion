@@ -11,6 +11,11 @@
       rel="stylesheet"
     />
     <style>
+      :root {
+        --hymn-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
+        --bible-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
+        --dictionary-shadow: none;
+      }
       @keyframes orion-order-fade-in {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -152,6 +157,37 @@
         margin: auto;
       }
 
+      #base-layer img.orion-layer-bg,
+      #overlay-layer img.orion-layer-bg,
+      .orion-layer-dim {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        margin: 0;
+        z-index: 0;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      #base-layer > .bible-proj,
+      #base-layer > .dictionary-proj,
+      #overlay-layer > .bible-proj,
+      #overlay-layer > .dictionary-proj {
+        position: relative;
+        z-index: 1;
+      }
+
+      #base-layer > .hymn-proj,
+      #overlay-layer > .hymn-proj {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+      }
+
       .bible-proj {
         box-sizing: border-box;
         width: 100%;
@@ -167,7 +203,6 @@
         direction: ltr;
         --bible-serif: Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
         --bible-panel: rgba(15, 27, 46, 0.66);
-        --bible-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
       }
 
       .bible-proj__top {
@@ -287,6 +322,7 @@
         color: rgba(255, 255, 255, 0.55);
         text-align: var(--dictionary-strongs-align, center);
         background: var(--dictionary-strongs-panel, transparent);
+        text-shadow: var(--dictionary-shadow, none);
       }
 
       .dictionary-proj__ref-id {
@@ -307,6 +343,7 @@
         font-size: var(--dictionary-lemma-size, 96px);
         font-weight: 700;
         line-height: 1.12;
+        text-shadow: var(--dictionary-shadow, none);
       }
 
       .dictionary-proj__lemma-reading {
@@ -356,6 +393,7 @@
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
+        text-shadow: var(--dictionary-shadow, none);
       }
 
       .dictionary-proj__infobar-seg:last-child {
@@ -398,6 +436,7 @@
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 8;
+        text-shadow: var(--dictionary-shadow, none);
       }
 
       .dictionary-proj__definition-en {
@@ -418,7 +457,6 @@
         font-weight: 700;
         font-stretch: condensed;
         color: #fff;
-        --hymn-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
       }
 
       .hymn-proj--title {

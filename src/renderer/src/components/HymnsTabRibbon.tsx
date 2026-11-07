@@ -1,6 +1,8 @@
 import type { ReactElement } from 'react'
+import { hymnAnimationOptions, updateHymnMotion, useHymnMotion } from '../lib/hymn-motion'
 import { useHymnActiveLabel, useHymnLiveContent } from '../lib/hymns-ribbon-sync'
 import { AppIcon } from './AppIcon'
+import { AdwSelect } from './AdwSelect'
 import { AdwTooltip } from './AdwTooltip'
 import type { AppIconName } from './icons'
 
@@ -51,6 +53,7 @@ export function HymnsTabRibbon({
 }: HymnsTabRibbonProps): ReactElement {
   const storedLabel = useHymnActiveLabel()
   const hymn = useHymnLiveContent()
+  const motion = useHymnMotion()
   const activeHymn = hymn ? `${hymn.number} · ${hymn.title}` : storedLabel
   const hasHymn = activeHymn !== 'Select a hymn'
 
@@ -84,6 +87,31 @@ export function HymnsTabRibbon({
             disabled={!hasHymn || !canProject}
             onClick={onProjectStanza}
           />
+        </div>
+        <div className="order-ribbon__section order-ribbon__settings">
+          <label className="order-ribbon__field">
+            <span className="adw-section-label">Transition</span>
+            <input
+              type="number"
+              className="adw-input adw-input--compact adw-input--number-wide"
+              min={0}
+              max={5000}
+              step={100}
+              value={motion.transitionMs}
+              aria-label="Transition milliseconds"
+              onChange={(e) => updateHymnMotion({ transitionMs: Number(e.target.value) || 0 })}
+            />
+            <span className="adw-caption">ms</span>
+          </label>
+          <div className="order-ribbon__field order-ribbon__field--select">
+            <span className="adw-section-label">Animation</span>
+            <AdwSelect
+              value={motion.animation}
+              options={hymnAnimationOptions}
+              aria-label="Slide animation"
+              onChange={(animation) => updateHymnMotion({ animation })}
+            />
+          </div>
         </div>
         <div className="order-ribbon__section order-ribbon__primary">
           <button

@@ -92,6 +92,8 @@ export type OrionStackLayerContent =
       backgroundColor?: string
       backgroundDimOpacity?: number
       backgroundFit?: 'cover' | 'contain'
+      animation?: 'none' | OrderImageAnimation
+      durationMs?: number
     }
 
 /** Main-process projection mutations (ProPresenter-style per-layer control). */

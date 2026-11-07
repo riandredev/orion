@@ -44,6 +44,7 @@ import {
 } from './lib/hymns-ribbon-sync'
 import { formatStrongsDisplay, buildDictionaryProjectionInfoBar } from '../../shared/dictionary-lexicon'
 import { hymnProjectionCornerLabel } from '../../shared/hymn-projection-display'
+import { hymnMotionForProjection } from './lib/hymn-motion'
 import {
   resolveCategoryBackground,
   setBackgroundImagesRoot,
@@ -129,6 +130,7 @@ import {
 } from './components/ProjectorPanel'
 import { TopBar } from './components/TopBar'
 import { SettingsDialog } from './components/SettingsDialog'
+import { UpdatePrompt } from './components/UpdatePrompt'
 import { SequencePanel } from './components/SequencePanel'
 import {
   moveSequenceCursor,
@@ -240,7 +242,8 @@ function stackHymnFromContent(
     backgroundImagePath: bg.imagePath,
     backgroundColor: bg.solidColor,
     backgroundDimOpacity: bg.dimOpacity,
-    backgroundFit: bg.fit
+    backgroundFit: bg.fit,
+    ...hymnMotionForProjection()
   }
 }
 
@@ -277,14 +280,21 @@ function loadOrderThumbSize(): OrderThumbSize {
   return 'm'
 }
 
+const ORDER_VIEW_GRID_DEFAULT = 'orion-order-view-grid-default'
+
 function loadOrderView(): OrderLibraryView {
   try {
+    if (!localStorage.getItem(ORDER_VIEW_GRID_DEFAULT)) {
+      localStorage.setItem(ORDER_VIEW_GRID_DEFAULT, '1')
+      localStorage.setItem(ORDER_VIEW_KEY, 'grid')
+      return 'grid'
+    }
     const raw = localStorage.getItem(ORDER_VIEW_KEY)
     if (raw === 'grid' || raw === 'list' || raw === 'columns') return raw
   } catch {
     /* ignore */
   }
-  return 'columns'
+  return 'grid'
 }
 
 function saveStoredPresentationDeckId(id: string | null): void {
@@ -712,6 +722,14 @@ export default function App(): ReactElement {
       setOrderImagesPath(p.orderImages)
       await reloadOrderLibrary()
     })()
+  }, [reloadOrderLibrary])
+
+  useEffect(() => {
+    const onProfile = (): void => {
+      void reloadOrderLibrary()
+    }
+    window.addEventListener('orion-profile-applied', onProfile)
+    return () => window.removeEventListener('orion-profile-applied', onProfile)
   }, [reloadOrderLibrary])
 
   useEffect(() => {
@@ -1404,7 +1422,9 @@ export default function App(): ReactElement {
           hymnId: item.hymnId,
           stepIndex: cursor.stepIndex,
           disabledVerseNumbers: item.disabledVerseNumbers,
-          includeRefrain: item.includeRefrain
+          includeRefrain: item.includeRefrain,
+          includeTitle: item.includeTitle !== false,
+          includeEnd: item.includeEnd !== false
         })
         const hymnContent = step
           ? {
@@ -2227,6 +2247,7 @@ export default function App(): ReactElement {
           }
         />
       </div>
+      <UpdatePrompt />
       <SettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

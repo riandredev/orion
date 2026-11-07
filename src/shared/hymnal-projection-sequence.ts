@@ -14,6 +14,10 @@ export type HymnProjectionBuildOptions = {
   disabledVerseNumbers?: ReadonlySet<number> | number[]
   /** When false, refrain/chorus slides are skipped. Default true. */
   includeRefrain?: boolean
+  /** When false, the opening title slide is skipped. Default true. */
+  includeTitle?: boolean
+  /** When false, the closing end slide is skipped. Default true. */
+  includeEnd?: boolean
 }
 
 function isRefrainKind(kind: HymnStanza['kind']): boolean {
@@ -68,9 +72,16 @@ function lyricStep(stanzas: HymnStanza[], index: number): HymnProjectionStep {
 const TITLE_STEP: HymnProjectionStep = { kind: 'title', stanzaIndex: -1, lines: [] }
 const END_STEP: HymnProjectionStep = { kind: 'end', stanzaIndex: -1, lines: [] }
 
-function withBookends(body: HymnProjectionStep[]): HymnProjectionStep[] {
+function withBookends(
+  body: HymnProjectionStep[],
+  options?: HymnProjectionBuildOptions
+): HymnProjectionStep[] {
   const lyrics = body.map((s) => ({ ...s, kind: 'lyrics' as const }))
-  return [TITLE_STEP, ...lyrics, END_STEP]
+  const steps: HymnProjectionStep[] = []
+  if (options?.includeTitle !== false) steps.push(TITLE_STEP)
+  steps.push(...lyrics)
+  if (options?.includeEnd !== false) steps.push(END_STEP)
+  return steps
 }
 
 function indicesForVerse(stanzas: HymnStanza[], verseNum: number): number[] {
@@ -91,7 +102,7 @@ export function buildHymnProjectionSteps(
   stanzas: HymnStanza[],
   options?: HymnProjectionBuildOptions
 ): HymnProjectionStep[] {
-  if (stanzas.length === 0) return [TITLE_STEP, END_STEP]
+  if (stanzas.length === 0) return withBookends([], options)
   const disabled = disabledSet(options)
   const includeRefrain = options?.includeRefrain !== false
   const refrainIdx = findRefrainStanzaIndex(stanzas)
@@ -104,7 +115,7 @@ export function buildHymnProjectionSteps(
       if (isRefrainKind(s.kind) && !includeRefrain) continue
       body.push(lyricStep(stanzas, i))
     }
-    return withBookends(body)
+    return withBookends(body, options)
   }
 
   const verseNumbers = [...new Set(
@@ -114,7 +125,7 @@ export function buildHymnProjectionSteps(
   )].sort((a, b) => a - b)
 
   if (verseNumbers.length === 0) {
-    return withBookends(stanzas.map((_, i) => lyricStep(stanzas, i)))
+    return withBookends(stanzas.map((_, i) => lyricStep(stanzas, i)), options)
   }
 
   const body: HymnProjectionStep[] = []
@@ -127,7 +138,7 @@ export function buildHymnProjectionSteps(
       body.push(lyricStep(stanzas, refrainIdx))
     }
   }
-  return withBookends(body)
+  return withBookends(body, options)
 }
 
 export function clampProjectionStep(step: number, stepCount: number): number {

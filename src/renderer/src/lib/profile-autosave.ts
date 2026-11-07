@@ -14,3 +14,11 @@ export function touchProfileSettings(): void {
     persist?.()
   }, 200)
 }
+
+/** Writes the active profile immediately. */
+export function flushProfileSettings(): void {
+  if (typeof window === 'undefined') return
+  if (timer) window.clearTimeout(timer)
+  timer = 0
+  persist?.()
+}

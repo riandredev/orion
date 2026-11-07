@@ -195,6 +195,32 @@ export const DEFAULT_DICTIONARY_TYPOGRAPHY: DictionaryTypography = {
 export const LINE_HEIGHT_MIN = 1
 export const LINE_HEIGHT_MAX = 2
 
+export const TEXT_SHADOW_MIN = 0
+export const TEXT_SHADOW_MAX = 100
+
+export type ProjectionTextShadow = {
+  hymns: number
+  bible: number
+  dictionary: number
+}
+
+/** 100 matches the current hymn and Bible slide shadow. Dictionary starts off. */
+export const DEFAULT_TEXT_SHADOW: ProjectionTextShadow = {
+  hymns: 100,
+  bible: 100,
+  dictionary: 0
+}
+
+export function projectionTextShadowCss(strength: number): string {
+  if (strength <= 0) return 'none'
+  const t = Math.min(TEXT_SHADOW_MAX, strength) / 100
+  const n = (value: number): string => {
+    const text = value.toFixed(2)
+    return text.replace(/0+$/, '').replace(/\.$/, '')
+  }
+  return `0 ${n(0.08 * t)}em ${n(0.28 * t)}em rgba(0,0,0,${n(0.88 * t)}), 0 ${n(0.02 * t)}em ${n(0.08 * t)}em rgba(0,0,0,${n(0.95 * t)})`
+}
+
 export type ProjectionLineHeight = {
   hymns: number
   bible: number
@@ -213,6 +239,7 @@ export type ProjectionTypography = {
   bible: BibleTypography
   dictionary: DictionaryTypography
   lineHeight: ProjectionLineHeight
+  textShadow: ProjectionTextShadow
   biblePanels: BiblePanels
   hymnPanels: Record<HymnPanelId, BibleTextPanel>
   dictionaryPanels: Record<DictionaryPanelId, BibleTextPanel>
@@ -223,6 +250,7 @@ export const DEFAULT_PROJECTION_TYPOGRAPHY: ProjectionTypography = {
   bible: DEFAULT_BIBLE_TYPOGRAPHY,
   dictionary: DEFAULT_DICTIONARY_TYPOGRAPHY,
   lineHeight: DEFAULT_LINE_HEIGHT,
+  textShadow: DEFAULT_TEXT_SHADOW,
   biblePanels: DEFAULT_BIBLE_PANELS,
   hymnPanels: DEFAULT_HYMN_PANELS,
   dictionaryPanels: DEFAULT_DICTIONARY_PANELS
@@ -276,6 +304,20 @@ export function clampProjectionLineHeight(raw: unknown): ProjectionLineHeight {
     hymns: clampLineHeight(record.hymns, DEFAULT_LINE_HEIGHT.hymns),
     bible: clampLineHeight(record.bible, DEFAULT_LINE_HEIGHT.bible),
     dictionary: clampLineHeight(record.dictionary, DEFAULT_LINE_HEIGHT.dictionary)
+  }
+}
+
+function clampTextShadow(value: unknown, fallback: number): number {
+  const n = typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : fallback
+  return Math.min(TEXT_SHADOW_MAX, Math.max(TEXT_SHADOW_MIN, n))
+}
+
+export function clampProjectionTextShadow(raw: unknown): ProjectionTextShadow {
+  const record = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  return {
+    hymns: clampTextShadow(record.hymns, DEFAULT_TEXT_SHADOW.hymns),
+    bible: clampTextShadow(record.bible, DEFAULT_TEXT_SHADOW.bible),
+    dictionary: clampTextShadow(record.dictionary, DEFAULT_TEXT_SHADOW.dictionary)
   }
 }
 
@@ -396,6 +438,7 @@ export function clampProjectionTypography(raw: unknown): ProjectionTypography {
       )
     ),
     lineHeight: clampProjectionLineHeight(record.lineHeight),
+    textShadow: clampProjectionTextShadow(record.textShadow),
     biblePanels: clampBiblePanels(record.biblePanels),
     hymnPanels: clampPanelRecord(record.hymnPanels, DEFAULT_HYMN_PANELS, ELEMENT_IDS),
     dictionaryPanels: clampPanelRecord(
@@ -433,6 +476,9 @@ export function projectionTypographyCssVars(value: ProjectionTypography): Record
   vars['--hymn-line-height'] = String(value.lineHeight.hymns)
   vars['--bible-line-height'] = String(value.lineHeight.bible)
   vars['--dictionary-line-height'] = String(value.lineHeight.dictionary)
+  vars['--hymn-shadow'] = projectionTextShadowCss(value.textShadow.hymns)
+  vars['--bible-shadow'] = projectionTextShadowCss(value.textShadow.bible)
+  vars['--dictionary-shadow'] = projectionTextShadowCss(value.textShadow.dictionary)
   writePanelVars(vars, '--bible-reference', value.biblePanels.reference)
   writePanelVars(vars, '--bible-verse', value.biblePanels.verse)
   writePanelVars(vars, '--hymn-number', value.hymnPanels.number)

@@ -647,6 +647,9 @@
 .order-browser__images {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: auto;
   background: color-mix(in srgb, var(--adw-view-bg) 92%, black);
 }
@@ -657,6 +660,27 @@
   padding: 16px;
 }
 
+.order-browser__status-page {
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--adw-fg-muted);
+}
+
+.order-browser__status-title {
+  margin: 0;
+  color: var(--adw-fg);
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .order-browser__empty .adw-button {
   margin-top: 8px;
 }
@@ -665,6 +689,11 @@
   list-style: none;
   margin: 0;
   padding: 6px;
+}
+
+.order-folder-list__row {
+  display: flex;
+  align-items: stretch;
 }
 
 .order-folder-list__item {
@@ -966,7 +995,13 @@
   transition:
     left 140ms ease,
     top 140ms ease,
+    width 140ms ease,
     height 140ms ease;
+}
+
+.kanban-drop-marker--row {
+  width: auto;
+  height: 3px;
 }
 
 .kanban-column-ghost {
@@ -1034,8 +1069,9 @@
   display: block;
 }
 
-body.orion-column-drag {
-  cursor: grabbing;
+body.orion-column-drag,
+body.orion-column-drag * {
+  cursor: grabbing !important;
   user-select: none;
 }
 
@@ -1867,6 +1903,25 @@ body.projector-shell--resizing {
   gap: 8px;
 }
 
+.settings-org__profile-create {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 16px 14px;
+}
+
+.settings-org__profile-create-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-org__profile-create-row .adw-input {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
 .settings-org__io-row {
   display: flex;
   flex-wrap: wrap;
@@ -2421,7 +2476,6 @@ body.projector-shell--resizing {
   gap: 2.4cqh;
   --bible-serif: Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --bible-panel: rgba(15, 27, 46, 0.66);
-  --bible-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
 }
 
 .settings-bg__stage-canvas .bible-proj__top {
@@ -2525,7 +2579,6 @@ body.projector-shell--resizing {
   font-family: "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif;
   font-weight: 700;
   font-stretch: condensed;
-  --hymn-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
 }
 
 .settings-bg__stage-canvas .hymn-proj__top {
@@ -2699,6 +2752,7 @@ body.projector-shell--resizing {
   color: rgba(255, 255, 255, 0.55);
   text-align: var(--dictionary-strongs-align, center);
   background: var(--dictionary-strongs-panel, transparent);
+  text-shadow: var(--dictionary-shadow, none);
 }
 
 .settings-bg__stage-canvas .dictionary-proj__ref-id {
@@ -2719,6 +2773,7 @@ body.projector-shell--resizing {
   font-size: var(--dictionary-lemma-size, 96px);
   font-weight: 700;
   line-height: 1.12;
+  text-shadow: var(--dictionary-shadow, none);
 }
 
 .settings-bg__stage-canvas .dictionary-proj__lemma-reading {
@@ -2768,6 +2823,7 @@ body.projector-shell--resizing {
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
+  text-shadow: var(--dictionary-shadow, none);
 }
 
 .settings-bg__stage-canvas .dictionary-proj__infobar-seg:last-child {
@@ -2796,6 +2852,7 @@ body.projector-shell--resizing {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 8;
+  text-shadow: var(--dictionary-shadow, none);
 }
 
 .settings-bg__stage-canvas .dictionary-proj__definition-en {

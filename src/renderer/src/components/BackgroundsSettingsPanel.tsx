@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactElement } from 'react'
 import type { OrderFolderImage } from '../env'
 import {
   resolveCategoryBackground,
+  backgroundImagesMatch,
   updateCategoryBackground,
   useBackgroundSettings,
   type BackgroundCategoryId,
@@ -308,8 +309,7 @@ export function BackgroundsSettingsPanel(): ReactElement {
         ) : (
           <div className="settings-bg__library-grid">
             {library.map((img) => {
-              const selected =
-                resolved.imagePath === img.path || config.imagePath === img.path
+              const selected = backgroundImagesMatch(config.imagePath, img.path)
               return (
                 <button
                   key={img.path}

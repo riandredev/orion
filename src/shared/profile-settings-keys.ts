@@ -10,7 +10,10 @@ export const ORION_PROFILE_SETTINGS_KEYS = [
   'orion-bible-translation',
   'orion-selected-hymnal',
   'orion-hymnal-stanza-tags',
-  'orion-sequence-bundle-content'
+  'orion-sequence-bundle-content',
+  'orion-kanban-column-order',
+  'orion-hymn-pins-v1',
+  'orion-hymn-motion-v1'
 ] as const
 
 export type OrionProfileSettingsKey = (typeof ORION_PROFILE_SETTINGS_KEYS)[number]

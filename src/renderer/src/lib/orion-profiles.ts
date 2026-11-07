@@ -10,6 +10,7 @@ import {
 } from '../../../shared/orion-profile'
 import { ORION_PROFILE_SETTINGS_KEYS } from '../../../shared/profile-settings-keys'
 import { reloadBackgroundSettingsFromStorage } from './background-settings'
+import { reloadHymnMotionFromStorage } from './hymn-motion'
 import {
   getProjectionContentInsetsByCategory,
   pushProjectionContentInsetsToMain,
@@ -77,6 +78,7 @@ export function applySettingsSnapshot(
 
 export function reloadAllProfileBoundSettings(): void {
   reloadBackgroundSettingsFromStorage()
+  reloadHymnMotionFromStorage()
   reloadProjectionContentInsetsFromStorage()
   reloadHymnTypographyFromStorage()
   void pushProjectionContentInsetsToMain(getProjectionContentInsetsByCategory())
@@ -197,7 +199,14 @@ export function createProfile(name: string, options?: { blank?: boolean }): Orio
 
 export function duplicateActiveProfile(): OrionProfileMeta {
   const active = persistActiveProfileSnapshot()
-  return createProfile(`${active.name} copy`)
+  const names = new Set(getProfileRegistry().profiles.map((profile) => profile.name))
+  let name = `${active.name} copy`
+  let n = 2
+  while (names.has(name)) {
+    name = `${active.name} copy ${n}`
+    n += 1
+  }
+  return createProfile(name)
 }
 
 export function deleteProfile(profileId: string): OrionProfileRegistry {
