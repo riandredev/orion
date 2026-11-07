@@ -65,3 +65,7 @@ npm run dist:panorama:linux
 ```
 
 Installers are written to `dist/standard` and `dist/panorama`.
+
+## License
+
+Orion is free software under the [GNU General Public License v3](LICENSE). Bundled order images, hymnals, and Bible texts keep their own terms.
