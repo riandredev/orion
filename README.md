@@ -1,35 +1,42 @@
-# Orion
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="images/orion-wordmark.png" />
+    <img src="images/orion-wordmark-light.png" alt="Orion" width="360" />
+  </picture>
+</p>
 
-Presentation software for church services. Run the service from one computer and send hymns, scripture, and slides to the displays.
+<p align="center">
+  <a href="https://github.com/riandredev/orion/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/riandredev/orion?style=social" /></a>
+  <a href="LICENSE"><img alt="GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-2ea44f?style=flat" /></a>
+  <a href="https://github.com/riandredev/orion/releases"><img alt="Windows and Linux" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-555555?style=flat" /></a>
+</p>
 
-## Install
+<p align="center">
+  <a href="https://github.com/riandredev/orion/releases">Releases</a>
+  &nbsp;•&nbsp;
+  <a href="https://github.com/riandredev/orion/issues">Issues</a>
+  &nbsp;•&nbsp;
+  <a href="LICENSE">License</a>
+</p>
 
-Download a build from the [releases](https://github.com/riandredev/orion/releases).
+Orion runs a church service from one computer and sends hymns, scripture, and slides to the displays.
 
-| Edition | What you get |
+## Download
+
+| Edition | Library |
 | --- | --- |
-| **Orion** | Empty libraries. Add your own service-order images, hymnals, and Bibles. |
-| **Orion Panorama** | A prepared library: service-order images, Afrikaans and English Adventist hymnals, the King James Version, and Afrikaans 1953. |
+| [Orion](https://github.com/riandredev/orion/releases/tag/v1.0.1) | Empty. Add your own service-order images, hymnals, and Bibles. |
+| [Orion Panorama](https://github.com/riandredev/orion/releases/tag/v1.0.1-panorama) | Service-order images, Afrikaans and English Adventist hymnals, the King James Version, and Afrikaans 1953. |
 
-Each edition has a Windows setup and a Linux AppImage. They install side by side and do not share libraries.
-
-Windows may warn that the installer is unsigned.
-
-## What it does
-
-- Project a service order, hymns, and Bible passages
-- Play slide decks, video, and web pages on the outputs
-- Send the picture to more than one display, with a preview of each
-- Save settings as profiles you can export and import
+The two editions install side by side and do not share libraries.
 
 ## Develop
 
 ```bash
 npm install
 npm run dev
+npm run build && npm run preview
 ```
-
-`npm run build` then `npm run preview` runs the packaged interface locally.
 
 ```bash
 npm run dist:win
@@ -40,4 +47,4 @@ npm run dist:panorama:linux
 
 ## License
 
-[GNU GPL v3](LICENSE). The license covers the Orion program. Bundled order images, hymnals, and Bible texts keep their own terms.
+Bundled order images, hymnals, and Bible texts keep their own terms.
