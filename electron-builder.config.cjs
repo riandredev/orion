@@ -33,6 +33,7 @@ module.exports = {
   ],
   extraResources: panorama
     ? [
+        { from: 'build/icon.png', to: 'icon.png' },
         { from: 'build/edition-panorama.json', to: 'edition.json' },
         { from: 'order-images', to: 'content/order-images' },
         { from: 'hymnals/adventist-1-afrikaans', to: 'content/hymnals/adventist-1-afrikaans' },
@@ -41,6 +42,7 @@ module.exports = {
         { from: 'bibles/bss-afri', to: 'content/bibles/bss-afri' }
       ]
     : [
+        { from: 'build/icon.png', to: 'icon.png' },
         { from: 'build/edition-standard.json', to: 'edition.json' },
         { from: 'build/content-standard/hymnals', to: 'content/hymnals' }
       ],
@@ -48,12 +50,12 @@ module.exports = {
   npmRebuild: false,
   win: {
     target: [{ target: 'nsis', arch: ['x64'] }],
-    icon: 'images/icon.png'
+    icon: 'build/icon.png'
   },
   linux: {
     target: [{ target: 'AppImage', arch: ['x64'] }],
     category: 'Office',
-    icon: 'images/icon.png',
+    icon: 'build/icon.png',
     synopsis: panorama ? 'Orion Panorama church presentation' : 'Orion church presentation'
   },
   nsis: {

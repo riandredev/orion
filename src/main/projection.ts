@@ -13,6 +13,7 @@ import {
   ProjectionMixerEngine,
   type ProjectionStageState
 } from '../shared/projection-mixer'
+import { appIcon } from './app-icon'
 import { is } from './env'
 import { rememberDeckMediaClock, type DeckMediaClock } from './deck-media-clock'
 import { imagePathToMediaUrl, sanitizeProjectionPayload, sanitizeStackContent } from './projection-paths'
@@ -626,6 +627,7 @@ function createBaseWindow(display: Display): BrowserWindow {
     autoHideMenuBar: true,
     fullscreenable: true,
     focusable: false,
+    icon: appIcon(),
     x: display.bounds.x,
     y: display.bounds.y,
     width: display.bounds.width,
@@ -703,16 +705,17 @@ async function ensureWebWindow(displayId: number): Promise<BrowserWindow | null>
       frame: false,
       roundedCorners: false,
       thickFrame: false,
-      backgroundColor: '#000000',
-      autoHideMenuBar: true,
-      fullscreenable: true,
-      focusable: false,
-      x: display.bounds.x,
-      y: display.bounds.y,
-      width: display.bounds.width,
-      height: display.bounds.height,
-      webPreferences: {
-        sandbox: true,
+    backgroundColor: '#000000',
+    autoHideMenuBar: true,
+    fullscreenable: true,
+    focusable: false,
+    icon: appIcon(),
+    x: display.bounds.x,
+    y: display.bounds.y,
+    width: display.bounds.width,
+    height: display.bounds.height,
+    webPreferences: {
+      sandbox: true,
         contextIsolation: true,
         autoplayPolicy: 'no-user-gesture-required'
       }

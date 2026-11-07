@@ -88,6 +88,7 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
   const [editorHymnalId, setEditorHymnalId] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const listScrollRef = useRef<HTMLUListElement>(null)
+  const entryLoadGen = useRef(0)
   const hymnCue = useHymnSequenceCue()
   const listFilterKeyRef = useRef<string | null>(`${sessionSeed.query}\0${hymnalId}`)
 
@@ -284,10 +285,11 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
       setEntry(null)
       return
     }
+    const gen = ++entryLoadGen.current
     let cancelled = false
     setEntryLoading(true)
     void fetchHymnEntry(hymnalId, selectedId).then((e) => {
-      if (cancelled) return
+      if (cancelled || gen !== entryLoadGen.current) return
       setEntry(e ? normalizeHymnEntry(e) : null)
       setEntryLoading(false)
     })
@@ -542,11 +544,14 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
   }
 
   const onHymnSaved = (saved: HymnEntry): void => {
-    void refresh().then(() => {
-      void reloadHymnalIndex().then(() => {
-        setSelectedId(saved.id)
-      })
-    })
+    const next = normalizeHymnEntry(saved)
+    entryLoadGen.current += 1
+    setEntry(next)
+    setEditorEntry(next)
+    setSelectedId(next.id)
+    setEntryLoading(false)
+    void reloadHymnalIndex()
+    void refresh()
   }
 
   const confirmDeleteHymn = (): void => {

@@ -6,6 +6,7 @@ import type { OrionProjectionPayload } from '../shared/projection'
 import { WEB_BROWSER_USER_AGENT } from '../shared/web-browser'
 import type { OrionProjectionCommand, OrionStackState } from '../shared/projection-stack'
 import { displayInfoFromElectron, sortDisplays } from './displays'
+import { appIcon } from './app-icon'
 import { seedPackagedLibraries } from './content-seed'
 import { readEdition } from './edition'
 import { is } from './env'
@@ -285,6 +286,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#242424',
+    icon: appIcon(),
     title: edition.name,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -295,6 +297,8 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
+    const icon = appIcon()
+    if (!icon.isEmpty()) mainWindow.setIcon(icon)
     mainWindow.maximize()
     mainWindow.show()
   })

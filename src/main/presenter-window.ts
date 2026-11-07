@@ -5,6 +5,7 @@ import { emptyPresenterViewState } from '../shared/presenter-view-state'
 import { getPresentationDeck } from './presentation-decks'
 import { getMainAppWindow } from './projection'
 import { currentDeckMediaClock } from './deck-media-clock'
+import { appIcon } from './app-icon'
 import { is } from './env'
 
 let presenterWindow: BrowserWindow | null = null
@@ -128,6 +129,7 @@ export async function openPresenterView(deckId: string, slideIndex: number): Pro
     fullscreenable: true,
     autoHideMenuBar: true,
     backgroundColor: '#1e1e1e',
+    icon: appIcon(),
     title: `Presenter View — ${deck.title}`,
     webPreferences: {
       preload: join(__dirname, '../preload/presenter.js'),
@@ -144,6 +146,8 @@ export async function openPresenterView(deckId: string, slideIndex: number): Pro
   mutePresenterWindow(presenterWindow)
 
   presenterWindow.on('ready-to-show', () => {
+    const icon = appIcon()
+    if (presenterWindow && !icon.isEmpty()) presenterWindow.setIcon(icon)
     if (presenterWindow) mutePresenterWindow(presenterWindow)
     presenterWindow?.maximize()
     presenterWindow?.show()
