@@ -39,7 +39,10 @@ module.exports = {
         { from: 'hymnals/adventist-1-afrikaans', to: 'content/hymnals/adventist-1-afrikaans' },
         { from: 'hymnals/adventist-2-english-new', to: 'content/hymnals/adventist-2-english-new' },
         { from: 'bibles/eng-kjv', to: 'content/bibles/eng-kjv' },
-        { from: 'bibles/bss-afri', to: 'content/bibles/bss-afri' }
+        { from: 'bibles/bss-afri', to: 'content/bibles/bss-afri' },
+        { from: 'images/bible-image.jpg', to: 'content/images/bible-image.jpg' },
+        { from: 'images/bible-image.png', to: 'content/images/bible-image.png' },
+        { from: 'images/hymn-image.jpg', to: 'content/images/hymn-image.jpg' }
       ]
     : [
         { from: 'build/icon.png', to: 'icon.png' },

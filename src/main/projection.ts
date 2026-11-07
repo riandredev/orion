@@ -376,12 +376,11 @@ function pushWebAudioMutes(): void {
 }
 
 function pushDeckAudioOwners(): void {
-  const owner = deckAudioOwnerId()
   for (const [id, win] of projectionWindows) {
     if (win.isDestroyed()) continue
-    const enabled = id === owner
+    if (windowModes.get(id) === 'shell') win.webContents.setAudioMuted(true)
     void win.webContents
-      .executeJavaScript(`window.__orionSetDeckAudio && window.__orionSetDeckAudio(${enabled})`)
+      .executeJavaScript(`window.__orionSetDeckAudio && window.__orionSetDeckAudio(false)`)
       .catch(() => {
         /* window not ready */
       })

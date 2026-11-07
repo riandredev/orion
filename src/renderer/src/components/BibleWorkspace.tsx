@@ -34,6 +34,12 @@ type HistoryEntry = {
   id: string
   ref: string
   preview: string
+  bookId: string
+  chapter: number
+  verse: number
+  text: string
+  locationLabel: string
+  translationLabel: string
 }
 
 const scopeOptions = [
@@ -269,14 +275,15 @@ export function BibleWorkspace({
   function selectVerse(n: number, text: string): void {
     setVerse(n)
     const ref = formatPassageRefForBook(bookId, chapter, n, afrikaansBooks)
+    const locationLabel = formatBibleProjectionLocation(
+      getBookDisplayName(bookId, afrikaansBooks),
+      chapter,
+      n
+    )
     setBibleActivePassage(ref)
     setBibleLiveContent({
       reference: ref,
-      locationLabel: formatBibleProjectionLocation(
-        getBookDisplayName(bookId, afrikaansBooks),
-        chapter,
-        n
-      ),
+      locationLabel,
       translationLabel,
       highlightVerse: n,
       verses: [{ number: n, text }]
@@ -284,8 +291,36 @@ export function BibleWorkspace({
     const preview = text.length > 72 ? `${text.slice(0, 72)}…` : text
     setHistory((prev) => {
       const filtered = prev.filter((h) => h.ref !== ref)
-      return [{ id: `${Date.now()}`, ref, preview }, ...filtered].slice(0, 12)
+      return [
+        {
+          id: `${Date.now()}`,
+          ref,
+          preview,
+          bookId,
+          chapter,
+          verse: n,
+          text,
+          locationLabel,
+          translationLabel
+        },
+        ...filtered
+      ].slice(0, 12)
     })
+  }
+
+  function openHistoryEntry(entry: HistoryEntry): void {
+    setBookId(entry.bookId)
+    setChapter(entry.chapter)
+    setVerse(entry.verse)
+    setBibleActivePassage(entry.ref)
+    setBibleLiveContent({
+      reference: entry.ref,
+      locationLabel: entry.locationLabel,
+      translationLabel: entry.translationLabel,
+      highlightVerse: entry.verse,
+      verses: [{ number: entry.verse, text: entry.text }]
+    })
+    onProjectToOutputs()
   }
 
   function navigateToPassage(target: { bookId: string; chapter: number; verse: number }): void {
@@ -675,7 +710,11 @@ export function BibleWorkspace({
             ) : (
               history.map((entry) => (
                 <li key={entry.id}>
-                  <button type="button" className="bible-history__item">
+                  <button
+                    type="button"
+                    className="bible-history__item"
+                    onClick={() => openHistoryEntry(entry)}
+                  >
                     <span className="bible-history__ref">{entry.ref}</span>
                     <span className="bible-history__preview adw-caption">{entry.preview}</span>
                   </button>

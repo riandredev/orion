@@ -311,15 +311,40 @@ function OrderFadePreview({
 
 function DeckFadePreview({ frame, underlay }: { frame: LiveFrame; underlay?: string }): ReactElement {
   const token = `${frame.width}x${frame.height}:${frame.markup}:${frame.media.map((media) => media.src).join('|')}`
+  const tokenRef = useRef(token)
+  const frameRef = useRef(frame)
+  const [previous, setPrevious] = useState<LiveFrame | null>(null)
+  const [current, setCurrent] = useState(frame)
+  const duration = Math.max(1, frame.durationMs)
+
+  useEffect(() => {
+    if (token === tokenRef.current) return
+    setPrevious(frameRef.current)
+    frameRef.current = frame
+    tokenRef.current = token
+    setCurrent(frame)
+  }, [token, frame])
+
   return (
     <div className="preview-fade">
-      {underlay ? <img className="projector-preview__img preview-fade__layer" src={underlay} alt="" /> : null}
+      {!previous && underlay ? (
+        <img className="projector-preview__img preview-fade__layer" src={underlay} alt="" />
+      ) : null}
+      {previous ? (
+        <div className="preview-fade__deck">
+          <OutputLiveMirror frame={previous} />
+        </div>
+      ) : null}
       <div
         key={token}
-        className="preview-fade__deck preview-fade__deck--in"
-        style={{ ['--fade-ms' as string]: `${frame.durationMs}ms` }}
+        className={previous || underlay ? 'preview-fade__deck preview-fade__deck--in' : 'preview-fade__deck'}
+        style={{ ['--fade-ms' as string]: `${duration}ms` }}
+        onAnimationEnd={(event) => {
+          if (event.target !== event.currentTarget) return
+          setPrevious(null)
+        }}
       >
-        <OutputLiveMirror frame={frame} />
+        <OutputLiveMirror frame={current} />
       </div>
     </div>
   )
@@ -360,8 +385,14 @@ function OutputCompositePreview({
     return () => window.clearTimeout(timer)
   }, [departing, fadeMs])
 
-  if (overlay && captureUrl) {
-    return <img className="projector-preview__img projector-preview__img--capture" src={captureUrl} alt="" />
+  if (overlay && (captureUrl || imageUrl)) {
+    return (
+      <OrderFadePreview
+        src={captureUrl ?? imageUrl!}
+        mode="crossfade"
+        durationMs={fadeMs}
+      />
+    )
   }
 
   if (departing && imageUrl) {
@@ -556,7 +587,10 @@ export function ProjectorPanel({
                 )}
               </div>
               <div className="projector-preview__screen">
-                {output.isLive && liveFrame && liveFrame.transition === 'fade' && liveFrame.durationMs > 0 ? (
+                {output.isLive &&
+                liveFrame &&
+                liveFrame.durationMs > 0 &&
+                !liveFrame.media.some((media) => media.kind === 'video') ? (
                   <DeckFadePreview frame={liveFrame} underlay={output.previewUrl} />
                 ) : output.isLive && liveFrame && liveFrame.media.some((media) => media.kind === 'video') ? (
                   <OutputLiveMirror frame={liveFrame} />

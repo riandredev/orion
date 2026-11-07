@@ -2008,15 +2008,16 @@ export default function App(): ReactElement {
       const libraryWire =
         stageOverlay?.type === 'media' ? stageOverlay : stageBase?.type === 'media' ? stageBase : null
       const imageWire = stageBase?.type === 'image' ? stageBase : null
+      const orderDuration = imageWire?.durationMs ?? 0
+      const orderAnimation = imageWire?.animation
       const orderFade =
         outputLive &&
         !presentationOutputLive &&
         imageWire &&
-        (imageWire.animation === 'crossfade' || imageWire.animation === 'fade') &&
-        (imageWire.durationMs ?? 0) > 0
+        orderDuration > 0
           ? {
-              mode: imageWire.animation as 'crossfade' | 'fade',
-              durationMs: imageWire.durationMs ?? 0
+              mode: (orderAnimation === 'fade' ? 'fade' : 'crossfade') as 'crossfade' | 'fade',
+              durationMs: orderDuration
             }
           : undefined
 

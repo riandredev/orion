@@ -96,6 +96,7 @@ function DeckMedia({
   drivePlayback: boolean
 }): ReactElement {
   const ref = useRef<HTMLVideoElement & HTMLAudioElement>(null)
+  const [audible, setAudible] = useState(false)
 
   useEffect(() => {
     const el = ref.current
@@ -164,10 +165,12 @@ function DeckMedia({
     const stopClock = (): void => {
       window.clearInterval(clock)
     }
-    const keepMuted = (): void => {
-      el.muted = true
-      el.volume = 0
+    const unmute = (): void => {
+      el.muted = false
+      el.volume = 1
+      setAudible(true)
     }
+    el.muted = true
     const onPause = (): void => {
       stopClock()
       if (!armed) return
@@ -181,9 +184,10 @@ function DeckMedia({
     el.addEventListener('click', arm, true)
     el.addEventListener('keydown', arm, true)
     el.addEventListener('playing', startClock)
+    el.addEventListener('playing', unmute)
     el.addEventListener('pause', onPause)
     el.addEventListener('seeked', onSeeked)
-    el.addEventListener('volumechange', keepMuted)
+    unmute()
     if (!el.paused) startClock()
     return () => {
       armed = false
@@ -192,9 +196,11 @@ function DeckMedia({
       el.removeEventListener('click', arm, true)
       el.removeEventListener('keydown', arm, true)
       el.removeEventListener('playing', startClock)
+      el.removeEventListener('playing', unmute)
       el.removeEventListener('pause', onPause)
       el.removeEventListener('seeked', onSeeked)
-      el.removeEventListener('volumechange', keepMuted)
+      el.muted = true
+      el.volume = 0
     }
   }, [drivePlayback, index, src])
 
@@ -205,7 +211,7 @@ function DeckMedia({
         className="presentation-live__audio"
         src={src}
         autoPlay={drivePlayback}
-        muted
+        muted={!drivePlayback || !audible}
         controls={drivePlayback}
       />
     )
@@ -216,7 +222,7 @@ function DeckMedia({
       className="presentation-live__video"
       src={src}
       autoPlay={drivePlayback}
-      muted
+      muted={!drivePlayback || !audible}
       controls={drivePlayback}
       playsInline
       disablePictureInPicture

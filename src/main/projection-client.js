@@ -833,10 +833,12 @@ function renderStage(state) {
     } else {
       overlayLayer.style.backgroundImage = ''
     }
+    const overlayWasVisible = overlayLayer.classList.contains('overlay-visible')
     renderPayload(overlayLayer, overlay)
     // Trigger CSS fade-in
     void overlayLayer.offsetWidth
     overlayLayer.classList.add('overlay-visible')
+    if (!overlayWasVisible) pendingSettleMs = Math.max(pendingSettleMs, 420)
   } else {
     const orderUnderlay =
       base?.type === 'image' &&
