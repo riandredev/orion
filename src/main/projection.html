@@ -4,13 +4,84 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Orion Output</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Lora:ital,wght@0,600;0,700;1,600&display=swap"
-      rel="stylesheet"
-    />
     <style>
+      @font-face {
+        font-family: Cantarell;
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("./fonts/cantarell-latin-400-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: Cantarell;
+        font-style: italic;
+        font-weight: 400;
+        font-display: swap;
+        src: url("./fonts/cantarell-latin-400-italic.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: Cantarell;
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url("./fonts/cantarell-latin-700-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: Cantarell;
+        font-style: italic;
+        font-weight: 700;
+        font-display: swap;
+        src: url("./fonts/cantarell-latin-700-italic.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "EB Garamond";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("./fonts/eb-garamond-latin-400-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "EB Garamond";
+        font-style: italic;
+        font-weight: 400;
+        font-display: swap;
+        src: url("./fonts/eb-garamond-latin-400-italic.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "EB Garamond";
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url("./fonts/eb-garamond-latin-500-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "EB Garamond";
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url("./fonts/eb-garamond-latin-600-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "EB Garamond";
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url("./fonts/eb-garamond-latin-700-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "EB Garamond";
+        font-style: italic;
+        font-weight: 700;
+        font-display: swap;
+        src: url("./fonts/eb-garamond-latin-700-italic.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "EB Garamond";
+        font-style: normal;
+        font-weight: 800;
+        font-display: swap;
+        src: url("./fonts/eb-garamond-latin-800-normal.woff2") format("woff2");
+      }
       :root {
         --hymn-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
         --bible-shadow: 0 0.08em 0.28em rgba(0, 0, 0, 0.88), 0 0.02em 0.08em rgba(0, 0, 0, 0.95);
@@ -302,6 +373,108 @@
         font-weight: var(--bible-verse-weight, 500);
       }
 
+      .proj-place {
+        position: relative;
+      }
+
+      .proj-block-anchor {
+        position: absolute;
+        z-index: 2;
+        max-width: 80%;
+      }
+
+      :is(.bible-proj--anchored, .proj-place) {
+        display: block;
+        position: relative;
+      }
+
+      .bible-proj--split-heading .bible-proj__top {
+        display: contents;
+      }
+
+      :is(.bible-proj--anchored, .proj-place) .bible-proj__pair,
+      .bible-proj--split-heading .bible-proj__location,
+      .bible-proj--split-heading .bible-proj__translation,
+      :is(.bible-proj--anchored, .proj-place) .bible-proj__body {
+        position: absolute;
+        margin: 0;
+        max-width: 72%;
+        flex: none;
+        right: auto;
+        bottom: auto;
+        transform: none;
+      }
+
+      :is(.bible-proj--anchored, .proj-place) .bible-proj__body {
+        width: 68%;
+        max-height: none;
+      }
+
+      .bible-proj:not(:is(.bible-proj--anchored, .proj-place)) .bible-proj__location,
+      .bible-proj:not(:is(.bible-proj--anchored, .proj-place)) .bible-proj__translation,
+      .bible-proj:not(:is(.bible-proj--anchored, .proj-place)) .bible-proj__body,
+      :is(.bible-proj--anchored, .proj-place):not(.bible-proj--split-heading) .bible-proj__translation {
+        margin-top: var(--block-margin-top, 0vmin);
+        margin-right: var(--block-margin-right, 0vmin);
+        margin-bottom: var(--block-margin-bottom, 0vmin);
+        margin-left: var(--block-margin-left, 0vmin);
+      }
+
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-top-left,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-left,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom-left {
+        left: var(--block-margin-left, 0vmin);
+        right: auto;
+        text-align: left;
+      }
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-top-right,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-right,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom-right {
+        right: var(--block-margin-right, 0vmin);
+        left: auto;
+        text-align: right;
+      }
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-top,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-center,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom {
+        left: var(--block-margin-left, 0vmin);
+        right: var(--block-margin-right, 0vmin);
+        width: max-content;
+        max-width: 80%;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+      }
+      :is(.bible-proj--anchored, .proj-place) .bible-proj__body.bible-anchor-top,
+      :is(.bible-proj--anchored, .proj-place) .bible-proj__body.bible-anchor-center,
+      :is(.bible-proj--anchored, .proj-place) .bible-proj__body.bible-anchor-bottom {
+        left: calc(16% + var(--block-margin-left, 0vmin));
+        right: calc(16% + var(--block-margin-right, 0vmin));
+        width: auto;
+        max-width: none;
+      }
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-top-left,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-top,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-top-right {
+        top: var(--block-margin-top, 0vmin);
+        bottom: auto;
+        transform: none;
+      }
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-left,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-center,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-right {
+        top: calc(50% + var(--block-margin-top, 0vmin) - var(--block-margin-bottom, 0vmin));
+        bottom: auto;
+        transform: translateY(-50%);
+      }
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom-left,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom,
+      :is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom-right {
+        bottom: var(--block-margin-bottom, 0vmin);
+        top: auto;
+        transform: none;
+      }
+
       .dictionary-proj {
         box-sizing: border-box;
         width: 100%;
@@ -458,9 +631,8 @@
           var(--orion-content-inset-bottom) var(--orion-content-inset-left);
         display: flex;
         flex-direction: column;
-        font-family: "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif;
-        font-weight: 700;
-        font-stretch: condensed;
+        font-family: var(--hymn-lyrics-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
+        font-weight: var(--hymn-lyrics-weight, 700);
         color: #fff;
       }
 
@@ -484,9 +656,8 @@
 
       .hymn-proj__title-number {
         margin: 0;
-        font-family: inherit;
-        font-weight: 700;
-        font-stretch: condensed;
+        font-family: var(--hymn-number-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
+        font-weight: var(--hymn-number-weight, 700);
         font-size: clamp(3.75rem, 13vmin, 9.5rem);
         line-height: 1.05;
         text-shadow: var(--hymn-shadow);
@@ -494,9 +665,8 @@
 
       .hymn-proj__title-name {
         margin: 0;
-        font-family: inherit;
-        font-weight: 700;
-        font-stretch: condensed;
+        font-family: var(--hymn-lyrics-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
+        font-weight: var(--hymn-lyrics-weight, 700);
         font-size: clamp(3.25rem, 11vmin, 8.25rem);
         line-height: 1.08;
         text-shadow: var(--hymn-shadow);
@@ -517,7 +687,7 @@
         right: var(--hymn-corner-right, auto);
         transform: var(--hymn-corner-shift, none);
         padding: 0.06em 0.2em;
-        font-family: var(--hymn-corner-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+        font-family: var(--hymn-corner-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
         font-size: var(--hymn-corner-size, 60px);
         font-weight: var(--hymn-corner-weight, 700);
         line-height: 1;
@@ -531,9 +701,8 @@
         margin: 0;
         padding: 0.12em 0.45em;
         text-align: var(--hymn-number-align, center);
-        font-family: var(--hymn-number-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+        font-family: var(--hymn-number-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
         font-weight: var(--hymn-number-weight, 700);
-        font-stretch: condensed;
         font-size: var(--hymn-number-size, 72px);
         line-height: 1.04;
         color: var(--hymn-number-color, #fff);
@@ -553,7 +722,7 @@
         color: var(--hymn-lyrics-color, #fff);
         background: var(--hymn-lyrics-panel, transparent);
         padding: 0.2em 2vmin;
-        font-family: var(--hymn-lyrics-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+        font-family: var(--hymn-lyrics-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
         font-size: var(--hymn-lyrics-size, 84px);
         line-height: var(--hymn-line-height, 1.32);
       }
@@ -562,7 +731,6 @@
         margin: 0;
         font-family: inherit;
         font-weight: var(--hymn-lyrics-weight, 700);
-        font-stretch: condensed;
         font-size: 1em;
         line-height: inherit;
         text-shadow: var(--hymn-shadow);
@@ -576,10 +744,9 @@
         padding: 1.25vmin 2vmin 0;
         text-align: var(--hymn-author-align, center);
         background: var(--hymn-author-panel, transparent);
-        font-family: var(--hymn-author-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+        font-family: var(--hymn-author-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
         font-style: italic;
         font-weight: var(--hymn-author-weight, 700);
-        font-stretch: condensed;
         font-size: var(--hymn-author-size, 28px);
         line-height: 1.2;
         color: var(--hymn-author-color, #ffd400);

@@ -8,8 +8,8 @@ export const HYMN_TYPOGRAPHY_ELEMENTS = [
 export type HymnTypographyElementId = (typeof HYMN_TYPOGRAPHY_ELEMENTS)[number]['id']
 
 export const PROJECTION_FONTS = [
-  { id: 'arial-narrow', label: 'Arial Narrow', family: '"Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif' },
-  { id: 'palatino', label: 'Palatino', family: 'Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif' },
+  { id: 'arial-narrow', label: 'Arial Narrow', family: '"Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif' },
+  { id: 'palatino', label: 'Palatino', family: '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif' },
   { id: 'garamond', label: 'EB Garamond', family: '"EB Garamond", Georgia, "Times New Roman", serif' },
   { id: 'arial', label: 'Arial', family: 'Arial, "Liberation Sans", sans-serif' },
   { id: 'calibri', label: 'Calibri', family: 'Calibri, Candara, sans-serif' },
@@ -155,24 +155,27 @@ export type BiblePanelId = 'reference' | 'verse'
 
 export type BibleTextAlign = 'left' | 'center' | 'right'
 
+export const DEFAULT_PANEL_COLOR = '#0f1b2e'
+
 export type BibleTextPanel = {
   enabled: boolean
   opacity: number
+  color: string
   align: BibleTextAlign
 }
 
 export type BiblePanels = Record<BiblePanelId, BibleTextPanel>
 
 export const DEFAULT_BIBLE_PANELS: BiblePanels = {
-  reference: { enabled: true, opacity: 66, align: 'center' },
-  verse: { enabled: true, opacity: 66, align: 'center' }
+  reference: { enabled: true, opacity: 66, color: DEFAULT_PANEL_COLOR, align: 'center' },
+  verse: { enabled: true, opacity: 66, color: DEFAULT_PANEL_COLOR, align: 'center' }
 }
 
 export type HymnPanelId = HymnTypographyElementId
 export type DictionaryPanelId = DictionaryTypographyElementId
 
 function textPanel(align: BibleTextAlign, enabled = false): BibleTextPanel {
-  return { enabled, opacity: 66, align }
+  return { enabled, opacity: 66, color: DEFAULT_PANEL_COLOR, align }
 }
 
 export const DEFAULT_HYMN_PANELS: Record<HymnPanelId, BibleTextPanel> = {
@@ -191,8 +194,13 @@ export const DEFAULT_DICTIONARY_PANELS: Record<DictionaryPanelId, BibleTextPanel
 
 export function biblePanelCssColor(panel: BibleTextPanel): string {
   if (!panel.enabled) return 'transparent'
+  const hex = /^#[0-9a-fA-F]{6}$/.test(panel.color) ? panel.color : DEFAULT_PANEL_COLOR
+  const n = Number.parseInt(hex.slice(1), 16)
   const alpha = Math.min(BIBLE_PANEL_OPACITY_MAX, Math.max(0, panel.opacity)) / 100
-  return `rgba(15, 27, 46, ${alpha})`
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 export const DICTIONARY_TYPOGRAPHY_ELEMENTS = [
@@ -459,6 +467,7 @@ function clampBiblePanel(raw: unknown, fallback: BibleTextPanel): BibleTextPanel
   return {
     enabled: typeof panel.enabled === 'boolean' ? panel.enabled : fallback.enabled,
     opacity,
+    color: clampColor(panel.color, fallback.color),
     align
   }
 }

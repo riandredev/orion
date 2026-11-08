@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { cssDimOverlay } from '../../../shared/dim-overlay'
 import { projectionContentInsetsPreviewVars } from '../../../shared/projection-content-insets'
 import {
   HYMN_FONT_SIZE_MAX,
@@ -28,6 +29,15 @@ import {
   PROJECTION_PREVIEW_STAGE_WIDTH
 } from './BackgroundStagePreview'
 import { ContentInsetCard } from './ContentInsetCard'
+import { CategoryPlacementCard, placedBlockClass, placedBlockStyle } from './CategoryPlacementCard'
+import {
+  resetHymnBlockLayout,
+  updateHymnBlockAnchor,
+  updateHymnBlockMargin,
+  updateHymnBlockMarginSides,
+  updateHymnBlockWidth,
+  useHymnBlockLayout
+} from '../lib/category-block-layout'
 
 function fileUrl(filePath: string | null): string | undefined {
   if (!filePath) return undefined
@@ -47,6 +57,7 @@ export function HymnsSettingsPanel(): ReactElement {
   const typography = useHymnTypography()
   const lineHeight = projection.lineHeight.hymns
   const insets = useProjectionContentInsetsByCategory().hymns
+  const blockLayout = useHymnBlockLayout()
   const backgrounds = useBackgroundSettings()
   const resolved = resolveCategoryBackground('hymns', backgrounds)
   const [selected, setSelected] = useState<HymnTypographyElementId>('lyrics')
@@ -72,14 +83,13 @@ export function HymnsSettingsPanel(): ReactElement {
 
   const selectedMeta = HYMN_TYPOGRAPHY_ELEMENTS.find((item) => item.id === selected) ?? HYMN_TYPOGRAPHY_ELEMENTS[1]!
   const imageUrl = fileUrl(resolved.imagePath)
-  const dim = Math.min(95, Math.max(0, resolved.dimOpacity)) / 100
   const canvasStyle: CSSProperties = {
     width: PROJECTION_PREVIEW_STAGE_WIDTH,
     height: PROJECTION_PREVIEW_STAGE_HEIGHT,
     transform: `scale(${scale})`,
     backgroundColor: resolved.solidColor,
     backgroundImage: imageUrl
-      ? `linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})), url(${JSON.stringify(imageUrl)})`
+      ? `linear-gradient(${cssDimOverlay(resolved.dimColor, resolved.dimOpacity)}, ${cssDimOverlay(resolved.dimColor, resolved.dimOpacity)}), url(${JSON.stringify(imageUrl)})`
       : undefined,
     backgroundSize: resolved.fit === 'contain' ? 'contain' : 'cover',
     backgroundPosition: 'center',
@@ -166,6 +176,22 @@ export function HymnsSettingsPanel(): ReactElement {
             </div>
           </div>
           <ContentInsetCard category="hymns" title="Hymns" />
+          <CategoryPlacementCard
+            blocks={[
+              { id: 'number', label: 'Hymn number', hint: 'Number on the slide' },
+              { id: 'corner', label: 'Verse number', hint: 'Stanza marker' },
+              { id: 'lyrics', label: 'Lyrics', hint: 'The verse lines' },
+              { id: 'author', label: 'Author', hint: 'Name under the lyrics' }
+            ]}
+            blockId={selected}
+            layout={blockLayout}
+            onSelect={setSelected}
+            onAnchor={updateHymnBlockAnchor}
+            onMargin={updateHymnBlockMargin}
+            onMarginSides={updateHymnBlockMarginSides}
+            onWidth={updateHymnBlockWidth}
+            onReset={resetHymnBlockLayout}
+          />
         </div>
 
         <div className="settings-bg__aside">
@@ -185,20 +211,40 @@ export function HymnsSettingsPanel(): ReactElement {
           >
             <div className="settings-bg__stage-canvas orion-projection-content-insets" style={canvasStyle}>
               <div className="settings-bg__stage-layer">
-                <div className="hymn-proj bg-stage-demo__fill">
+                <div className={`hymn-proj bg-stage-demo__fill${Object.values(blockLayout).some((item) => item.anchor !== 'flow') ? ' proj-place' : ''}`}>
                   <div className="hymn-proj__top">
-                    <button type="button" data-hymn-style="corner" className={`hymn-proj__corner ${hit('corner')}`}>
+                    <button
+                      type="button"
+                      data-hymn-style="corner"
+                      className={`hymn-proj__corner ${hit('corner')} ${placedBlockClass(blockLayout.corner.anchor)}`}
+                      style={placedBlockStyle(blockLayout.corner) as CSSProperties}
+                    >
                       1 - 2
                     </button>
-                    <button type="button" data-hymn-style="number" className={`hymn-proj__heading ${hit('number')}`}>
+                    <button
+                      type="button"
+                      data-hymn-style="number"
+                      className={`hymn-proj__heading ${hit('number')} ${placedBlockClass(blockLayout.number.anchor)}`}
+                      style={placedBlockStyle(blockLayout.number) as CSSProperties}
+                    >
                       69
                     </button>
                   </div>
-                  <button type="button" data-hymn-style="lyrics" className={`hymn-proj__lines ${hit('lyrics')}`}>
+                  <button
+                    type="button"
+                    data-hymn-style="lyrics"
+                    className={`hymn-proj__lines ${hit('lyrics')} ${placedBlockClass(blockLayout.lyrics.anchor)}`}
+                    style={placedBlockStyle(blockLayout.lyrics) as CSSProperties}
+                  >
                     <span className="hymn-proj__line">Amazing grace! how sweet the sound,</span>
                     <span className="hymn-proj__line">That saved a wretch like me!</span>
                   </button>
-                  <button type="button" data-hymn-style="author" className={`hymn-proj__author ${hit('author')}`}>
+                  <button
+                    type="button"
+                    data-hymn-style="author"
+                    className={`hymn-proj__author ${hit('author')} ${placedBlockClass(blockLayout.author.anchor)}`}
+                    style={placedBlockStyle(blockLayout.author) as CSSProperties}
+                  >
                     John Newton
                   </button>
                 </div>

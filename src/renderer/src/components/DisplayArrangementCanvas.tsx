@@ -7,9 +7,9 @@ import {
   type ReactElement
 } from 'react'
 import type { OrionDisplayInfo } from '../../../shared/displays'
+import { snapArrangementPosition } from '../../../shared/display-arrangement'
 import {
   buildLayoutMonitors,
-  clampMonitorPosition,
   clearSavedLayoutPositions,
   DISPLAY_LAYOUT_CANVAS,
   layoutToSavedPositions,
@@ -21,6 +21,7 @@ import {
 
 type DisplayArrangementCanvasProps = {
   displays: OrionDisplayInfo[]
+  onLayoutChange?: () => void
 }
 
 function formatResolution(display: OrionDisplayInfo): string {
@@ -34,7 +35,17 @@ function canvasScaleFromRect(rect: DOMRect): { scaleX: number; scaleY: number } 
   }
 }
 
-export function DisplayArrangementCanvas({ displays }: DisplayArrangementCanvasProps): ReactElement {
+const CANVAS_BOUNDS = {
+  x: 0,
+  y: 0,
+  width: DISPLAY_LAYOUT_CANVAS.width,
+  height: DISPLAY_LAYOUT_CANVAS.height
+}
+
+export function DisplayArrangementCanvas({
+  displays,
+  onLayoutChange
+}: DisplayArrangementCanvasProps): ReactElement {
   const [monitors, setMonitors] = useState<LayoutMonitor[]>([])
   const [drag, setDrag] = useState<{
     id: number
@@ -45,16 +56,20 @@ export function DisplayArrangementCanvas({ displays }: DisplayArrangementCanvasP
   const canvasRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (displays.length <= 1 && Object.keys(loadSavedLayoutPositions()).length > 0) {
+      clearSavedLayoutPositions()
+    }
     setMonitors(buildLayoutMonitors(displays, loadSavedLayoutPositions()))
   }, [displays])
 
   const resetToSystem = useCallback(() => {
     clearSavedLayoutPositions()
     setMonitors(buildLayoutMonitors(displays, {}))
-  }, [displays])
+    onLayoutChange?.()
+  }, [displays, onLayoutChange])
 
   const onMonitorPointerDown = (monitor: LayoutMonitor, e: ReactPointerEvent<HTMLDivElement>): void => {
-    if (e.button !== 0) return
+    if (e.button !== 0 || displays.length < 2) return
     e.preventDefault()
     const canvas = canvasRef.current
     if (!canvas) return
@@ -86,14 +101,19 @@ export function DisplayArrangementCanvas({ displays }: DisplayArrangementCanvasP
       setMonitors((prev) => {
         const target = prev.find((m) => m.display.id === drag.id)
         if (!target) return prev
-        const clamped = clampMonitorPosition(
+        const home = buildLayoutMonitors(displays, {}).find((m) => m.display.id === drag.id)
+        const snapped = snapArrangementPosition(
           pointerX - drag.offsetX,
           pointerY - drag.offsetY,
           target.width,
-          target.height
+          target.height,
+          prev.filter((m) => m.display.id !== drag.id),
+          home ? { x: home.x, y: home.y } : { x: target.x, y: target.y },
+          CANVAS_BOUNDS,
+          { x: target.x, y: target.y }
         )
         const moved = prev.map((m) =>
-          m.display.id === drag.id ? { ...m, x: clamped.x, y: clamped.y } : m
+          m.display.id === drag.id ? { ...m, x: snapped.x, y: snapped.y } : m
         )
         return reorderLayoutMonitors(moved)
       })
@@ -106,6 +126,7 @@ export function DisplayArrangementCanvas({ displays }: DisplayArrangementCanvasP
         saveLayoutPositions(layoutToSavedPositions(ordered))
         return ordered
       })
+      onLayoutChange?.()
       setDrag(null)
     }
 
@@ -117,7 +138,7 @@ export function DisplayArrangementCanvas({ displays }: DisplayArrangementCanvasP
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
     }
-  }, [drag])
+  }, [drag, displays, onLayoutChange])
 
   if (displays.length === 0) return <></>
 
@@ -134,8 +155,8 @@ export function DisplayArrangementCanvas({ displays }: DisplayArrangementCanvasP
         </button>
       </div>
       <p className="adw-caption display-arrangement__hint">
-        Drag monitors to match your desk setup. Numbers show Orion output order (left to right, then
-        top to bottom).
+        Drag a monitor and it locks to the edge of another. Numbers are the order Orion uses when
+        sending to more than one output: left to right, then top to bottom.
       </p>
       <div
         ref={canvasRef}
@@ -149,13 +170,14 @@ export function DisplayArrangementCanvas({ displays }: DisplayArrangementCanvasP
           return (
             <div
               key={d.id}
-              className={
-                dragging
-                  ? 'display-arrangement__monitor display-arrangement__monitor--dragging'
-                  : d.primary
-                    ? 'display-arrangement__monitor display-arrangement__monitor--primary'
-                    : 'display-arrangement__monitor'
-              }
+              className={[
+                'display-arrangement__monitor',
+                dragging ? 'display-arrangement__monitor--dragging' : '',
+                d.primary ? 'display-arrangement__monitor--primary' : '',
+                displays.length < 2 ? 'display-arrangement__monitor--solo' : ''
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={{
                 left: `${(monitor.x / DISPLAY_LAYOUT_CANVAS.width) * 100}%`,
                 top: `${(monitor.y / DISPLAY_LAYOUT_CANVAS.height) * 100}%`,

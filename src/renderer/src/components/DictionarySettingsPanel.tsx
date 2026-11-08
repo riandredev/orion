@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { cssDimOverlay } from '../../../shared/dim-overlay'
 import { projectionContentInsetsPreviewVars } from '../../../shared/projection-content-insets'
 import {
   DICTIONARY_TYPOGRAPHY_ELEMENTS,
@@ -20,6 +21,15 @@ import {
   PROJECTION_PREVIEW_STAGE_WIDTH
 } from './BackgroundStagePreview'
 import { ContentInsetCard } from './ContentInsetCard'
+import { CategoryPlacementCard, placedBlockClass, placedBlockStyle } from './CategoryPlacementCard'
+import {
+  resetDictionaryBlockLayout,
+  updateDictionaryBlockAnchor,
+  updateDictionaryBlockMargin,
+  updateDictionaryBlockMarginSides,
+  updateDictionaryBlockWidth,
+  useDictionaryBlockLayout
+} from '../lib/category-block-layout'
 import { LineHeightField, TextPanelFields, TextShadowField, TypeStyleFields } from './TypeStyleFields'
 
 function fileUrl(filePath: string | null): string | undefined {
@@ -32,6 +42,8 @@ export function DictionarySettingsPanel(): ReactElement {
   const typography = useProjectionTypography()
   const dictionary = useDictionaryTypography()
   const insets = useProjectionContentInsetsByCategory().dictionary
+  const blockLayout = useDictionaryBlockLayout()
+  const [selected, setSelected] = useState<DictionaryTypographyElementId>('definition')
   const backgrounds = useBackgroundSettings()
   const resolved = resolveCategoryBackground('dictionary', backgrounds)
   const scalerRef = useRef<HTMLDivElement>(null)
@@ -54,14 +66,13 @@ export function DictionarySettingsPanel(): ReactElement {
   }, [updateScale])
 
   const imageUrl = fileUrl(resolved.imagePath)
-  const dim = Math.min(95, Math.max(0, resolved.dimOpacity)) / 100
   const canvasStyle: CSSProperties = {
     width: PROJECTION_PREVIEW_STAGE_WIDTH,
     height: PROJECTION_PREVIEW_STAGE_HEIGHT,
     transform: `scale(${scale})`,
     backgroundColor: resolved.solidColor,
     backgroundImage: imageUrl
-      ? `linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})), url(${JSON.stringify(imageUrl)})`
+      ? `linear-gradient(${cssDimOverlay(resolved.dimColor, resolved.dimOpacity)}, ${cssDimOverlay(resolved.dimColor, resolved.dimOpacity)}), url(${JSON.stringify(imageUrl)})`
       : undefined,
     backgroundSize: resolved.fit === 'contain' ? 'contain' : 'cover',
     backgroundPosition: 'center',
@@ -97,6 +108,22 @@ export function DictionarySettingsPanel(): ReactElement {
             <TextShadowField category="dictionary" value={typography.textShadow.dictionary} />
           </div>
           <ContentInsetCard category="dictionary" title="Dictionary" />
+          <CategoryPlacementCard
+            blocks={[
+              { id: 'strongs', label: "Strong's number", hint: 'The reference line' },
+              { id: 'lemma', label: 'Original word', hint: 'The word being studied' },
+              { id: 'details', label: 'Details', hint: 'Part of speech and gloss' },
+              { id: 'definition', label: 'Definition', hint: 'The explanation' }
+            ]}
+            blockId={selected}
+            layout={blockLayout}
+            onSelect={setSelected}
+            onAnchor={updateDictionaryBlockAnchor}
+            onMargin={updateDictionaryBlockMargin}
+            onMarginSides={updateDictionaryBlockMarginSides}
+            onWidth={updateDictionaryBlockWidth}
+            onReset={resetDictionaryBlockLayout}
+          />
         </div>
         <div className="settings-bg__aside">
           <div className="adw-card settings-bg__preview-card">
@@ -104,14 +131,29 @@ export function DictionarySettingsPanel(): ReactElement {
             <h3 className="settings-bg__subtitle">Preview</h3>
             <p className="adw-caption">Strong’s number, original word, details, and definition.</p>
           </div>
-          <div ref={scalerRef} className="settings-bg__stage-scaler">
+          <div
+            ref={scalerRef}
+            className="settings-bg__stage-scaler"
+            onClick={(event) => {
+              const id = (event.target as HTMLElement).closest('[data-dictionary-style]')?.getAttribute('data-dictionary-style')
+              if (id === 'strongs' || id === 'lemma' || id === 'details' || id === 'definition') setSelected(id)
+            }}
+          >
             <div className="settings-bg__stage-canvas orion-projection-content-insets" style={canvasStyle}>
               <div className="settings-bg__stage-layer">
-                <div className="dictionary-proj bg-stage-demo__fill">
-                  <p className="dictionary-proj__ref">
+                <div className={`dictionary-proj bg-stage-demo__fill${Object.values(blockLayout).some((item) => item.anchor !== 'flow') ? ' proj-place' : ''}`}>
+                  <p
+                    className={`dictionary-proj__ref ${placedBlockClass(blockLayout.strongs.anchor)}`}
+                    data-dictionary-style="strongs"
+                    style={placedBlockStyle(blockLayout.strongs) as CSSProperties}
+                  >
                     <span className="dictionary-proj__ref-id">G26</span> · Greek
                   </p>
-                  <p className="dictionary-proj__lemma">
+                  <p
+                    className={`dictionary-proj__lemma ${placedBlockClass(blockLayout.lemma.anchor)}`}
+                    data-dictionary-style="lemma"
+                    style={placedBlockStyle(blockLayout.lemma) as CSSProperties}
+                  >
                     <span className="dictionary-proj__lemma-reading">agapē</span>
                     <svg className="dictionary-proj__lemma-arrow" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 12h14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -121,12 +163,20 @@ export function DictionarySettingsPanel(): ReactElement {
                       ἀγάπη
                     </span>
                   </p>
-                  <div className="dictionary-proj__infobar">
+                  <div
+                    className={`dictionary-proj__infobar ${placedBlockClass(blockLayout.details.anchor)}`}
+                    data-dictionary-style="details"
+                    style={placedBlockStyle(blockLayout.details) as CSSProperties}
+                  >
                     <p className="dictionary-proj__infobar-seg dictionary-proj__infobar-seg--active">noun</p>
                     <p className="dictionary-proj__infobar-seg">agápē</p>
                     <p className="dictionary-proj__infobar-seg">love</p>
                   </div>
-                  <p className="dictionary-proj__definition">
+                  <p
+                    className={`dictionary-proj__definition ${placedBlockClass(blockLayout.definition.anchor)}`}
+                    data-dictionary-style="definition"
+                    style={placedBlockStyle(blockLayout.definition) as CSSProperties}
+                  >
                     <span className="dictionary-proj__definition-en">
                       Affection, good will, love, benevolence. In the New Testament it is the love of God and of Christ
                       toward people, and the love people owe one another.

@@ -12,6 +12,7 @@ export type CategoryBackgroundConfig = {
   solidColor: string
   imagePath: string | null
   dimOpacity: number
+  dimColor: string
   fit: BackgroundFit
 }
 
@@ -21,6 +22,7 @@ export type ResolvedBackgroundStyle = {
   solidColor: string
   imagePath: string | null
   dimOpacity: number
+  dimColor: string
   fit: BackgroundFit
 }
 
@@ -51,7 +53,7 @@ export function setBackgroundImagesRoot(rootPath: string): void {
   listeners.forEach((l) => l())
 }
 
-function storeImagePath(imagePath: string | null): string | null {
+export function storeImagePath(imagePath: string | null): string | null {
   if (!imagePath?.trim()) return null
   const trimmed = normalizePath(imagePath.trim())
   if (cachedImagesRoot) {
@@ -155,6 +157,7 @@ export const defaultBackgroundSettings: AllBackgroundSettings = {
     solidColor: '#000000',
     imagePath: null,
     dimOpacity: 55,
+    dimColor: '#000000',
     fit: 'cover'
   },
   bible: {
@@ -162,6 +165,7 @@ export const defaultBackgroundSettings: AllBackgroundSettings = {
     solidColor: '#000000',
     imagePath: DEFAULT_BIBLE_BACKGROUND_IMAGE,
     dimOpacity: 28,
+    dimColor: '#000000',
     fit: 'cover'
   },
   hymns: {
@@ -169,6 +173,7 @@ export const defaultBackgroundSettings: AllBackgroundSettings = {
     solidColor: '#000000',
     imagePath: DEFAULT_HYMN_BACKGROUND_IMAGE,
     dimOpacity: 55,
+    dimColor: '#000000',
     fit: 'cover'
   },
   dictionary: {
@@ -176,6 +181,7 @@ export const defaultBackgroundSettings: AllBackgroundSettings = {
     solidColor: '#000000',
     imagePath: null,
     dimOpacity: 65,
+    dimColor: '#000000',
     fit: 'cover'
   }
 }
@@ -201,10 +207,14 @@ function sanitizeCategory(
     typeof raw?.dimOpacity === 'number' && Number.isFinite(raw.dimOpacity)
       ? Math.min(95, Math.max(0, Math.round(raw.dimOpacity)))
       : fallback.dimOpacity
+  const dimColor =
+    typeof raw?.dimColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(raw.dimColor)
+      ? raw.dimColor.toLowerCase()
+      : fallback.dimColor
   const fit: BackgroundFit =
     raw?.fit === 'contain' || raw?.fit === 'cover' ? raw.fit : fallback.fit
 
-  return { mode, solidColor, imagePath, dimOpacity, fit }
+  return { mode, solidColor, imagePath, dimOpacity, dimColor, fit }
 }
 
 export function loadBackgroundSettings(): AllBackgroundSettings {
@@ -300,6 +310,7 @@ export function resolveCategoryBackground(
       solidColor: cfg.solidColor,
       imagePath: resolveStoredBackgroundImagePath(cfg.imagePath),
       dimOpacity: cfg.dimOpacity,
+      dimColor: cfg.dimColor,
       fit: cfg.fit
     }
   }
@@ -308,6 +319,7 @@ export function resolveCategoryBackground(
     solidColor: cfg.solidColor,
     imagePath: null,
     dimOpacity: 0,
+    dimColor: cfg.dimColor,
     fit: cfg.fit
   }
 }

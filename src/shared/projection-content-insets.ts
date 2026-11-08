@@ -14,7 +14,7 @@ export type ProjectionContentInsetsByCategory = Record<
 >
 
 export const PROJECTION_CONTENT_INSET_MIN = 0
-export const PROJECTION_CONTENT_INSET_MAX = 18
+export const PROJECTION_CONTENT_INSET_MAX = 40
 
 export const DEFAULT_PROJECTION_CONTENT_INSETS: ProjectionContentInsetsVmin = {
   top: 3.5,

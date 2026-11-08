@@ -15,8 +15,22 @@ export const ORION_PROFILE_SETTINGS_KEYS = [
   'orion-hymn-pins-v1',
   'orion-hymn-motion-v1',
   'orion-bible-motion-v1',
+  'orion-bible-block-layout-v1',
+  'orion-hymn-block-layout-v1',
+  'orion-dictionary-block-layout-v1',
+  'orion-bible-book-backgrounds-v1',
   'orion-playback-v1',
-  'orion-order-folder-playback-v1'
+  'orion-order-folder-playback-v1',
+  'orion-service-sequence',
+  'orion-recent-colors-v1',
+  'orion-order-view',
+  'orion-order-thumb-size',
+  'orion-media-view-2',
+  'orion-media-thumb-size',
+  'orion-media-sort',
+  'orion-media-sort-dir',
+  'orion-presentation-active-deck',
+  'orion-web-last-url'
 ] as const
 
 export type OrionProfileSettingsKey = (typeof ORION_PROFILE_SETTINGS_KEYS)[number]

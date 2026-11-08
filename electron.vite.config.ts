@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from 'fs'
+import { cpSync, copyFileSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
@@ -11,6 +11,7 @@ function copyProjectionAssets() {
       mkdirSync(outDir, { recursive: true })
       copyFileSync(resolve('src/main/projection.html'), resolve(outDir, 'projection.html'))
       copyFileSync(resolve('src/main/projection-client.js'), resolve(outDir, 'projection-client.js'))
+      cpSync(resolve('src/main/fonts'), resolve(outDir, 'fonts'), { recursive: true })
     }
   }
 }

@@ -114,8 +114,9 @@ export function OrganizationSettingsPanel(): ReactElement {
         <div className="settings-bg__section-head">
           <h3 className="settings-bg__subtitle">Profiles</h3>
           <p className="adw-caption">
-            Each profile keeps display choices, backgrounds, type, safe areas, Bible and hymn
-            options, and the preferences below. Changes save into the active profile immediately.
+            Each profile keeps displays, backgrounds, type, safe areas, Bible and hymn options,
+            the service sequence, library layout, and the preferences below. Changes save into
+            the active profile immediately.
           </p>
         </div>
 

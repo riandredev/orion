@@ -22,6 +22,7 @@ export type OrionProjectionBible = {
   backgroundImagePath?: string | null
   backgroundColor?: string
   backgroundDimOpacity?: number
+  backgroundDimColor?: string
   backgroundFit?: 'cover' | 'contain'
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
 import type { OrionDisplayInfo } from '../../../shared/displays'
 import {
   displayProjectionSignature,
@@ -102,6 +102,7 @@ function DisplayRow({
 export function DisplaysSettingsPanel(): ReactElement {
   const [displays, setDisplays] = useState<OrionDisplayInfo[]>([])
   const [enabledMap, setEnabledMap] = useState<DisplayEnabledMap>(() => loadDisplayEnabledMap())
+  const [layoutVersion, setLayoutVersion] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -136,12 +137,15 @@ export function DisplaysSettingsPanel(): ReactElement {
     return () => window.removeEventListener('orion-profile-applied', onProfile)
   }, [])
 
-  const orderById = new Map<number, number>()
-  for (const monitor of buildLayoutMonitors(displays, loadSavedLayoutPositions())) {
-    if (isDisplayProjectionEnabled(monitor.display.id, enabledMap)) {
-      orderById.set(monitor.display.id, monitor.order)
+  const orderById = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const monitor of buildLayoutMonitors(displays, loadSavedLayoutPositions())) {
+      if (isDisplayProjectionEnabled(monitor.display.id, enabledMap)) {
+        map.set(monitor.display.id, monitor.order)
+      }
     }
-  }
+    return map
+  }, [displays, enabledMap, layoutVersion])
 
   const onToggleProjection = (display: OrionDisplayInfo, enabled: boolean): void => {
     setEnabledMap(
@@ -187,7 +191,10 @@ export function DisplaysSettingsPanel(): ReactElement {
         ) : null}
         {displays.length > 0 ? (
           <>
-            <DisplayArrangementCanvas displays={displays} />
+            <DisplayArrangementCanvas
+              displays={displays}
+              onLayoutChange={() => setLayoutVersion((version) => version + 1)}
+            />
             <p className="adw-caption settings-display-summary">
               {displays.length} display{displays.length === 1 ? '' : 's'} connected ·{' '}
               {[...orderById.values()].length} enabled for projection

@@ -42,6 +42,7 @@ export type OrionApi = {
   >
   removeMedia: (filePath: string) => Promise<boolean>
   listBackgroundImages: () => Promise<OrderFolderImage[]>
+  removeLibraryImage: (filePath: string) => Promise<boolean>
   importBackgroundImage: () => Promise<OrderFolderImage | null>
   listBibles: () => Promise<InstalledBibleInfo[]>
   listOnlineBibleTranslations: () => Promise<import('../../shared/bible-online').OnlineBibleTranslation[]>

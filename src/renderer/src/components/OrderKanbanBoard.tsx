@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react'
-import { useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactElement } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
 import type { OrderFolderImage, OrderFolderInfo } from '../env'
 import {
@@ -11,6 +11,7 @@ import {
 } from '../lib/column-drag'
 import { writeSequenceDrag } from '../lib/sequence-drag'
 import type { OrderLibraryView, OrderThumbSize } from './OrderBlockRibbon'
+import { AdwContextMenu, AdwContextMenuItem } from './AdwContextMenu'
 import { AdwTooltip, orderFolderPath } from './AdwTooltip'
 import { AppIcons, toolbarIconSize } from './icons'
 
@@ -72,7 +73,8 @@ function OrderBrowser({
   onNewFolder,
   folderRefs,
   onReorderPointerDown,
-  shouldIgnoreFolderClick
+  shouldIgnoreFolderClick,
+  onImageMenu
 }: {
   view: OrderLibraryView
   loading: boolean
@@ -86,6 +88,7 @@ function OrderBrowser({
   folderRefs: Map<string, HTMLElement>
   onReorderPointerDown: (event: ReactPointerEvent<HTMLButtonElement>, name: string) => void
   shouldIgnoreFolderClick: () => boolean
+  onImageMenu: (event: ReactMouseEvent, folderName: string, image: OrderFolderImage) => void
 }): ReactElement {
   const active = folderData.find(({ folder }) => folder.name === activeFolderName) ?? null
 
@@ -153,6 +156,7 @@ function OrderBrowser({
                     draggable
                     onDragStart={(event) => dragOrderImage(event, active.folder.name, image)}
                     onClick={() => onSelectImage(active.folder.name, image.path)}
+                    onContextMenu={(event) => onImageMenu(event, active.folder.name, image)}
                   >
                     <img src={pathToFileUrl(image.path)} alt="" />
                     <span>{image.name}</span>
@@ -173,6 +177,7 @@ function OrderBrowser({
                     draggable
                     onDragStart={(event) => dragOrderImage(event, active.folder.name, image)}
                     onClick={() => onSelectImage(active.folder.name, image.path)}
+                    onContextMenu={(event) => onImageMenu(event, active.folder.name, image)}
                   >
                     <img src={pathToFileUrl(image.path)} alt="" />
                     <span>{image.name}</span>
@@ -201,6 +206,13 @@ export function OrderKanbanBoard({
 }: OrderKanbanBoardProps): ReactElement {
   const [folderData, setFolderData] = useState<FolderWithImages[]>([])
   const [loading, setLoading] = useState(true)
+  const [imageReload, setImageReload] = useState(0)
+  const [imageMenu, setImageMenu] = useState<{
+    x: number
+    y: number
+    folder: string
+    image: OrderFolderImage
+  } | null>(null)
   const [drag, setDrag] = useState<ColumnDragState | null>(null)
   const columnRefs = useRef(new Map<string, HTMLElement>())
 
@@ -221,7 +233,27 @@ export function OrderKanbanBoard({
     return () => {
       cancelled = true
     }
-  }, [folders])
+  }, [folders, imageReload])
+
+  function openImageMenu(event: ReactMouseEvent, folder: string, image: OrderFolderImage): void {
+    event.preventDefault()
+    event.stopPropagation()
+    setImageMenu({ x: event.clientX, y: event.clientY, folder, image })
+  }
+
+  async function deleteMenuImage(): Promise<void> {
+    if (!imageMenu || typeof window.orion?.removeLibraryImage !== 'function') return
+    const { folder, image } = imageMenu
+    setImageMenu(null)
+    const removed = await window.orion.removeLibraryImage(image.path)
+    if (!removed) return
+    if (activeImagePath === image.path) {
+      const row = folderData.find((entry) => entry.folder.name === folder)
+      const next = row?.images.find((item) => item.path !== image.path)
+      if (next) onSelectImage(folder, next.path)
+    }
+    setImageReload((value) => value + 1)
+  }
 
   const folderNames = folders.map((f) => f.name)
   const folderNamesKey = folderNames.join('\0')
@@ -447,6 +479,7 @@ export function OrderKanbanBoard({
                             draggable
                             onDragStart={(event) => dragOrderImage(event, folder.name, image)}
                             onClick={() => onSelectImage(folder.name, image.path)}
+                            onContextMenu={(event) => openImageMenu(event, folder.name, image)}
                             title={image.name}
                           >
                             <img
@@ -493,6 +526,7 @@ export function OrderKanbanBoard({
             ignoreFolderClick.current = false
             return true
           }}
+          onImageMenu={openImageMenu}
         />
       )}
 
@@ -541,6 +575,11 @@ export function OrderKanbanBoard({
             document.body
           )
         : null}
+      {imageMenu ? (
+        <AdwContextMenu x={imageMenu.x} y={imageMenu.y} onClose={() => setImageMenu(null)}>
+          <AdwContextMenuItem label="Delete" destructive onSelect={() => void deleteMenuImage()} />
+        </AdwContextMenu>
+      ) : null}
     </div>
   )
 }

@@ -34,6 +34,15 @@ import { AdwScale } from './AdwScale'
 import { AdwSelect } from './AdwSelect'
 import { AdwSwitch } from './AdwSwitch'
 
+const BOX_COLOR_SWATCHES: AdwColorSwatch[] = [
+  { color: '#0f1b2e', label: 'Navy' },
+  { color: '#000000', label: 'Black' },
+  { color: '#141418', label: 'Charcoal' },
+  { color: '#1a1625', label: 'Midnight' },
+  { color: '#1b241e', label: 'Forest' },
+  { color: '#3a2a12', label: 'Brown' }
+]
+
 const TEXT_COLOR_SWATCHES: AdwColorSwatch[] = [
   { color: '#ffffff', label: 'White' },
   { color: '#fff9a7', label: 'Soft gold' },
@@ -97,21 +106,30 @@ export function TextPanelFields({
       </div>
       <p className="adw-caption">
         {panel.enabled
-          ? 'Dark panel behind this text. Turn it off to leave the words on the background.'
-          : 'The dimmed box is off for this text.'}
+          ? 'Box behind this text. Turn it off to leave the words on the background.'
+          : 'The box is off for this text.'}
       </p>
       {panel.enabled ? (
-        <div className="settings-type__size">
-          <AdwScale
-            aria-label={`${label} strength`}
-            min={BIBLE_PANEL_OPACITY_MIN}
-            max={BIBLE_PANEL_OPACITY_MAX}
-            step={1}
-            value={panel.opacity}
-            onChange={(opacity) => onChange({ opacity })}
+        <>
+          <span className="settings-field__label">Box color</span>
+          <AdwColorPicker
+            value={panel.color}
+            swatches={BOX_COLOR_SWATCHES}
+            aria-label={`${label} color`}
+            onChange={(color) => onChange({ color })}
           />
-          <span className="settings-type__size-value">{panel.opacity}</span>
-        </div>
+          <div className="settings-type__size">
+            <AdwScale
+              aria-label={`${label} strength`}
+              min={BIBLE_PANEL_OPACITY_MIN}
+              max={BIBLE_PANEL_OPACITY_MAX}
+              step={1}
+              value={panel.opacity}
+              onChange={(opacity) => onChange({ opacity })}
+            />
+            <span className="settings-type__size-value">{panel.opacity}</span>
+          </div>
+        </>
       ) : null}
       <span className="settings-field__label">Text alignment</span>
       <div className="settings-align" role="group" aria-label={`${label} alignment`}>

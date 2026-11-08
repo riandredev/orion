@@ -1,3 +1,5 @@
+import { touchProfileSettings } from './profile-autosave'
+
 const BLOCKED_PROTOCOLS = new Set(['javascript:', 'file:', 'data:'])
 
 export function normalizeWebUrl(input: string): string | null {
@@ -45,4 +47,5 @@ export function saveLastWebUrl(input: string): void {
   } catch {
     /* ignore */
   }
+  touchProfileSettings()
 }

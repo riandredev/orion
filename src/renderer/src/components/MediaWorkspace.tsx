@@ -4,6 +4,7 @@ import type { PresentationUiState } from '../../../shared/presentation-ui-state'
 import { projectionDisplayIds } from '../lib/display-projection'
 import { publishLibraryMedia } from '../lib/library-media-sync'
 import { loadPlaybackSettings } from '../lib/playback-settings'
+import { touchProfileSettings } from '../lib/profile-autosave'
 import { setMediaRibbon, type MediaSortDir, type MediaSortKey } from '../lib/media-ribbon-sync'
 import { subscribeMediaSequenceCue } from '../lib/media-sequence-cue'
 import { clearPresentationLayer, presentMediaFile } from '../lib/projection'
@@ -175,6 +176,17 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
   const [thumbSize, setThumbSize] = useState<OrderThumbSize>(loadThumb)
   const [sortKey, setSortKey] = useState<MediaSortKey>(loadSortKey)
   const [sortDir, setSortDir] = useState<MediaSortDir>(loadSortDir)
+
+  useEffect(() => {
+    const onProfile = (): void => {
+      setView(loadView())
+      setThumbSize(loadThumb())
+      setSortKey(loadSortKey())
+      setSortDir(loadSortDir())
+    }
+    window.addEventListener('orion-profile-applied', onProfile)
+    return () => window.removeEventListener('orion-profile-applied', onProfile)
+  }, [])
   const [durations, setDurations] = useState<Record<string, number>>({})
   const durationsRef = useRef<Record<string, number>>({})
   const [folderDialog, setFolderDialog] = useState(false)
@@ -388,6 +400,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
         } catch {
           /* ignore */
         }
+        touchProfileSettings()
       },
       setThumbSize: (next) => {
         setThumbSize(next)
@@ -396,6 +409,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
         } catch {
           /* ignore */
         }
+        touchProfileSettings()
       },
       setSortKey: (next) => {
         setSortKey(next)
@@ -404,6 +418,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
         } catch {
           /* ignore */
         }
+        touchProfileSettings()
       },
       setSortDir: (next) => {
         setSortDir(next)
@@ -412,6 +427,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
         } catch {
           /* ignore */
         }
+        touchProfileSettings()
       }
     })
   }, [folderName, goLive, importMedia, live, playing, preview, soundOnThisPc, sortDir, sortKey, thumbSize, togglePlay, view])
@@ -480,6 +496,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
       } catch {
         /* ignore */
       }
+      touchProfileSettings()
       return
     }
     const nextDir: MediaSortDir = key === 'name' || key === 'kind' ? 'asc' : 'desc'
@@ -491,6 +508,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     } catch {
       /* ignore */
     }
+    touchProfileSettings()
   }
 
   const dragMedia = (event: DragEvent, item: MediaItem, folder: string): void => {

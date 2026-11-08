@@ -3,17 +3,21 @@ import type { OrderFolderImage } from '../env'
 import {
   resolveCategoryBackground,
   backgroundImagesMatch,
+  getBackgroundSettings,
   updateCategoryBackground,
   useBackgroundSettings,
   type BackgroundCategoryId,
   type BackgroundFit,
   type BackgroundMode
 } from '../lib/background-settings'
+import { getBibleBookBackgrounds, setBibleBookBackground } from '../lib/bible-book-backgrounds'
 import { AdwColorPicker, type AdwColorSwatch } from './AdwColorPicker'
+import { AdwContextMenu, AdwContextMenuItem } from './AdwContextMenu'
 import { AdwScale } from './AdwScale'
 import { AdwSelect } from './AdwSelect'
 import { AppIcon } from './AppIcon'
 import { BackgroundStagePreview } from './BackgroundStagePreview'
+import { BibleBookBackgroundCard } from './BibleBookBackgroundCard'
 
 function pathToFileUrl(filePath: string): string {
   const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
@@ -66,6 +70,7 @@ export function BackgroundsSettingsPanel(): ReactElement {
   const [activeCategory, setActiveCategory] = useState<BackgroundCategoryId>('bible')
   const [library, setLibrary] = useState<OrderFolderImage[]>([])
   const [loading, setLoading] = useState(true)
+  const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null)
 
   const refreshLibrary = useCallback(async () => {
     if (typeof window.orion?.listBackgroundImages !== 'function') {
@@ -118,6 +123,23 @@ export function BackgroundsSettingsPanel(): ReactElement {
       mode: 'image',
       imagePath: path
     })
+  }
+
+  async function deleteLibraryImage(path: string): Promise<void> {
+    setMenu(null)
+    if (typeof window.orion?.removeLibraryImage !== 'function') return
+    const removed = await window.orion.removeLibraryImage(path)
+    if (!removed) return
+    const current = getBackgroundSettings()
+    for (const id of ['defaults', 'bible', 'hymns', 'dictionary'] as const) {
+      if (backgroundImagesMatch(current[id].imagePath, path)) {
+        updateCategoryBackground(id, { imagePath: null })
+      }
+    }
+    for (const [bookId, stored] of Object.entries(getBibleBookBackgrounds())) {
+      if (backgroundImagesMatch(stored, path)) setBibleBookBackground(bookId, null)
+    }
+    await refreshLibrary()
   }
 
   return (
@@ -231,6 +253,14 @@ export function BackgroundsSettingsPanel(): ReactElement {
                           updateCategoryBackground(activeCategory, { dimOpacity })
                         }
                       />
+                      <AdwColorPicker
+                        value={config.dimColor}
+                        swatches={SOLID_SWATCHES}
+                        aria-label="Dimming overlay color"
+                        onChange={(dimColor) =>
+                          updateCategoryBackground(activeCategory, { dimColor })
+                        }
+                      />
                     </div>
 
                     <div className="settings-bg__field">
@@ -249,6 +279,7 @@ export function BackgroundsSettingsPanel(): ReactElement {
           </div>
         </div>
 
+        <div className="settings-bg__aside">
         <div className="adw-card settings-bg__preview-card">
           <div className="settings-bg__section-head">
             <h3 className="settings-bg__subtitle">Live stage preview</h3>
@@ -263,8 +294,15 @@ export function BackgroundsSettingsPanel(): ReactElement {
               resolved.imagePath ? pathToFileUrl(resolved.imagePath) : undefined
             }
             dimOpacity={resolved.dimOpacity}
+            dimColor={resolved.dimColor}
             fit={resolved.fit}
           />
+        </div>
+        {activeCategory === 'bible' ? (
+          <div className="adw-card settings-bg__controls-card">
+            <BibleBookBackgroundCard />
+          </div>
+        ) : null}
         </div>
       </div>
 
@@ -320,6 +358,10 @@ export function BackgroundsSettingsPanel(): ReactElement {
                       : 'settings-bg__thumb'
                   }
                   onClick={() => handleSelectLibraryImage(img.path)}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    setMenu({ x: event.clientX, y: event.clientY, path: img.path })
+                  }}
                 >
                   <div className="settings-bg__thumb-frame">
                     <img src={pathToFileUrl(img.path)} alt={img.name} loading="lazy" />
@@ -331,6 +373,15 @@ export function BackgroundsSettingsPanel(): ReactElement {
           </div>
         )}
       </div>
+      {menu ? (
+        <AdwContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)}>
+          <AdwContextMenuItem
+            label="Delete"
+            destructive
+            onSelect={() => void deleteLibraryImage(menu.path)}
+          />
+        </AdwContextMenu>
+      ) : null}
     </div>
   )
 }

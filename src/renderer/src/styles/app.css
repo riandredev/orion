@@ -2202,12 +2202,20 @@ body.projector-shell--resizing {
   text-align: center;
   min-width: 0;
   overflow: hidden;
-  transition: box-shadow 120ms ease, border-color 120ms ease;
+  transition:
+    left 90ms ease,
+    top 90ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease;
 }
 
 .display-arrangement__monitor--primary {
   border-color: rgba(53, 132, 228, 0.75);
   background: color-mix(in srgb, var(--adw-view-bg) 85%, #3584e4 15%);
+}
+
+.display-arrangement__monitor--solo {
+  cursor: default;
 }
 
 .display-arrangement__monitor--dragging {
@@ -2627,15 +2635,165 @@ body.projector-shell--resizing {
   text-shadow: var(--bible-shadow);
 }
 
+.settings-bg__stage-canvas .bible-proj:is(.bible-proj--anchored, .proj-place) {
+  display: block;
+  position: relative;
+}
+
+.proj-place {
+  position: relative;
+}
+
+.proj-block-anchor {
+  position: absolute;
+  z-index: 2;
+  max-width: 80%;
+}
+
+.bible-proj--split-heading .bible-proj__top {
+  display: contents;
+}
+
+:is(.bible-proj--anchored, .proj-place) .bible-proj__pair,
+.bible-proj--split-heading .bible-proj__location,
+.bible-proj--split-heading .bible-proj__translation,
+:is(.bible-proj--anchored, .proj-place) .bible-proj__body {
+  position: absolute;
+  margin: 0;
+  max-width: 72%;
+  flex: none;
+  right: auto;
+  bottom: auto;
+  transform: none;
+}
+
+:is(.bible-proj--anchored, .proj-place) .bible-proj__body {
+  width: 68%;
+  max-height: none;
+}
+
+.bible-proj:not(:is(.bible-proj--anchored, .proj-place)) .bible-proj__location,
+.bible-proj:not(:is(.bible-proj--anchored, .proj-place)) .bible-proj__translation,
+.bible-proj:not(:is(.bible-proj--anchored, .proj-place)) .bible-proj__body,
+:is(.bible-proj--anchored, .proj-place):not(.bible-proj--split-heading) .bible-proj__translation {
+  margin-top: var(--block-margin-top, 0vmin);
+  margin-right: var(--block-margin-right, 0vmin);
+  margin-bottom: var(--block-margin-bottom, 0vmin);
+  margin-left: var(--block-margin-left, 0vmin);
+}
+
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-top-left,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-left,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom-left {
+  left: var(--block-margin-left, 0vmin);
+  right: auto;
+  text-align: left;
+}
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-top-right,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-right,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom-right {
+  right: var(--block-margin-right, 0vmin);
+  left: auto;
+  text-align: right;
+}
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-top,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-center,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom {
+  left: var(--block-margin-left, 0vmin);
+  right: var(--block-margin-right, 0vmin);
+  width: max-content;
+  max-width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+:is(.bible-proj--anchored, .proj-place) .bible-proj__body.bible-anchor-top,
+:is(.bible-proj--anchored, .proj-place) .bible-proj__body.bible-anchor-center,
+:is(.bible-proj--anchored, .proj-place) .bible-proj__body.bible-anchor-bottom {
+  left: calc(16% + var(--block-margin-left, 0vmin));
+  right: calc(16% + var(--block-margin-right, 0vmin));
+  width: auto;
+  max-width: none;
+}
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-top-left,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-top,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-top-right {
+  top: var(--block-margin-top, 0vmin);
+  bottom: auto;
+  transform: none;
+}
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-left,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-center,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-right {
+  top: calc(50% + var(--block-margin-top, 0vmin) - var(--block-margin-bottom, 0vmin));
+  bottom: auto;
+  transform: translateY(-50%);
+}
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom-left,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom,
+:is(.bible-proj--anchored, .proj-place) .bible-anchor-bottom-right {
+  bottom: var(--block-margin-bottom, 0vmin);
+  top: auto;
+  transform: none;
+}
+
+.bible-anchor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.bible-anchor-grid__btn {
+  cursor: pointer;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 1px solid var(--adw-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--adw-fg);
+  font: inherit;
+  font-size: 12px;
+}
+
+.bible-anchor-grid__btn--active {
+  border-color: #3584e4;
+  background: rgba(53, 132, 228, 0.22);
+}
+
+.bible-block-row {
+  cursor: pointer;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.bible-block-row--active {
+  background: rgba(53, 132, 228, 0.18);
+}
+
+.bible-block-row__chevron {
+  display: flex;
+  margin-left: auto;
+  color: var(--adw-fg-muted);
+  transition: transform 120ms ease;
+}
+
+.bible-block-row__chevron--open {
+  transform: rotate(90deg);
+}
+
 /* —— Hymns —— */
 .settings-bg__stage-canvas .hymn-proj {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   height: 100%;
-  font-family: "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif;
-  font-weight: 700;
-  font-stretch: condensed;
+  font-family: var(--hymn-lyrics-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
+  font-weight: var(--hymn-lyrics-weight, 700);
 }
 
 .settings-bg__stage-canvas .hymn-proj__top {
@@ -2653,7 +2811,7 @@ body.projector-shell--resizing {
   right: var(--hymn-corner-right, auto);
   transform: var(--hymn-corner-shift, none);
   padding: 0.06em 0.2em;
-  font-family: var(--hymn-corner-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+  font-family: var(--hymn-corner-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
   font-size: var(--hymn-corner-size, 60px);
   font-weight: var(--hymn-corner-weight, 700);
   line-height: 1;
@@ -2667,9 +2825,8 @@ body.projector-shell--resizing {
   margin: 0;
   padding: 0.12em 0.45em;
   text-align: var(--hymn-number-align, center);
-  font-family: var(--hymn-number-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+  font-family: var(--hymn-number-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
   font-weight: var(--hymn-number-weight, 700);
-  font-stretch: condensed;
   font-size: var(--hymn-number-size, 72px);
   line-height: 1.04;
   color: var(--hymn-number-color, #fff);
@@ -2689,7 +2846,7 @@ body.projector-shell--resizing {
   color: var(--hymn-lyrics-color, #fff);
   background: var(--hymn-lyrics-panel, transparent);
   padding: 0.2em 2cqh;
-  font-family: var(--hymn-lyrics-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+  font-family: var(--hymn-lyrics-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
   font-size: var(--hymn-lyrics-size, 84px);
   line-height: var(--hymn-line-height, 1.32);
 }
@@ -2698,7 +2855,6 @@ body.projector-shell--resizing {
   margin: 0;
   font-family: inherit;
   font-weight: var(--hymn-lyrics-weight, 700);
-  font-stretch: condensed;
   font-size: 1em;
   line-height: inherit;
   text-shadow: var(--hymn-shadow);
@@ -2711,7 +2867,7 @@ body.projector-shell--resizing {
   margin-top: auto;
   text-align: var(--hymn-author-align, center);
   background: var(--hymn-author-panel, transparent);
-  font-family: var(--hymn-author-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+  font-family: var(--hymn-author-font, "Liberation Sans Narrow", "Arial Narrow", Arial, sans-serif);
   font-weight: var(--hymn-author-weight, 700);
   font-style: italic;
   font-size: var(--hymn-author-size, 28px);

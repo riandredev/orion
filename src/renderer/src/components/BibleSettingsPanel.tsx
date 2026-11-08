@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { bibleBlockMarginVars, bibleProjPartClasses } from '../../../shared/bible-block-layout'
+import { cssDimOverlay } from '../../../shared/dim-overlay'
 import { projectionContentInsetsPreviewVars } from '../../../shared/projection-content-insets'
 import {
   BIBLE_TYPOGRAPHY_ELEMENTS,
@@ -20,7 +22,10 @@ import {
   PROJECTION_PREVIEW_STAGE_HEIGHT,
   PROJECTION_PREVIEW_STAGE_WIDTH
 } from './BackgroundStagePreview'
+import { BiblePlacementCard } from './BiblePlacementCard'
+import type { BibleBlockId } from '../../../shared/bible-block-layout'
 import { ContentInsetCard } from './ContentInsetCard'
+import { useBibleBlockLayout } from '../lib/bible-block-layout-settings'
 import { LineHeightField, TextPanelFields, TextShadowField, TypeStyleFields } from './TypeStyleFields'
 
 function fileUrl(filePath: string | null): string | undefined {
@@ -34,6 +39,15 @@ export function BibleSettingsPanel(): ReactElement {
   const bible = useBibleTypography()
   const insets = useProjectionContentInsetsByCategory().bible
   const backgrounds = useBackgroundSettings()
+  const layout = useBibleBlockLayout()
+  const parts = bibleProjPartClasses(layout)
+  const marginStyle = (block: 'reference' | 'translation' | 'verse'): CSSProperties => {
+    const width = layout.width[block]
+    return {
+      ...(bibleBlockMarginVars(layout.margin[block]) as CSSProperties),
+      ...(width < 100 ? { width: `${width}%`, maxWidth: `${width}%` } : {})
+    }
+  }
   const resolved = resolveCategoryBackground('bible', backgrounds)
   const [selected, setSelected] = useState<BibleTypographyElementId>('verse')
   const style = bible[selected]
@@ -86,14 +100,13 @@ export function BibleSettingsPanel(): ReactElement {
 
   const selectedMeta = BIBLE_TYPOGRAPHY_ELEMENTS.find((item) => item.id === selected) ?? BIBLE_TYPOGRAPHY_ELEMENTS[3]!
   const imageUrl = fileUrl(resolved.imagePath)
-  const dim = Math.min(95, Math.max(0, resolved.dimOpacity)) / 100
   const canvasStyle: CSSProperties = {
     width: PROJECTION_PREVIEW_STAGE_WIDTH,
     height: PROJECTION_PREVIEW_STAGE_HEIGHT,
     transform: `scale(${scale})`,
     backgroundColor: resolved.solidColor,
     backgroundImage: imageUrl
-      ? `linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})), url(${JSON.stringify(imageUrl)})`
+      ? `linear-gradient(${cssDimOverlay(resolved.dimColor, resolved.dimOpacity)}, ${cssDimOverlay(resolved.dimColor, resolved.dimOpacity)}), url(${JSON.stringify(imageUrl)})`
       : undefined,
     backgroundSize: resolved.fit === 'contain' ? 'contain' : 'cover',
     backgroundPosition: 'center',
@@ -134,6 +147,10 @@ export function BibleSettingsPanel(): ReactElement {
             />
           </div>
           <ContentInsetCard category="bible" title="Bible" />
+          <BiblePlacementCard
+            blockId={selected === 'translation' ? 'translation' : selected === 'reference' ? 'reference' : 'verse'}
+            onSelect={(id: BibleBlockId) => setSelected(id === 'verse' ? 'verse' : id)}
+          />
         </div>
         <div className="settings-bg__aside">
         <div className="adw-card settings-bg__preview-card">
@@ -152,20 +169,31 @@ export function BibleSettingsPanel(): ReactElement {
           >
             <div className="settings-bg__stage-canvas orion-projection-content-insets" style={canvasStyle}>
               <div className="settings-bg__stage-layer">
-                <div className="bible-proj bg-stage-demo__fill">
-                  <div className="bible-proj__top">
-                    <button type="button" data-bible-style="reference" className={`bible-proj__location ${hit('reference')}`}>
+                <div className={`${parts.wrap} bg-stage-demo__fill`}>
+                  <div
+                    className={parts.top}
+                    style={
+                      layout.translation === layout.reference ? marginStyle('reference') : undefined
+                    }
+                  >
+                    <button
+                      type="button"
+                      data-bible-style="reference"
+                      className={`${parts.location} ${hit('reference')}`}
+                      style={marginStyle('reference')}
+                    >
                       John 3:16
                     </button>
                     <button
                       type="button"
                       data-bible-style="translation"
-                      className={`bible-proj__translation ${hit('translation')}`}
+                      className={`${parts.translation} ${hit('translation')}`}
+                      style={marginStyle('translation')}
                     >
                       King James Version
                     </button>
                   </div>
-                  <div className="bible-proj__body">
+                  <div className={parts.body} style={marginStyle('verse')}>
                     <div ref={verseRef} className="bible-proj__text">
                       <span
                         data-bible-style="verseNumber"

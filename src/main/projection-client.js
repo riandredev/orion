@@ -89,6 +89,7 @@ function appendHymnAuthor(wrap, author) {
   el.className = 'hymn-proj__author'
   el.textContent = text
   wrap.appendChild(el)
+  return el
 }
 
 /** @param {string | undefined} reference */
@@ -320,7 +321,16 @@ function paintBackdrop(layer, data) {
     veil.className = 'orion-layer-dim'
     photo.after(veil)
   }
-  veil.style.background = `rgba(0, 0, 0, ${dim})`
+  veil.style.background = dimOverlayColor(data.backgroundDimColor, dim)
+}
+
+function dimOverlayColor(color, alpha) {
+  const hex = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#000000'
+  const n = Number.parseInt(hex.slice(1), 16)
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 const LYRIC_MOTIONS = ['fade', 'push']
@@ -334,7 +344,8 @@ function hymnSignature(data) {
     data.versePart ?? '',
     data.title ?? '',
     (data.lines || []).join('\n'),
-    data.author || ''
+    data.author || '',
+    data.blockLayout ? JSON.stringify(data.blockLayout) : ''
   ].join('\u001f')
 }
 
@@ -460,7 +471,16 @@ function renderHymnPayload(target, data) {
       hero.appendChild(numEl)
       hero.appendChild(titleEl)
       wrap.appendChild(hero)
-      appendHymnAuthor(wrap, data.author)
+      const titleAuthor = appendHymnAuthor(wrap, data.author)
+      applyPlacedBlocks(
+        wrap,
+        [
+          { id: 'number', el: numEl },
+          { id: 'lyrics', el: titleEl },
+          ...(titleAuthor ? [{ id: 'author', el: titleAuthor }] : [])
+        ],
+        data.blockLayout
+      )
       if (animate && motion.animation === 'uncover') target.insertBefore(wrap, previous)
       else target.appendChild(wrap)
       fitHymnTitleSlide(hero)
@@ -507,7 +527,13 @@ function renderHymnPayload(target, data) {
       body.appendChild(p)
     }
     wrap.appendChild(body)
-    appendHymnAuthor(wrap, data.author)
+    const authorEl = appendHymnAuthor(wrap, data.author)
+    applyPlacedBlocks(wrap, [
+      { id: 'corner', el: corner },
+      { id: 'number', el: heading },
+      { id: 'lyrics', el: body },
+      ...(authorEl ? [{ id: 'author', el: authorEl }] : [])
+    ], data.blockLayout)
     if (animate && motion.animation === 'uncover') target.insertBefore(wrap, previous)
     else target.appendChild(wrap)
     return wrap
@@ -538,7 +564,82 @@ function renderHymnPayload(target, data) {
 
 function bibleSignature(data) {
   const verse = (data.verses ?? [])[0]
-  return [data.reference ?? '', data.highlightVerse ?? '', verse?.number ?? '', verse?.text ?? ''].join('\u001f')
+  const layout = data.blockLayout || {}
+  return [
+    data.reference ?? '',
+    data.highlightVerse ?? '',
+    verse?.number ?? '',
+    verse?.text ?? '',
+    layout.reference || 'top',
+    layout.translation || 'top',
+    layout.verse || 'center',
+    marginSignature(layout.margin),
+    layout.width ? [layout.width.reference, layout.width.translation, layout.width.verse].join(',') : ''
+  ].join('\u001f')
+}
+
+function marginSignature(margin) {
+  const side = (block) => {
+    const value = margin?.[block] || {}
+    return [value.top || 0, value.right || 0, value.bottom || 0, value.left || 0].join(',')
+  }
+  return [side('reference'), side('translation'), side('verse')].join(';')
+}
+
+function applyBlockWidth(element, width) {
+  const n = Number(width)
+  if (!Number.isFinite(n) || n >= 100) return
+  element.style.width = `${n}%`
+  element.style.maxWidth = `${n}%`
+}
+
+function applyPlacedBlocks(wrap, entries, layout) {
+  let placed = false
+  for (const entry of entries) {
+    const spec = layout && layout[entry.id]
+    if (!spec) continue
+    setBlockMargin(entry.el, spec.margin)
+    applyBlockWidth(entry.el, spec.width)
+    if (spec.anchor && spec.anchor !== 'flow') {
+      entry.el.classList.add('proj-block-anchor', `bible-anchor-${spec.anchor}`)
+      placed = true
+    }
+  }
+  if (placed) wrap.classList.add('proj-place')
+}
+
+function setBlockMargin(element, margin) {
+  const value = margin || {}
+  element.style.setProperty('--block-margin-top', `${Number(value.top) || 0}vmin`)
+  element.style.setProperty('--block-margin-right', `${Number(value.right) || 0}vmin`)
+  element.style.setProperty('--block-margin-bottom', `${Number(value.bottom) || 0}vmin`)
+  element.style.setProperty('--block-margin-left', `${Number(value.left) || 0}vmin`)
+}
+
+function applyBibleBlockLayout(wrap, top, location, translation, body, layout) {
+  const margin = layout?.margin || {}
+  setBlockMargin(location, margin.reference)
+  setBlockMargin(translation, margin.translation)
+  setBlockMargin(body, margin.verse)
+  const widths = layout?.width || {}
+  applyBlockWidth(location, widths.reference)
+  applyBlockWidth(translation, widths.translation)
+  applyBlockWidth(body, widths.verse)
+  const reference = layout?.reference || 'top'
+  const version = layout?.translation || 'top'
+  const verse = layout?.verse || 'center'
+  if (reference === 'top' && version === 'top' && verse === 'center') return
+  if (version === reference) setBlockMargin(top, margin.reference)
+  wrap.classList.add('bible-proj--anchored')
+  const split = version !== reference
+  if (split) {
+    wrap.classList.add('bible-proj--split-heading')
+    location.classList.add(`bible-anchor-${reference}`)
+    translation.classList.add(`bible-anchor-${version}`)
+  } else {
+    top.classList.add('bible-proj__pair', `bible-anchor-${reference}`)
+  }
+  body.classList.add(`bible-anchor-${verse}`)
 }
 
 /**
@@ -591,6 +692,7 @@ function renderBiblePayload(target, data) {
     text.append(num, document.createTextNode(' '), words)
     body.appendChild(text)
     wrap.appendChild(body)
+    applyBibleBlockLayout(wrap, top, location, translation, body, data.blockLayout)
     target.appendChild(wrap)
     requestAnimationFrame(() => {
       fitBibleVerse(text)
@@ -964,6 +1066,8 @@ function renderPayload(target, payload) {
     }
     wrap.appendChild(lemma)
 
+    let detailsEl = null
+    let definitionEl = null
     const barItems = Array.isArray(data.infoBar) ? data.infoBar.filter(Boolean) : []
     const barActive =
       typeof data.infoBarActive === 'number' && Number.isFinite(data.infoBarActive)
@@ -985,6 +1089,7 @@ function renderPayload(target, payload) {
         bar.appendChild(seg)
       })
       wrap.appendChild(bar)
+      detailsEl = bar
     } else {
       const readingParts = []
       if (data.transliteration) readingParts.push(data.transliteration)
@@ -1001,6 +1106,7 @@ function renderPayload(target, payload) {
           reading.textContent = readingParts.join(' — ')
         }
         wrap.appendChild(reading)
+        detailsEl = reading
       }
     }
 
@@ -1009,8 +1115,19 @@ function renderPayload(target, payload) {
       def.className = 'dictionary-proj__definition'
       appendEnglishDefinition(def, data.definition)
       wrap.appendChild(def)
+      definitionEl = def
     }
 
+    applyPlacedBlocks(
+      wrap,
+      [
+        { id: 'strongs', el: ref },
+        { id: 'lemma', el: lemma },
+        ...(detailsEl ? [{ id: 'details', el: detailsEl }] : []),
+        ...(definitionEl ? [{ id: 'definition', el: definitionEl }] : [])
+      ],
+      data.blockLayout
+    )
     target.appendChild(wrap)
     return
   }

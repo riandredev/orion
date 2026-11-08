@@ -54,6 +54,8 @@ const api = {
   removeMedia: (filePath: string): Promise<boolean> => ipcRenderer.invoke('orion:remove-media', filePath),
   listBackgroundImages: (): Promise<OrderFolderImage[]> =>
     ipcRenderer.invoke('orion:list-background-images'),
+  removeLibraryImage: (filePath: string): Promise<boolean> =>
+    ipcRenderer.invoke('orion:remove-library-image', filePath),
   importBackgroundImage: (): Promise<OrderFolderImage | null> =>
     ipcRenderer.invoke('orion:import-background-image'),
   listBibles: (): Promise<import('../shared/bible-types').InstalledBibleInfo[]> =>

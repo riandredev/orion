@@ -61,12 +61,16 @@ import {
   useBackgroundSettings,
   type ResolvedBackgroundStyle
 } from './lib/background-settings'
+import { resolveBibleBackground, useBibleBookBackgrounds } from './lib/bible-book-backgrounds'
+import { getBibleBlockLayout, useBibleBlockLayout } from './lib/bible-block-layout-settings'
+import { getDictionaryBlockLayout, getHymnBlockLayout, useDictionaryBlockLayout, useHymnBlockLayout } from './lib/category-block-layout'
 import {
   getProjectionContentInsetsByCategory,
   pushProjectionContentInsetsToMain
 } from './lib/projection-content-insets-settings'
 import { pushHymnTypographyToMain } from './lib/projection-typography-settings'
 import { applyActiveProfileOnLaunch, persistActiveProfileSnapshot } from './lib/orion-profiles'
+import { touchProfileSettings } from './lib/profile-autosave'
 import {
   fetchPresentationDeck,
   fetchPresentationDecks,
@@ -206,13 +210,15 @@ function stackDictionaryFromContent(
     backgroundImagePath: bg.imagePath,
     backgroundColor: bg.solidColor,
     backgroundDimOpacity: bg.dimOpacity,
-    backgroundFit: bg.fit
+    backgroundDimColor: bg.dimColor,
+    backgroundFit: bg.fit,
+    blockLayout: getDictionaryBlockLayout()
   }
 }
 
 function stackBibleFromContent(
   content: BibleLiveContent,
-  bg: ResolvedBackgroundStyle = resolveCategoryBackground('bible')
+  bg: ResolvedBackgroundStyle = resolveBibleBackground(content.bookId)
 ): OrionStackLayerContent {
   const verse =
     content.verses.find((v) => v.number === content.highlightVerse) ?? content.verses[0]
@@ -226,7 +232,9 @@ function stackBibleFromContent(
     backgroundImagePath: bg.imagePath,
     backgroundColor: bg.solidColor,
     backgroundDimOpacity: bg.dimOpacity,
+    backgroundDimColor: bg.dimColor,
     backgroundFit: bg.fit,
+    blockLayout: getBibleBlockLayout(),
     ...bibleMotionForProjection()
   }
 }
@@ -269,7 +277,9 @@ function stackHymnFromContent(
     backgroundImagePath: bg.imagePath,
     backgroundColor: bg.solidColor,
     backgroundDimOpacity: bg.dimOpacity,
+    backgroundDimColor: bg.dimColor,
     backgroundFit: bg.fit,
+    blockLayout: getHymnBlockLayout(),
     ...hymnMotionForProjection()
   }
 }
@@ -311,13 +321,18 @@ const ORDER_VIEW_GRID_DEFAULT = 'orion-order-view-grid-default'
 
 function loadOrderView(): OrderLibraryView {
   try {
+    const raw = localStorage.getItem(ORDER_VIEW_KEY)
+    if (raw === 'grid' || raw === 'list' || raw === 'columns') {
+      if (!localStorage.getItem(ORDER_VIEW_GRID_DEFAULT)) {
+        localStorage.setItem(ORDER_VIEW_GRID_DEFAULT, '1')
+      }
+      return raw
+    }
     if (!localStorage.getItem(ORDER_VIEW_GRID_DEFAULT)) {
       localStorage.setItem(ORDER_VIEW_GRID_DEFAULT, '1')
       localStorage.setItem(ORDER_VIEW_KEY, 'grid')
       return 'grid'
     }
-    const raw = localStorage.getItem(ORDER_VIEW_KEY)
-    if (raw === 'grid' || raw === 'list' || raw === 'columns') return raw
   } catch {
     /* ignore */
   }
@@ -331,6 +346,7 @@ function saveStoredPresentationDeckId(id: string | null): void {
   } catch {
     /* ignore */
   }
+  touchProfileSettings()
 }
 
 function TabWorkspace({
@@ -526,6 +542,7 @@ export default function App(): ReactElement {
   const [sequenceFollow, setSequenceFollow] = useState(false)
   const sequenceCursorRef = useRef(sequenceCursor)
   sequenceCursorRef.current = sequenceCursor
+  const skipSequenceWrite = useRef(false)
   const [outputCaptureFrames, setOutputCaptureFrames] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -568,12 +585,16 @@ export default function App(): ReactElement {
     useState<PresentationImportDepsProgress | null>(null)
   const [presentationDepsDownloading, setPresentationDepsDownloading] = useState(false)
   const bibleLiveContent = useBibleLiveContent()
+  const bibleLayout = useBibleBlockLayout()
+  const hymnLayout = useHymnBlockLayout()
+  const dictionaryLayout = useDictionaryBlockLayout()
+  const bibleBookBackgrounds = useBibleBookBackgrounds()
   const dictionaryLiveContent = useDictionaryLiveContent()
   const hymnLiveContent = useHymnLiveContent()
   const backgroundSettings = useBackgroundSettings()
   const bibleBgStyle = useMemo(
-    () => resolveCategoryBackground('bible', backgroundSettings),
-    [backgroundSettings]
+    () => resolveBibleBackground(bibleLiveContent?.bookId, backgroundSettings),
+    [backgroundSettings, bibleLiveContent?.bookId, bibleBookBackgrounds]
   )
   const dictionaryBgStyle = useMemo(
     () => resolveCategoryBackground('dictionary', backgroundSettings),
@@ -763,6 +784,12 @@ export default function App(): ReactElement {
 
   useEffect(() => {
     const onProfile = (): void => {
+      skipSequenceWrite.current = true
+      setSequenceItems(loadStoredSequence())
+      setOrderView(loadOrderView())
+      setOrderThumbSize(loadOrderThumbSize())
+      setPresentationDeckId(loadStoredPresentationDeckId())
+      setWebUrlInput(loadLastWebUrl())
       setFolderSettings(loadOrderFolderPlayback())
       void reloadOrderLibrary()
     }
@@ -1538,6 +1565,7 @@ export default function App(): ReactElement {
           locationLabel: item.locationLabel,
           translationLabel: item.translationLabel,
           highlightVerse: item.verse,
+          bookId: item.bookId,
           verses: [{ number: item.verse, text: item.text }]
         }
         setBibleActivePassage(item.reference)
@@ -1640,11 +1668,16 @@ export default function App(): ReactElement {
   )
 
   useEffect(() => {
+    if (skipSequenceWrite.current) {
+      skipSequenceWrite.current = false
+      return
+    }
     try {
       localStorage.setItem(SEQUENCE_KEY, serializeServiceSequence(sequenceItems))
     } catch {
       /* storage unavailable */
     }
+    touchProfileSettings()
   }, [sequenceItems])
 
   useEffect(() => {
@@ -1689,7 +1722,7 @@ export default function App(): ReactElement {
   }, [sequenceFollow, sequenceItems, showSequenceAt])
 
   const bibleContentKey = bibleLiveContent
-    ? `${bibleLiveContent.reference}|${bibleLiveContent.highlightVerse}|${bibleLiveContent.verses[0]?.text ?? ''}|${bibleBgStyle.solidColor}|${bibleBgStyle.imagePath ?? ''}|${bibleBgStyle.dimOpacity}|${bibleBgStyle.fit}`
+    ? `${bibleLiveContent.reference}|${bibleLiveContent.highlightVerse}|${bibleLiveContent.verses[0]?.text ?? ''}|${bibleLiveContent.bookId ?? ''}|${bibleBgStyle.solidColor}|${bibleBgStyle.imagePath ?? ''}|${bibleBgStyle.dimOpacity}|${bibleBgStyle.dimColor}|${bibleBgStyle.fit}|${bibleLayout.reference}|${bibleLayout.translation}|${bibleLayout.verse}|${JSON.stringify(bibleLayout.margin)}|${bibleLayout.width.reference}|${bibleLayout.width.translation}|${bibleLayout.width.verse}`
     : null
 
   useEffect(() => {
@@ -1714,7 +1747,7 @@ export default function App(): ReactElement {
   }, [bibleLive, bibleContentKey, bibleLiveContent, bibleBgStyle, applyProgram])
 
   const dictionaryContentKey = dictionaryLiveContent
-    ? `${dictionaryLiveContent.strongs}|${dictionaryLiveContent.lemma}|${dictionaryLiveContent.definition.slice(0, 80)}|${dictionaryBgStyle.solidColor}|${dictionaryBgStyle.imagePath ?? ''}|${dictionaryBgStyle.dimOpacity}|${dictionaryBgStyle.fit}`
+    ? `${dictionaryLiveContent.strongs}|${dictionaryLiveContent.lemma}|${dictionaryLiveContent.definition.slice(0, 80)}|${dictionaryBgStyle.solidColor}|${dictionaryBgStyle.imagePath ?? ''}|${dictionaryBgStyle.dimOpacity}|${dictionaryBgStyle.fit}|${JSON.stringify(dictionaryLayout)}`
     : null
   const lastPushedDictionaryKeyRef = useRef<string | null>(null)
 
@@ -1740,7 +1773,7 @@ export default function App(): ReactElement {
   }, [dictionaryLive, dictionaryContentKey, dictionaryLiveContent, dictionaryBgStyle, applyProgram])
 
   const hymnContentKey = hymnLiveContent
-    ? `${hymnLiveContent.hymnId}|${hymnLiveContent.slideKind}|${hymnLiveContent.stanzaIndex}|${hymnLiveContent.lines.join('\n')}|${hymnLiveContent.author ?? ''}|${hymnsBgStyle.solidColor}|${hymnsBgStyle.imagePath ?? ''}|${hymnsBgStyle.dimOpacity}|${hymnsBgStyle.fit}`
+    ? `${hymnLiveContent.hymnId}|${hymnLiveContent.slideKind}|${hymnLiveContent.stanzaIndex}|${hymnLiveContent.lines.join('\n')}|${hymnLiveContent.author ?? ''}|${hymnsBgStyle.solidColor}|${hymnsBgStyle.imagePath ?? ''}|${hymnsBgStyle.dimOpacity}|${hymnsBgStyle.fit}|${JSON.stringify(hymnLayout)}`
     : null
   const lastPushedHymnKeyRef = useRef<string | null>(null)
 
@@ -1797,6 +1830,7 @@ export default function App(): ReactElement {
       } catch {
         /* ignore */
       }
+      touchProfileSettings()
     },
     onViewChange: (next) => {
       setOrderView(next)
@@ -1805,6 +1839,7 @@ export default function App(): ReactElement {
       } catch {
         /* ignore */
       }
+      touchProfileSettings()
     },
     onLibraryChanged: (selectFolder) => {
       void reloadOrderLibrary(selectFolder)
@@ -1949,6 +1984,7 @@ export default function App(): ReactElement {
               : undefined,
             backgroundColor: bibleBgStyle.solidColor,
             dimOpacity: bibleBgStyle.dimOpacity,
+            dimColor: bibleBgStyle.dimColor,
             fit: bibleBgStyle.fit
           }
         : undefined
@@ -1993,6 +2029,7 @@ export default function App(): ReactElement {
               : undefined,
             backgroundColor: hymnsBgStyle.solidColor,
             dimOpacity: hymnsBgStyle.dimOpacity,
+            dimColor: hymnsBgStyle.dimColor,
             fit: hymnsBgStyle.fit
           }
         : undefined
@@ -2020,6 +2057,7 @@ export default function App(): ReactElement {
               : undefined,
             backgroundColor: dictionaryBgStyle.solidColor,
             dimOpacity: dictionaryBgStyle.dimOpacity,
+            dimColor: dictionaryBgStyle.dimColor,
             fit: dictionaryBgStyle.fit
           }
         : undefined

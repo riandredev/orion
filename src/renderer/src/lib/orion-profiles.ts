@@ -10,6 +10,13 @@ import {
 } from '../../../shared/orion-profile'
 import { ORION_PROFILE_SETTINGS_KEYS } from '../../../shared/profile-settings-keys'
 import { reloadBackgroundSettingsFromStorage } from './background-settings'
+import { reloadBibleBlockLayoutFromStorage } from './bible-block-layout-settings'
+import { reloadBibleBookBackgroundsFromStorage } from './bible-book-backgrounds'
+import {
+  reloadDictionaryBlockLayoutFromStorage,
+  reloadHymnBlockLayoutFromStorage
+} from './category-block-layout'
+import { reloadRecentColorsFromStorage } from './recent-colors'
 import { reloadBibleMotionFromStorage } from './bible-motion'
 import { reloadHymnMotionFromStorage } from './hymn-motion'
 import {
@@ -83,6 +90,11 @@ export function reloadAllProfileBoundSettings(): void {
   reloadBibleMotionFromStorage()
   reloadProjectionContentInsetsFromStorage()
   reloadHymnTypographyFromStorage()
+  reloadBibleBlockLayoutFromStorage()
+  reloadHymnBlockLayoutFromStorage()
+  reloadDictionaryBlockLayoutFromStorage()
+  reloadBibleBookBackgroundsFromStorage()
+  reloadRecentColorsFromStorage()
   void pushProjectionContentInsetsToMain(getProjectionContentInsetsByCategory())
   void pushHymnTypographyToMain()
 }

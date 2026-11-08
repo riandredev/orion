@@ -1,15 +1,16 @@
 import { app, BrowserWindow, dialog, ipcMain, screen, session, shell, webContents } from 'electron'
 import { existsSync } from 'fs'
-import { copyFile, mkdir, readdir, stat } from 'fs/promises'
+import { copyFile, mkdir, readdir, rm, stat } from 'fs/promises'
 import { basename, extname, join } from 'path'
 import type { OrionProjectionPayload } from '../shared/projection'
 import { WEB_BROWSER_USER_AGENT } from '../shared/web-browser'
 import type { OrionProjectionCommand, OrionStackState } from '../shared/projection-stack'
 import { displayInfoFromElectron, sortDisplays } from './displays'
-import { appIcon, installLinuxDesktopEntry, linuxWindowClass } from './app-icon'
+import { appIcon, applyLinuxWindowIdentity, installLinuxDesktopEntry, linuxWindowClass } from './app-icon'
 import { scheduleAppUpdateCheck } from './app-updates'
 import { seedPackagedLibraries } from './content-seed'
 import { readEdition } from './edition'
+import { compareOrderFolderNames } from '../shared/order-folder-sort'
 import { is } from './env'
 import { biblesRoot, imagesRoot, orderImagesRoot } from './paths'
 import {
@@ -89,7 +90,8 @@ async function listOrderFolders(): Promise<
     ).length
     folders.push({ name, imageCount })
   }
-  return folders.sort((a, b) => a.name.localeCompare(b.name))
+  const edition = readEdition().id
+  return folders.sort((a, b) => compareOrderFolderNames(a.name, b.name, edition))
 }
 
 async function listImagesInOrderFolder(
@@ -180,6 +182,24 @@ async function importImagesIntoOrderFolder(
 }
 
 const EXCLUDED_BG_NAMES = new Set(['logo.png', 'icon.png', 'orion-logo.png'])
+
+async function removeLibraryImage(filePath: string): Promise<boolean> {
+  const target = filePath.trim()
+  if (!target) return false
+  const ext = extname(target).toLowerCase()
+  if (!IMAGE_EXT.has(ext)) return false
+  const allowed =
+    isPathUnderRoot(target, imagesRoot()) || isPathUnderRoot(target, orderImagesRoot())
+  if (!allowed) return false
+  try {
+    const info = await stat(target)
+    if (!info.isFile()) return false
+    await rm(target)
+    return true
+  } catch {
+    return false
+  }
+}
 
 async function listBackgroundImages(): Promise<{ name: string; path: string }[]> {
   const root = imagesRoot()
@@ -338,6 +358,7 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('disable-renderer-backgrounding')
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+  applyLinuxWindowIdentity()
   app.commandLine.appendSwitch('class', linuxWindowClass())
 }
 app.commandLine.appendSwitch('disable-features', disabledChromiumFeatures.join(','))
@@ -369,6 +390,9 @@ app.whenReady().then(async () => {
   )
   ipcMain.handle('orion:remove-media', (_event, filePath: string) => removeMediaFile(String(filePath ?? '')))
   ipcMain.handle('orion:list-background-images', () => listBackgroundImages())
+  ipcMain.handle('orion:remove-library-image', (_event, filePath: string) =>
+    removeLibraryImage(String(filePath ?? ''))
+  )
   ipcMain.handle('orion:import-background-image', () => importBackgroundImage())
   ipcMain.handle('orion:list-bibles', () => listInstalledBibles())
   ipcMain.handle('orion:import-bible', () => importBibleFromDialog())
@@ -570,6 +594,7 @@ app.whenReady().then(async () => {
     }
   )
   registerDisplayListeners()
+  applyLinuxWindowIdentity()
   createWindow()
 
   if (process.env.ORION_E2E_TEST === '1' || process.argv.includes('--e2e-verify')) {

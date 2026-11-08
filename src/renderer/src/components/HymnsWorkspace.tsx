@@ -284,6 +284,9 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
         includeTitle: title,
         includeEnd: end
       })
+      const savedHymnal = loadSelectedHymnalId()
+      if (savedHymnal) setHymnalIdState(savedHymnal)
+      setTagStyle(loadHymnalStanzaTagStyle())
     }
     window.addEventListener('orion-profile-applied', reloadPins)
     return () => window.removeEventListener('orion-profile-applied', reloadPins)

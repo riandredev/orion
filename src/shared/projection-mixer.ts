@@ -274,6 +274,7 @@ export function createStackWire(
     ...(typeof content.backgroundDimOpacity === 'number'
       ? { backgroundDimOpacity: content.backgroundDimOpacity }
       : {}),
+    ...(content.backgroundDimColor ? { backgroundDimColor: content.backgroundDimColor } : {}),
     ...(content.backgroundFit ? { backgroundFit: content.backgroundFit } : {})
   }
 
@@ -289,6 +290,7 @@ export function createStackWire(
       language: content.language,
       infoBar: content.infoBar,
       infoBarActive: content.infoBarActive,
+      ...(content.blockLayout ? { blockLayout: content.blockLayout } : {}),
       ...bgFields
     }
   }
@@ -307,6 +309,7 @@ export function createStackWire(
         : {}),
       lines: content.lines,
       ...(content.author?.trim() ? { author: content.author.trim() } : {}),
+      ...(content.blockLayout ? { blockLayout: content.blockLayout } : {}),
       ...(content.animation ? { animation: content.animation } : {}),
       ...(typeof content.durationMs === 'number' ? { durationMs: content.durationMs } : {}),
       ...bgFields
@@ -324,6 +327,7 @@ export function createStackWire(
       ? { animation: content.animation }
       : {}),
     ...(typeof content.durationMs === 'number' ? { durationMs: content.durationMs } : {}),
+    ...(content.type === 'bible' && content.blockLayout ? { blockLayout: content.blockLayout } : {}),
     ...bgFields
   }
 }

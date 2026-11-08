@@ -30,6 +30,7 @@ export function CategoryProjectionPreview({
         backgroundColor={resolved.solidColor}
         backgroundImageUrl={resolved.imagePath ? fileUrl(resolved.imagePath) : undefined}
         dimOpacity={resolved.dimOpacity}
+        dimColor={resolved.dimColor}
         fit={resolved.fit}
         contentInsets={insets}
       />

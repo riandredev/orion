@@ -2,10 +2,16 @@ import { existsSync } from 'fs'
 import { basename, isAbsolute, relative, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import type { OrionProjectionPayload } from '../shared/projection'
+import { clampBibleBlockLayout } from '../shared/bible-block-layout'
+import { clampPlacedBlocks, DICTIONARY_BLOCK_IDS, HYMN_BLOCK_IDS } from '../shared/placed-blocks'
 import { bibleLocationFromReference } from '../shared/bible-projection-display'
 import type { HymnSlideKind } from '../shared/hymnal-projection-sequence'
 import type { OrionStackLayerContent } from '../shared/projection-stack'
 import { imagesRoot, mediaRoot, orderImagesRoot, presentationsRoot } from './paths'
+
+function sanitizeDimColor(value: unknown): string {
+  return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : '#000000'
+}
 
 export function isPathUnderRoot(filePath: string, root: string): boolean {
   const normalized = resolve(filePath)
@@ -95,6 +101,7 @@ export function sanitizeProjectionPayload(payload: OrionProjectionPayload): Orio
       backgroundImagePath,
       backgroundColor,
       backgroundDimOpacity,
+      backgroundDimColor: sanitizeDimColor(payload.backgroundDimColor),
       backgroundFit
     }
   }
@@ -206,7 +213,9 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
       backgroundImagePath,
       backgroundColor,
       backgroundDimOpacity,
-      backgroundFit
+      backgroundDimColor: sanitizeDimColor(content.backgroundDimColor),
+      backgroundFit,
+      blockLayout: clampPlacedBlocks(content.blockLayout, DICTIONARY_BLOCK_IDS)
     }
   }
   if (content.type === 'hymn') {
@@ -257,7 +266,9 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
       backgroundImagePath,
       backgroundColor,
       backgroundDimOpacity,
+      backgroundDimColor: sanitizeDimColor(content.backgroundDimColor),
       backgroundFit,
+      blockLayout: clampPlacedBlocks(content.blockLayout, HYMN_BLOCK_IDS),
       animation:
         content.animation === 'push'
           ? 'push'
@@ -278,6 +289,7 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
     backgroundImagePath: content.backgroundImagePath,
     backgroundColor: content.backgroundColor,
     backgroundDimOpacity: content.backgroundDimOpacity,
+    backgroundDimColor: content.backgroundDimColor,
     backgroundFit: content.backgroundFit
   })
   if (bible.type !== 'bible') {
@@ -296,7 +308,9 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
     backgroundImagePath: bible.backgroundImagePath,
     backgroundColor: bible.backgroundColor,
     backgroundDimOpacity: bible.backgroundDimOpacity,
+    backgroundDimColor: bible.backgroundDimColor,
     backgroundFit: bible.backgroundFit,
+    blockLayout: clampBibleBlockLayout(content.blockLayout),
     animation:
       content.animation === 'push' ? 'push' : content.animation === 'cut' ? 'cut' : 'fade',
     durationMs:

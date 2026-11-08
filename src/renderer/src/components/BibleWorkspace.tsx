@@ -146,6 +146,12 @@ export function BibleWorkspace({
   )
 
   useEffect(() => {
+    const onProfile = (): void => setTranslation(loadBibleTranslation(translation))
+    window.addEventListener('orion-profile-applied', onProfile)
+    return () => window.removeEventListener('orion-profile-applied', onProfile)
+  }, [translation])
+
+  useEffect(() => {
     const sync = (): void => setOnline(navigator.onLine)
     window.addEventListener('online', sync)
     window.addEventListener('offline', sync)
@@ -250,6 +256,7 @@ export function BibleWorkspace({
       locationLabel,
       translationLabel,
       highlightVerse: verse,
+      bookId,
       verses: [{ number: selected.number, text: selected.text }]
     })
   }, [passageRef, locationLabel, translationLabel, verse, verses, bookId, chapter])
@@ -286,6 +293,7 @@ export function BibleWorkspace({
       locationLabel,
       translationLabel,
       highlightVerse: n,
+      bookId,
       verses: [{ number: n, text }]
     })
     const preview = text.length > 72 ? `${text.slice(0, 72)}…` : text
@@ -318,6 +326,7 @@ export function BibleWorkspace({
       locationLabel: entry.locationLabel,
       translationLabel: entry.translationLabel,
       highlightVerse: entry.verse,
+      bookId: entry.bookId,
       verses: [{ number: entry.verse, text: entry.text }]
     })
     onProjectToOutputs()

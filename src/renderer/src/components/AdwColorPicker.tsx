@@ -3,6 +3,7 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -16,6 +17,8 @@ import {
   type Hsv
 } from '../lib/color-utils'
 import { getModalPortalRoot } from '../lib/modal-portal-root'
+import { rememberRecentColor, recentGroupFor, useRecentColors } from '../lib/recent-colors'
+import { mergeRecentSwatches } from '../../../shared/recent-colors'
 import { AdwScale } from './AdwScale'
 
 export type AdwColorSwatch = {
@@ -71,10 +74,27 @@ export function AdwColorPicker({
   const [hexDraft, setHexDraft] = useState(normalizeHex(value))
 
   const normalizedValue = normalizeHex(value)
-  const presetMatch = swatches.some(
-    (s) => normalizeHex(s.color) === normalizedValue
+  const recentGroup = useMemo(() => recentGroupFor(swatches), [swatches])
+  const recents = useRecentColors(swatches)
+  const shownSwatches = useMemo(
+    () => mergeRecentSwatches(swatches, recents),
+    [swatches, recents]
   )
+  const presetMatch = shownSwatches.some((s) => normalizeHex(s.color) === normalizedValue)
   const customSelected = !presetMatch
+  const openedColor = useRef(normalizedValue)
+
+  const closePicker = useCallback((): void => {
+    if (normalizeHex(normalizedValue) !== openedColor.current) {
+      rememberRecentColor(recentGroup, normalizedValue, swatches.length)
+    }
+    setOpen(false)
+  }, [normalizedValue, recentGroup, swatches.length])
+
+  const openPicker = useCallback((): void => {
+    openedColor.current = normalizedValue
+    setOpen(true)
+  }, [normalizedValue])
 
   const reposition = useCallback((): void => {
     const anchor = customBtnRef.current
@@ -126,11 +146,11 @@ export function AdwColorPicker({
   useEffect(() => {
     if (!open) return
     const onDocKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') closePicker()
     }
     document.addEventListener('keydown', onDocKey)
     return () => document.removeEventListener('keydown', onDocKey)
-  }, [open])
+  }, [open, closePicker])
 
   const commitHsv = useCallback(
     (next: Hsv) => {
@@ -179,7 +199,7 @@ export function AdwColorPicker({
               aria-label="Close color picker"
               tabIndex={-1}
               onClick={() => {
-                if (scrimArmed) setOpen(false)
+                if (scrimArmed) closePicker()
               }}
             />
             <div
@@ -249,14 +269,14 @@ export function AdwColorPicker({
                 <button
                   type="button"
                   className="adw-button adw-button--flat"
-                  onClick={() => setOpen(false)}
+                  onClick={closePicker}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   className="adw-button adw-button--suggested"
-                  onClick={() => setOpen(false)}
+                  onClick={closePicker}
                 >
                   Select
                 </button>
@@ -270,7 +290,7 @@ export function AdwColorPicker({
   return (
     <div className={`adw-color-picker ${open ? 'adw-color-picker--open' : ''}`.trim()}>
       <div className="adw-color-picker__row" role="group" aria-label={ariaLabel}>
-        {swatches.map((swatch) => {
+        {shownSwatches.map((swatch) => {
           const active = normalizedValue === normalizeHex(swatch.color)
           return (
             <button
@@ -286,7 +306,9 @@ export function AdwColorPicker({
               aria-label={swatch.label}
               disabled={disabled}
               onClick={() => {
-                onChange(normalizeHex(swatch.color))
+                const hex = normalizeHex(swatch.color)
+                onChange(hex)
+                rememberRecentColor(recentGroup, hex, swatches.length)
                 setOpen(false)
               }}
             >
@@ -308,7 +330,8 @@ export function AdwColorPicker({
           disabled={disabled}
           onClick={(e) => {
             e.stopPropagation()
-            setOpen((was) => !was)
+            if (open) closePicker()
+            else openPicker()
           }}
         >
           {customSelected && !open ? (

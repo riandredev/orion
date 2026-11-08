@@ -47,6 +47,12 @@ export function DictionaryWorkspace(): ReactElement {
   const { bibles } = useInstalledBibles()
   const translationOptions = useMemo(() => bibleTranslationSelectOptions(bibles), [bibles])
   const [translation, setTranslation] = useState<BibleTranslationId>(() => loadBibleTranslation())
+
+  useEffect(() => {
+    const onProfile = (): void => setTranslation(loadBibleTranslation())
+    window.addEventListener('orion-profile-applied', onProfile)
+    return () => window.removeEventListener('orion-profile-applied', onProfile)
+  }, [])
   const [language, setLanguage] = useState<LexiconLanguageFilter>(() => sessionSeed.language)
   const [query, setQuery] = useState(() => sessionSeed.query)
   const [indexReady, setIndexReady] = useState(false)

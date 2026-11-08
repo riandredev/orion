@@ -1,3 +1,4 @@
+import { snapArrangementPosition } from '../../../shared/display-arrangement'
 import type { OrionDisplayInfo } from '../../../shared/displays'
 import { touchProfileSettings } from './profile-autosave'
 
@@ -135,7 +136,7 @@ export function buildLayoutMonitors(
     const size = osSizeToCanvas(display, scale)
     const savedPos = saved[display.id]
     const osPos = osPositionToCanvas(display, union, scale)
-    const pos = savedPos ?? osPos
+    const pos = displays.length === 1 ? osPos : (savedPos ?? osPos)
     return {
       display,
       x: pos.x,
@@ -145,7 +146,35 @@ export function buildLayoutMonitors(
     }
   })
 
-  return assignOrder(draft)
+  return assignOrder(settleJoined(draft))
+}
+
+/** Pull every monitor flush against the cluster so none sit in empty space. */
+function settleJoined(draft: Omit<LayoutMonitor, 'order'>[]): Omit<LayoutMonitor, 'order'>[] {
+  if (draft.length <= 1) return draft
+  const ordered = [...draft].sort(
+    (a, b) => Number(b.display.primary) - Number(a.display.primary) || a.display.id - b.display.id
+  )
+  const placed: Omit<LayoutMonitor, 'order'>[] = []
+  const bounds = { x: 0, y: 0, width: DISPLAY_LAYOUT_CANVAS.width, height: DISPLAY_LAYOUT_CANVAS.height }
+  for (const monitor of ordered) {
+    if (placed.length === 0) {
+      placed.push({ ...monitor, ...clampMonitorPosition(monitor.x, monitor.y, monitor.width, monitor.height) })
+      continue
+    }
+    const snapped = snapArrangementPosition(
+      monitor.x,
+      monitor.y,
+      monitor.width,
+      monitor.height,
+      placed,
+      { x: monitor.x, y: monitor.y },
+      bounds,
+      { x: monitor.x, y: monitor.y }
+    )
+    placed.push({ ...monitor, x: snapped.x, y: snapped.y })
+  }
+  return placed
 }
 
 /** Recompute output order badges after positions changed. */

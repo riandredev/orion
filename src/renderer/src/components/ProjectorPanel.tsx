@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactElement, type PointerEvent as ReactPointerEvent } from 'react'
+import { cssDimOverlay } from '../../../shared/dim-overlay'
 import type { LiveFrame } from '../lib/live-deck'
 import {
   WEB_BROWSER_USER_AGENT,
@@ -28,6 +29,7 @@ export type OutputOverlayPreview = {
   backgroundUrl?: string
   backgroundColor?: string
   dimOpacity?: number
+  dimColor?: string
   fit?: 'cover' | 'contain'
 }
 
@@ -711,7 +713,7 @@ function OutputCompositePreview({
                 backgroundColor: overlay.backgroundColor ?? '#000000',
                 backgroundSize: overlay.fit ?? 'cover',
                 backgroundImage: overlay.backgroundUrl
-                  ? `linear-gradient(rgba(0, 0, 0, ${(overlay.dimOpacity ?? 55) / 100}), rgba(0, 0, 0, ${(overlay.dimOpacity ?? 55) / 100})), url(${JSON.stringify(overlay.backgroundUrl)})`
+                  ? `linear-gradient(${cssDimOverlay(overlay.dimColor ?? '#000000', overlay.dimOpacity ?? 55)}, ${cssDimOverlay(overlay.dimColor ?? '#000000', overlay.dimOpacity ?? 55)}), url(${JSON.stringify(overlay.backgroundUrl)})`
                   : undefined
               }
             : undefined

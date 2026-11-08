@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { cssDimOverlay } from '../../../shared/dim-overlay'
 import type { BackgroundCategoryId, BackgroundFit } from '../lib/background-settings'
 import {
   getProjectionContentInsetsForCategory,
@@ -19,6 +20,7 @@ type BackgroundStagePreviewProps = {
   backgroundColor: string
   backgroundImageUrl?: string | null
   dimOpacity: number
+  dimColor?: string
   fit: BackgroundFit
   contentInsets?: ProjectionContentInsetsVmin
   /** When false, parent provides sizing; canvas still renders at 1920×1080. */
@@ -35,16 +37,17 @@ function stageBackgroundStyle(
   backgroundColor: string,
   backgroundImageUrl: string | null | undefined,
   dimOpacity: number,
+  dimColor: string,
   fit: BackgroundFit
 ): CSSProperties {
-  const dim = dimOpacity / 100
+  const veil = cssDimOverlay(dimColor, dimOpacity)
   return {
     backgroundColor,
     backgroundSize: fit,
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
     backgroundImage: backgroundImageUrl
-      ? `linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})), url(${JSON.stringify(backgroundImageUrl)})`
+      ? `linear-gradient(${veil}, ${veil}), url(${JSON.stringify(backgroundImageUrl)})`
       : undefined
   }
 }
@@ -139,6 +142,7 @@ export function BackgroundStagePreview({
   backgroundColor,
   backgroundImageUrl,
   dimOpacity,
+  dimColor = '#000000',
   fit,
   contentInsets,
   scaled = true
@@ -179,7 +183,7 @@ export function BackgroundStagePreview({
     width: PROJECTION_PREVIEW_STAGE_WIDTH,
     height: PROJECTION_PREVIEW_STAGE_HEIGHT,
     transform: scaled ? `scale(${scale})` : undefined,
-    ...stageBackgroundStyle(backgroundColor, backgroundImageUrl, dimOpacity, fit),
+    ...stageBackgroundStyle(backgroundColor, backgroundImageUrl, dimOpacity, dimColor ?? '#000000', fit),
     ...insetCss
   }
 

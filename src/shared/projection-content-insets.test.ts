@@ -9,7 +9,7 @@ import {
 describe('projection-content-insets', () => {
   it('clamps sides into range', () => {
     expect(clampProjectionContentInsets({ top: 99, right: -2, bottom: 4, left: 4.5 })).toEqual({
-      top: 18,
+      top: 40,
       right: 0,
       bottom: 4,
       left: 4.5

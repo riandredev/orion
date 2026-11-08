@@ -1,3 +1,5 @@
+import type { BibleBlockLayout } from './bible-block-layout'
+import type { PlacedBlockMap } from './placed-blocks'
 import type { HymnSlideKind } from './hymnal-projection-sequence'
 
 export type OrionStackSource = 'order' | 'bible' | 'presentation'
@@ -61,7 +63,9 @@ export type OrionStackLayerContent =
       backgroundImagePath?: string | null
       backgroundColor?: string
       backgroundDimOpacity?: number
+      backgroundDimColor?: string
       backgroundFit?: 'cover' | 'contain'
+      blockLayout?: BibleBlockLayout
       animation?: 'fade' | 'push' | 'cut'
       durationMs?: number
     }
@@ -79,7 +83,9 @@ export type OrionStackLayerContent =
       backgroundImagePath?: string | null
       backgroundColor?: string
       backgroundDimOpacity?: number
+      backgroundDimColor?: string
       backgroundFit?: 'cover' | 'contain'
+      blockLayout?: PlacedBlockMap
     }
   | {
       type: 'hymn'
@@ -95,7 +101,9 @@ export type OrionStackLayerContent =
       backgroundImagePath?: string | null
       backgroundColor?: string
       backgroundDimOpacity?: number
+      backgroundDimColor?: string
       backgroundFit?: 'cover' | 'contain'
+      blockLayout?: PlacedBlockMap
       animation?: 'none' | OrderImageAnimation
       durationMs?: number
     }

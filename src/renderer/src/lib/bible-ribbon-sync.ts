@@ -7,6 +7,7 @@ export type BibleLiveContent = {
   locationLabel: string
   translationLabel: string
   highlightVerse: number
+  bookId?: string
   verses: { number: number; text: string }[]
 }
 
