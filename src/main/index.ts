@@ -499,8 +499,8 @@ app.whenReady().then(async () => {
   })
   ipcMain.handle(
     'orion:export-profile-file',
-    async (_event, json: string, suggestedName: string) =>
-      exportProfileFileToDialog(json, suggestedName)
+    async (_event, json: string, suggestedName: string, includeContent?: boolean) =>
+      exportProfileFileToDialog(json, suggestedName, includeContent === true)
   )
   ipcMain.handle('orion:import-profile-file', async () => importProfileFileFromDialog())
   ipcMain.handle(
@@ -554,8 +554,8 @@ app.whenReady().then(async () => {
   registerPresenterWindowIpc()
   ipcMain.handle(
     'orion:sync-presenter-slide-from-main',
-    async (_event, deckId: string | null, slideIndex: number) => {
-      await syncPresenterSlideFromMain(deckId, slideIndex)
+    async (_event, deckId: string | null, slideIndex: number, buildStep?: number) => {
+      await syncPresenterSlideFromMain(deckId, slideIndex, buildStep ?? 0)
     }
   )
   registerDisplayListeners()

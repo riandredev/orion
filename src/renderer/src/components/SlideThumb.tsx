@@ -36,12 +36,12 @@ export function SlideThumb({
   cues?: PptxSlideCue[]
   className?: string
 }): ReactElement {
-  const cached = peekCachedFrame(deckId, slideIndex, 0)
+  const cached = peekCachedFrame(deckId, slideIndex, -1)
   const [markup, setMarkup] = useState<string | null>(cached ? stripEmbeddedMedia(cached.markup) : null)
   const rootRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    const ready = peekCachedFrame(deckId, slideIndex, 0)
+    const ready = peekCachedFrame(deckId, slideIndex, -1)
     if (ready) {
       setMarkup(stripEmbeddedMedia(ready.markup))
       return
@@ -51,7 +51,7 @@ export function SlideThumb({
       .then(async (source) => {
         if (!source || cancelled) return
         const session = await loadLiveSession(deckId, { ...source, ext, cues } satisfies DeckSource)
-        const frame = await scheduleFrame(deckId, session, slideIndex, 0, 20 + slideIndex)
+        const frame = await scheduleFrame(deckId, session, slideIndex, -1, 20 + slideIndex)
         if (!cancelled) setMarkup(frame?.markup ? stripEmbeddedMedia(frame.markup) : null)
       })
       .catch(() => {

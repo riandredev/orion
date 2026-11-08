@@ -149,10 +149,16 @@ let settleTimer = 0
 let settleDue = 0
 
 function schedulePreviewSettle(ms) {
+  if (window.__orionStillCapture) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.orionProjection?.notifySettled?.()
+      })
+    })
+    return
+  }
   const wait = ms > 0 ? ms + 80 : 48
   const due = Date.now() + wait
-  // A second stage push arrives immediately and would snapshot the fade mid-way.
-  // Keep the capture that lands after the animation.
   if (ms <= 0 && settleTimer && due < settleDue) return
   if (settleTimer) window.clearTimeout(settleTimer)
   const token = ++settleToken
@@ -317,7 +323,7 @@ function paintBackdrop(layer, data) {
   veil.style.background = `rgba(0, 0, 0, ${dim})`
 }
 
-const HYMN_MOTIONS = ['crossfade', 'fade', 'wipe', 'push', 'cover', 'uncover', 'split']
+const LYRIC_MOTIONS = ['fade', 'push']
 
 function hymnSignature(data) {
   return [
@@ -333,7 +339,8 @@ function hymnSignature(data) {
 }
 
 function hymnMotionOf(data) {
-  const animation = HYMN_MOTIONS.includes(data.animation) ? data.animation : 'none'
+  if (window.__orionStillCapture) return { animation: 'none', durationMs: 0 }
+  const animation = LYRIC_MOTIONS.includes(data.animation) ? data.animation : 'none'
   const durationMs = Math.min(5000, Math.max(0, Math.round(Number(data.durationMs) || 0)))
   if (animation === 'none' || durationMs <= 0) return { animation: 'none', durationMs: 0 }
   return { animation, durationMs }
@@ -427,6 +434,7 @@ function renderHymnPayload(target, data) {
     paintBackdrop(target, data)
     return
   }
+  delete target.dataset.bibleSlide
   const motion = hymnMotionOf(data)
   const previous = target.querySelector(':scope > .hymn-proj')
   const animate = previous instanceof HTMLElement && motion.animation !== 'none'
@@ -464,9 +472,17 @@ function renderHymnPayload(target, data) {
     const corner = document.createElement('span')
     corner.className = 'hymn-proj__corner'
     const kind = data.stanzaKind || 'verse'
-    if (kind === 'refrain') {
-      corner.textContent = 'Refrain'
-    } else if (kind === 'chorus' || kind === 'bridge' || kind === 'intro') {
+    if (kind === 'refrain' || kind === 'chorus') {
+      const part = data.versePart
+      const count = data.versePartCount
+      const name = kind === 'chorus' ? 'Chorus' : 'Refrain'
+      corner.textContent =
+        typeof part === 'number' && typeof count === 'number' && count > 1 && part > 0
+          ? `${name} 1 - ${part}`
+          : kind === 'refrain'
+            ? 'Refrain'
+            : kind
+    } else if (kind === 'bridge' || kind === 'intro') {
       corner.textContent = kind
     } else if (data.verse != null && data.verse > 0) {
       const part = data.versePart
@@ -520,6 +536,91 @@ function renderHymnPayload(target, data) {
   animateHymnSwap(previous, incoming, motion.animation, motion.durationMs)
 }
 
+function bibleSignature(data) {
+  const verse = (data.verses ?? [])[0]
+  return [data.reference ?? '', data.highlightVerse ?? '', verse?.number ?? '', verse?.text ?? ''].join('\u001f')
+}
+
+/**
+ * @param {HTMLElement} target
+ * @param {{ reference?: string; locationLabel?: string; translationLabel?: string; verses?: { number: number; text: string }[]; highlightVerse?: number; animation?: string; durationMs?: number; backgroundMediaUrl?: string; backgroundColor?: string; backgroundDimOpacity?: number; backgroundFit?: string }} data
+ */
+function renderBiblePayload(target, data) {
+  const sig = bibleSignature(data)
+  if (target.dataset.bibleSlide === sig) {
+    paintBackdrop(target, data)
+    return
+  }
+  delete target.dataset.hymnSlide
+  const motion = hymnMotionOf(data)
+  const previous = target.querySelector(':scope > .bible-proj')
+  const animate = previous instanceof HTMLElement && motion.animation !== 'none'
+  target.dataset.bibleSlide = sig
+
+  const mount = () => {
+    const verses = data.verses ?? []
+    const active = verses.find((v) => v.number === data.highlightVerse) ?? verses[0] ?? null
+    if (!active) return null
+    const wrap = document.createElement('div')
+    wrap.className = 'bible-proj'
+    applyInsetsToElement(wrap, contentInsetsByCategory.bible)
+    const top = document.createElement('div')
+    top.className = 'bible-proj__top'
+    const location = document.createElement('p')
+    location.className = 'bible-proj__location'
+    location.textContent =
+      (typeof data.locationLabel === 'string' && data.locationLabel.trim()) ||
+      bibleLocationFallback(data.reference)
+    const translation = document.createElement('p')
+    translation.className = 'bible-proj__translation'
+    translation.textContent =
+      (typeof data.translationLabel === 'string' && data.translationLabel.trim()) || 'Bible'
+    top.appendChild(location)
+    top.appendChild(translation)
+    wrap.appendChild(top)
+    const body = document.createElement('div')
+    body.className = 'bible-proj__body'
+    const text = document.createElement('p')
+    text.className = 'bible-proj__text'
+    const num = document.createElement('span')
+    num.className = 'bible-proj__verse-num'
+    num.textContent = String(active.number)
+    const words = document.createElement('span')
+    words.className = 'bible-proj__verse-words'
+    words.textContent = active.text
+    text.append(num, document.createTextNode(' '), words)
+    body.appendChild(text)
+    wrap.appendChild(body)
+    target.appendChild(wrap)
+    requestAnimationFrame(() => {
+      fitBibleVerse(text)
+    })
+    return wrap
+  }
+
+  if (!animate) {
+    silenceMedia(target)
+    target.replaceChildren()
+    paintBackdrop(target, data)
+    mount()
+    return
+  }
+
+  silenceMedia(target)
+  for (const child of [...target.children]) {
+    if (
+      child !== previous &&
+      !child.classList.contains('orion-layer-bg') &&
+      !child.classList.contains('orion-layer-dim')
+    ) {
+      child.remove()
+    }
+  }
+  paintBackdrop(target, data)
+  const incoming = mount()
+  animateHymnSwap(previous, incoming, motion.animation, motion.durationMs)
+}
+
 function renderOrderImage(target, data) {
   if (target === baseLayer) {
     baseLayer.style.backgroundColor = '#000000'
@@ -535,7 +636,11 @@ function renderOrderImage(target, data) {
   if (showing && showing.getAttribute('src') === mediaUrl) return
 
   const named = ['crossfade', 'fade', 'wipe', 'push', 'cover', 'uncover', 'split']
-  const animation = named.includes(data.animation) ? data.animation : 'cut'
+  const animation = window.__orionStillCapture
+    ? 'cut'
+    : named.includes(data.animation)
+      ? data.animation
+      : 'cut'
   const durationMs = Math.min(5000, Math.max(0, Math.round(Number(data.durationMs) || 0)))
   const img = document.createElement('img')
   img.className = 'orion-order-slide'
@@ -613,13 +718,26 @@ function renderOrderImage(target, data) {
   settleAfter(durationMs)
 }
 
+function deckSlideSignature(data) {
+  const markup = typeof data.markup === 'string' ? data.markup : ''
+  let hash = markup.length >>> 0
+  const step = Math.max(1, Math.floor(markup.length / 48))
+  for (let index = 0; index < markup.length; index += step) {
+    hash = (Math.imul(hash, 33) + markup.charCodeAt(index)) >>> 0
+  }
+  const media = Array.isArray(data.media) ? data.media.length : 0
+  return `${data.transition || ''}|${data.durationMs || 0}|${media}|${hash}`
+}
+
 /** @param {unknown} payload */
 function renderPayload(target, payload) {
   if (!payload || typeof payload !== 'object') {
+    delete target.dataset.deckSlide
     target.replaceChildren()
     return
   }
   const p = /** @type {{ type?: string }} */ (payload)
+  if (p.type !== 'deck-slide') delete target.dataset.deckSlide
 
   if (p.type === 'image') {
     renderOrderImage(target, /** @type {{ mediaUrl?: string; animation?: string; durationMs?: number }} */ (payload))
@@ -627,7 +745,7 @@ function renderPayload(target, payload) {
   }
 
   if (p.type === 'media') {
-    const data = /** @type {{ mediaUrl?: string; kind?: string; name?: string }} */ (payload)
+    const data = /** @type {{ mediaUrl?: string; kind?: string; name?: string; autoplay?: boolean }} */ (payload)
     const mediaUrl = typeof data.mediaUrl === 'string' ? data.mediaUrl : ''
     const existing = target.querySelector('[data-orion-library-media]')
     if (existing instanceof HTMLMediaElement && existing.getAttribute('src') === mediaUrl) return
@@ -635,10 +753,11 @@ function renderPayload(target, payload) {
     target.replaceChildren()
     if (!mediaUrl) return
     const kind = data.kind === 'audio' ? 'audio' : 'video'
+    const autoplay = data.autoplay === true
     const el = document.createElement(kind)
     el.dataset.orionLibraryMedia = '1'
     el.src = mediaUrl
-    el.autoplay = false
+    el.autoplay = autoplay
     el.controls = false
     el.playsInline = true
     el.muted = !deckAudio
@@ -658,6 +777,13 @@ function renderPayload(target, payload) {
       el.style.background = '#000'
     }
     target.appendChild(el)
+    if (autoplay) {
+      const start = () => {
+        if (!libraryMediaCommand) void el.play().catch(() => {})
+      }
+      el.addEventListener('canplay', start, { once: true })
+      start()
+    }
     applyStoredLibraryClock(el)
     if (kind === 'audio') {
       const label = document.createElement('p')
@@ -682,30 +808,35 @@ function renderPayload(target, payload) {
     return
   }
 
-  silenceMedia(target)
-  delete target.dataset.hymnSlide
-  target.replaceChildren()
-
   if (p.type === 'deck-slide') {
-    const data = /** @type {{ markup?: string; width?: number; height?: number; transition?: string; durationMs?: number; media?: { mediaUrl: string; leftPct: number; topPct: number; widthPct: number; heightPct: number; kind: string }[] }} */ (
+    const data = /** @type {{ markup?: string; width?: number; height?: number; transition?: string; durationMs?: number; autoplayMedia?: boolean; media?: { mediaUrl: string; leftPct: number; topPct: number; widthPct: number; heightPct: number; kind: string }[] }} */ (
       payload
     )
+    const signature = deckSlideSignature(data)
+    if (target.dataset.deckSlide === signature) return
+    target.dataset.deckSlide = signature
+    const autoplayMedia = data.autoplayMedia !== false
+    silenceMedia(target)
+    delete target.dataset.hymnSlide
+    target.replaceChildren()
     const stage = document.createElement('div')
     stage.style.position = 'absolute'
     stage.style.inset = '0'
     stage.style.background = '#000'
     stage.style.overflow = 'hidden'
-    const motion = {
-      fade: 'orion-deck-fade',
-      wipe: 'orion-deck-wipe',
-      split: 'orion-deck-split',
-      push: 'orion-deck-push',
-      cover: 'orion-deck-push',
-      uncover: 'orion-deck-uncover'
-    }[data.transition]
+    const motion = window.__orionStillCapture
+      ? undefined
+      : {
+          fade: 'orion-deck-fade',
+          wipe: 'orion-deck-wipe',
+          split: 'orion-deck-split',
+          push: 'orion-deck-push',
+          cover: 'orion-deck-push',
+          uncover: 'orion-deck-uncover'
+        }[data.transition]
     if (motion) {
       const ms = data.durationMs || 500
-      stage.style.animation = `${motion} ${ms}ms ease`
+      stage.style.animation = `${motion} ${ms}ms ease forwards`
       pendingSettleMs = Math.max(pendingSettleMs, ms)
     }
     const markup = document.createElement('div')
@@ -731,7 +862,7 @@ function renderPayload(target, payload) {
       const el = document.createElement(media.kind === 'audio' ? 'audio' : 'video')
       el.dataset.orionMedia = '1'
       el.src = media.mediaUrl
-      el.autoplay = true
+      el.autoplay = autoplayMedia
       el.controls = false
       el.playsInline = true
       el.muted = !deckAudio
@@ -740,7 +871,7 @@ function renderPayload(target, payload) {
       const start = () => {
         const pending = deckMediaCommands[slot]
         if (pending) nudgeOutputMedia(el, pending)
-        else void el.play().catch(() => {})
+        else if (autoplayMedia) void el.play().catch(() => {})
       }
       el.addEventListener('canplay', start, { once: true })
       start()
@@ -764,58 +895,14 @@ function renderPayload(target, payload) {
   }
 
   if (p.type === 'bible') {
-    const data = /** @type {{ reference?: string; locationLabel?: string; translationLabel?: string; verses?: { number: number; text: string }[]; highlightVerse?: number; backgroundMediaUrl?: string; backgroundColor?: string; backgroundDimOpacity?: number; backgroundFit?: string }} */ (
-      payload
-    )
-    if (target === baseLayer) paintBackdrop(baseLayer, data)
-
-    const verses = data.verses ?? []
-    const active =
-      verses.find((v) => v.number === data.highlightVerse) ?? verses[0] ?? null
-    if (!active) return
-
-    const wrap = document.createElement('div')
-    wrap.className = 'bible-proj'
-    applyInsetsToElement(wrap, contentInsetsByCategory.bible)
-
-    const top = document.createElement('div')
-    top.className = 'bible-proj__top'
-
-    const location = document.createElement('p')
-    location.className = 'bible-proj__location'
-    location.textContent =
-      (typeof data.locationLabel === 'string' && data.locationLabel.trim()) ||
-      bibleLocationFallback(data.reference)
-
-    const translation = document.createElement('p')
-    translation.className = 'bible-proj__translation'
-    translation.textContent =
-      (typeof data.translationLabel === 'string' && data.translationLabel.trim()) || 'Bible'
-
-    top.appendChild(location)
-    top.appendChild(translation)
-    wrap.appendChild(top)
-
-    const body = document.createElement('div')
-    body.className = 'bible-proj__body'
-    const text = document.createElement('p')
-    text.className = 'bible-proj__text'
-    const num = document.createElement('span')
-    num.className = 'bible-proj__verse-num'
-    num.textContent = String(active.number)
-    const words = document.createElement('span')
-    words.className = 'bible-proj__verse-words'
-    words.textContent = active.text
-    text.append(num, document.createTextNode(' '), words)
-    body.appendChild(text)
-    wrap.appendChild(body)
-
-    target.appendChild(wrap)
-    requestAnimationFrame(() => {
-      fitBibleVerse(text)
-    })
+    renderBiblePayload(target, payload)
     return
   }
+
+  silenceMedia(target)
+  delete target.dataset.hymnSlide
+  delete target.dataset.bibleSlide
+  target.replaceChildren()
 
   if (p.type === 'dictionary') {
     const data = /** @type {{ strongs?: string; lemma?: string; transliteration?: string | null; gloss?: string | null; definition?: string; language?: string; infoBar?: string[]; infoBarActive?: number; backgroundMediaUrl?: string; backgroundColor?: string; backgroundDimOpacity?: number; backgroundFit?: string }} */ (

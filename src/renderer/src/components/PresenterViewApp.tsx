@@ -164,6 +164,7 @@ export function PresenterViewApp(): ReactElement {
                     deckId={state.deckId}
                     ext={state.sourceExt}
                     slideIndex={state.slideIndex}
+                    buildStep={state.buildStep ?? 0}
                     loadSource={loadDeck}
                     showNotes
                     animateTransitions

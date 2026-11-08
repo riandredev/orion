@@ -1,5 +1,5 @@
 import { buildDictionaryProjectionInfoBar } from '../../../shared/dictionary-lexicon'
-import { verseSlidePart } from '../../../shared/hymnal-stanza-format'
+import { lyricSlidePart } from '../../../shared/hymnal-stanza-format'
 import { buildHymnProjectionSteps, projectionStepLabel } from '../../../shared/hymnal-projection-sequence'
 import type { HymnEntry } from '../../../shared/hymnal-types'
 import type { LexiconEntry } from '../../../shared/dictionary-types'
@@ -20,7 +20,7 @@ export function hymnStepsFromEntry(
   const steps = buildHymnProjectionSteps(entry.stanzas, options)
   return steps.map((step) => {
     const stanza = entry.stanzas[step.stanzaIndex]
-    const part = verseSlidePart(entry.stanzas, step.stanzaIndex)
+    const part = lyricSlidePart(entry.stanzas, step.stanzaIndex)
     return {
       kind: step.kind,
       stanzaIndex: step.stanzaIndex,

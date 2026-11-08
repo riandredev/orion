@@ -23,6 +23,7 @@ import {
   type HymnTypographyElementId,
   type ProjectionLineHeight,
   type ProjectionTextShadow,
+  type TextShadowStyle,
   type ProjectionTextStyle,
   type ProjectionTypography
 } from '../../../shared/projection-typography'
@@ -181,12 +182,15 @@ export function resetProjectionLineHeight(category: keyof ProjectionLineHeight):
 
 export function updateProjectionTextShadow(
   category: keyof ProjectionTextShadow,
-  strength: number
+  patch: Partial<TextShadowStyle>
 ): ProjectionTypography {
   const current = getProjectionTypography()
   return saveProjectionTypography({
     ...current,
-    textShadow: { ...current.textShadow, [category]: strength }
+    textShadow: {
+      ...current.textShadow,
+      [category]: { ...current.textShadow[category], ...patch }
+    }
   })
 }
 

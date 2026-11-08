@@ -107,9 +107,9 @@ export function BibleWorkspace({
 }: {
   onProjectToOutputs: () => void
 }): ReactElement {
-  const [bookId, setBookId] = useState('sng')
+  const [bookId, setBookId] = useState('gen')
   const [chapter, setChapter] = useState(1)
-  const [verse, setVerse] = useState(12)
+  const [verse, setVerse] = useState(1)
   const [scope, setScope] = useState<BibleScope>('entire')
   const [mode, setMode] = useState<BibleSearchMode>('phrase')
   const { bibles, importNew, downloadCatalog, remove } = useInstalledBibles()

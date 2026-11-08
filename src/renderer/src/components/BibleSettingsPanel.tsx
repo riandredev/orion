@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
 import { projectionContentInsetsPreviewVars } from '../../../shared/projection-content-insets'
 import {
   BIBLE_TYPOGRAPHY_ELEMENTS,
@@ -38,6 +38,7 @@ export function BibleSettingsPanel(): ReactElement {
   const [selected, setSelected] = useState<BibleTypographyElementId>('verse')
   const style = bible[selected]
   const scalerRef = useRef<HTMLDivElement>(null)
+  const verseRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(0.25)
 
   const updateScale = useCallback(() => {
@@ -55,6 +56,33 @@ export function BibleSettingsPanel(): ReactElement {
     observer.observe(scaler)
     return () => observer.disconnect()
   }, [updateScale])
+
+  useLayoutEffect(() => {
+    const textEl = verseRef.current
+    const body = textEl?.parentElement
+    if (!textEl || !body) return
+    const fit = (): void => {
+      const maxHeight = body.clientHeight
+      if (maxHeight <= 0 || body.clientWidth <= 0) return
+      textEl.style.fontSize = ''
+      textEl.style.width = '100%'
+      textEl.style.maxWidth = '100%'
+      const configured = parseFloat(window.getComputedStyle(textEl).fontSize)
+      const minPx = 18
+      let size = Number.isFinite(configured) && configured > 0 ? configured : 64
+      textEl.style.fontSize = `${size}px`
+      const fits = (): boolean =>
+        textEl.scrollHeight <= maxHeight + 2 && textEl.scrollWidth <= textEl.clientWidth + 2
+      while (size > minPx && !fits()) {
+        size -= 2
+        textEl.style.fontSize = `${size}px`
+      }
+    }
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(body)
+    return () => observer.disconnect()
+  }, [typography, insets, resolved, scale])
 
   const selectedMeta = BIBLE_TYPOGRAPHY_ELEMENTS.find((item) => item.id === selected) ?? BIBLE_TYPOGRAPHY_ELEMENTS[3]!
   const imageUrl = fileUrl(resolved.imagePath)
@@ -91,7 +119,6 @@ export function BibleSettingsPanel(): ReactElement {
               onChange={(patch) => updateBibleTypographyElement(selected, patch)}
               onReset={() => resetBibleTypographyElement(selected)}
             />
-            <LineHeightField category="bible" value={typography.lineHeight.bible} label="Verse line height" />
             <TextShadowField category="bible" value={typography.textShadow.bible} />
             <TextPanelFields
               label="Book name box"
@@ -108,6 +135,7 @@ export function BibleSettingsPanel(): ReactElement {
           </div>
           <ContentInsetCard category="bible" title="Bible" />
         </div>
+        <div className="settings-bg__aside">
         <div className="adw-card settings-bg__preview-card">
           <div className="settings-bg__section-head">
             <h3 className="settings-bg__subtitle">Preview</h3>
@@ -138,24 +166,34 @@ export function BibleSettingsPanel(): ReactElement {
                     </button>
                   </div>
                   <div className="bible-proj__body">
-                    <div className="bible-proj__text">
-                      <button
-                        type="button"
+                    <div ref={verseRef} className="bible-proj__text">
+                      <span
                         data-bible-style="verseNumber"
                         className={`bible-proj__verse-num ${hit('verseNumber')}`}
+                        role="button"
+                        tabIndex={0}
                       >
                         16
-                      </button>
-                      <button type="button" data-bible-style="verse" className={`bible-proj__verse-words ${hit('verse')}`}>
+                      </span>{' '}
+                      <span
+                        data-bible-style="verse"
+                        className={`bible-proj__verse-words ${hit('verse')}`}
+                        role="button"
+                        tabIndex={0}
+                      >
                         For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him
                         should not perish, but have everlasting life.
-                      </button>
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+        <div className="adw-card settings-bg__controls-card">
+          <LineHeightField category="bible" value={typography.lineHeight.bible} label="Verse line height" />
+        </div>
         </div>
       </div>
     </div>

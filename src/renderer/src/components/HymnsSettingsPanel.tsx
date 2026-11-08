@@ -7,6 +7,7 @@ import {
   hymnTypographyElementId,
   projectionTypographyCssVars,
   PROJECTION_FONTS,
+  PROJECTION_FONT_WEIGHTS,
   type HymnTypographyElementId
 } from '../../../shared/projection-typography'
 import { resolveCategoryBackground, useBackgroundSettings } from '../lib/background-settings'
@@ -119,6 +120,19 @@ export function HymnsSettingsPanel(): ReactElement {
                 onChange={(color) => updateHymnTypographyElement(selected, { color })}
               />
               <div className="settings-bg__field">
+                <span className="settings-field__label">Font weight</span>
+                <AdwSelect
+                  aria-label={`${selectedMeta.label} font weight`}
+                  value={String(style.fontWeight)}
+                  options={PROJECTION_FONT_WEIGHTS.map((item) => ({ value: String(item.value), label: item.label }))}
+                  onChange={(next) =>
+                    updateHymnTypographyElement(selected, {
+                      fontWeight: Number(next) as (typeof PROJECTION_FONT_WEIGHTS)[number]['value']
+                    })
+                  }
+                />
+              </div>
+              <div className="settings-bg__field">
                 <span className="settings-field__label">Font size</span>
                 <div className="settings-type__size">
                   <AdwScale
@@ -139,7 +153,6 @@ export function HymnsSettingsPanel(): ReactElement {
               >
                 Reset {selectedMeta.label.toLowerCase()}
               </button>
-              <LineHeightField category="hymns" value={lineHeight} label="Lyric line height" />
               <TextShadowField category="hymns" value={projection.textShadow.hymns} />
               {HYMN_BOXES.map((box) => (
                 <TextPanelFields
@@ -155,6 +168,7 @@ export function HymnsSettingsPanel(): ReactElement {
           <ContentInsetCard category="hymns" title="Hymns" />
         </div>
 
+        <div className="settings-bg__aside">
         <div className="adw-card settings-bg__preview-card">
           <div className="settings-bg__section-head">
             <h3 className="settings-bg__subtitle">Preview</h3>
@@ -191,6 +205,10 @@ export function HymnsSettingsPanel(): ReactElement {
               </div>
             </div>
           </div>
+        </div>
+        <div className="adw-card settings-bg__controls-card">
+          <LineHeightField category="hymns" value={lineHeight} label="Lyric line height" />
+        </div>
         </div>
       </div>
     </div>

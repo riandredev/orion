@@ -14,4 +14,9 @@ describe('hymnProjectionCornerLabel', () => {
   it('uses Refrain for refrain', () => {
     expect(hymnProjectionCornerLabel('refrain')).toBe('Refrain')
   })
+
+  it('numbers each slide when a refrain is split', () => {
+    expect(hymnProjectionCornerLabel('refrain', undefined, 1, 2)).toBe('Refrain 1 - 1')
+    expect(hymnProjectionCornerLabel('refrain', undefined, 2, 2)).toBe('Refrain 1 - 2')
+  })
 })

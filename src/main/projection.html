@@ -174,8 +174,13 @@
       }
 
       #base-layer > .bible-proj,
+      #overlay-layer > .bible-proj {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+      }
+
       #base-layer > .dictionary-proj,
-      #overlay-layer > .bible-proj,
       #overlay-layer > .dictionary-proj {
         position: relative;
         z-index: 1;
@@ -224,7 +229,7 @@
         flex: 1 1 auto;
         overflow-wrap: anywhere;
         font-family: var(--bible-reference-font, var(--bible-serif));
-        font-weight: 700;
+        font-weight: var(--bible-reference-weight, 700);
         font-size: var(--bible-reference-size, 52px);
         line-height: 1.15;
         color: var(--bible-reference-color, #fff9a7);
@@ -240,7 +245,7 @@
         margin: 0;
         max-width: 28%;
         font-family: var(--bible-translation-font, var(--bible-serif));
-        font-weight: 600;
+        font-weight: var(--bible-translation-weight, 600);
         font-size: var(--bible-translation-size, 28px);
         line-height: 1.2;
         color: var(--bible-translation-color, rgba(255, 255, 255, 0.82));
@@ -276,7 +281,7 @@
         padding: 0.75em 1.15em;
         background: var(--bible-verse-panel, rgba(15, 27, 46, 0.66));
         font-family: var(--bible-verse-font, var(--bible-serif));
-        font-weight: 500;
+        font-weight: var(--bible-verse-weight, 500);
         font-size: var(--bible-verse-size, 64px);
         line-height: var(--bible-line-height, 1.55);
         color: var(--bible-verse-color, #fff);
@@ -288,13 +293,13 @@
       .bible-proj__verse-num {
         font-family: var(--bible-verse-num-font, var(--bible-serif));
         font-size: var(--bible-verse-num-size, 64px);
-        font-weight: 700;
+        font-weight: var(--bible-verse-num-weight, 700);
         margin-right: 0.28em;
         color: var(--bible-verse-num-color, rgba(255, 255, 255, 0.95));
       }
 
       .bible-proj__verse-words {
-        font-weight: 500;
+        font-weight: var(--bible-verse-weight, 500);
       }
 
       .dictionary-proj {
@@ -318,7 +323,7 @@
         padding: 0.12em 0.45em;
         font-family: var(--dictionary-strongs-font, Cantarell, "Segoe UI", sans-serif);
         font-size: var(--dictionary-strongs-size, 36px);
-        font-weight: 700;
+        font-weight: var(--dictionary-strongs-weight, 700);
         color: rgba(255, 255, 255, 0.55);
         text-align: var(--dictionary-strongs-align, center);
         background: var(--dictionary-strongs-panel, transparent);
@@ -341,7 +346,7 @@
         background: var(--dictionary-lemma-panel, transparent);
         font-family: var(--dictionary-lemma-font, Cantarell, "Segoe UI", sans-serif);
         font-size: var(--dictionary-lemma-size, 96px);
-        font-weight: 700;
+        font-weight: var(--dictionary-lemma-weight, 700);
         line-height: 1.12;
         text-shadow: var(--dictionary-shadow, none);
       }
@@ -383,7 +388,7 @@
         padding: 0.65em 0.75em;
         font-family: var(--dictionary-details-font, "Segoe UI", sans-serif);
         font-size: var(--dictionary-details-size, 28px);
-        font-weight: 600;
+        font-weight: var(--dictionary-details-weight, 600);
         line-height: 1.25;
         color: var(--dictionary-details-color, rgba(255, 255, 255, 0.72));
         text-align: var(--dictionary-details-align, center);
@@ -430,7 +435,7 @@
         font-family: var(--dictionary-definition-font, "Segoe UI", sans-serif);
         font-size: var(--dictionary-definition-size, 36px);
         line-height: var(--dictionary-line-height, 1.5);
-        font-weight: 400;
+        font-weight: var(--dictionary-definition-weight, 400);
         color: rgba(255, 255, 255, 0.72);
         overflow: hidden;
         display: -webkit-box;
@@ -514,7 +519,7 @@
         padding: 0.06em 0.2em;
         font-family: var(--hymn-corner-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
         font-size: var(--hymn-corner-size, 60px);
-        font-weight: 700;
+        font-weight: var(--hymn-corner-weight, 700);
         line-height: 1;
         color: var(--hymn-corner-color, #ffd400);
         background: var(--hymn-corner-panel, transparent);
@@ -527,7 +532,7 @@
         padding: 0.12em 0.45em;
         text-align: var(--hymn-number-align, center);
         font-family: var(--hymn-number-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
-        font-weight: 700;
+        font-weight: var(--hymn-number-weight, 700);
         font-stretch: condensed;
         font-size: var(--hymn-number-size, 72px);
         line-height: 1.04;
@@ -556,7 +561,7 @@
       .hymn-proj__line {
         margin: 0;
         font-family: inherit;
-        font-weight: 700;
+        font-weight: var(--hymn-lyrics-weight, 700);
         font-stretch: condensed;
         font-size: 1em;
         line-height: inherit;
@@ -573,7 +578,7 @@
         background: var(--hymn-author-panel, transparent);
         font-family: var(--hymn-author-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
         font-style: italic;
-        font-weight: 700;
+        font-weight: var(--hymn-author-weight, 700);
         font-stretch: condensed;
         font-size: var(--hymn-author-size, 28px);
         line-height: 1.2;

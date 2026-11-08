@@ -94,6 +94,7 @@ export function DictionarySettingsPanel(): ReactElement {
                 onReset={() => resetDictionaryPanel(item.id)}
               />
             ))}
+            <TextShadowField category="dictionary" value={typography.textShadow.dictionary} />
           </div>
           <ContentInsetCard category="dictionary" title="Dictionary" />
         </div>
@@ -142,7 +143,6 @@ export function DictionarySettingsPanel(): ReactElement {
               value={typography.lineHeight.dictionary}
               label="Definition line height"
             />
-            <TextShadowField category="dictionary" value={typography.textShadow.dictionary} />
           </div>
         </div>
       </div>

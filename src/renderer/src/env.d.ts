@@ -137,7 +137,7 @@ export type OrionApi = {
   ) => () => void
   onOutputPreviewClear: (callback: () => void) => () => void
   setMainWindowMaximized: (maximized: boolean) => Promise<void>
-  exportProfileFile: (json: string, suggestedName: string) => Promise<string | null>
+  exportProfileFile: (json: string, suggestedName: string, includeContent?: boolean) => Promise<string | null>
   importProfileFile: () => Promise<string | null>
   exportSequenceFile: (json: string, suggestedName: string, bundleContent?: boolean) => Promise<string | null>
   importSequenceFile: () => Promise<string | null>
@@ -166,10 +166,11 @@ export type OrionApi = {
   onPresentationImportProgress: (
     callback: (progress: import('../../shared/presentation-deck-types').PresentationImportProgress) => void
   ) => () => void
-  openPresenterView: (deckId: string, slideIndex: number) => Promise<void>
+  openPresenterView: (deckId: string, slideIndex: number, buildStep?: number) => Promise<void>
   closePresenterView: () => Promise<void>
   isPresenterViewOpen: () => Promise<boolean>
-  syncPresenterSlideFromMain: (deckId: string | null, slideIndex: number) => Promise<void>
+  syncPresenterSlideFromMain: (deckId: string | null, slideIndex: number, buildStep?: number) => Promise<void>
+  onPresentationStepFromPresenter: (callback: (delta: number) => void) => () => void
   syncDeckMedia: (command: {
     action: 'play' | 'pause' | 'seek'
     index: number

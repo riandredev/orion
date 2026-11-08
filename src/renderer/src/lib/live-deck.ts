@@ -1,7 +1,18 @@
 import { parse, type ImageElement, type Presentation, type SlideElement } from '@pagus-kit/core'
 import { buildFontSubstitutes, generateFontCss, renderSlide } from '@pagus-kit/renderer'
 import { parseIworkDocument, type IworkScene, type IworkVisualObject } from 'iwork-viewer'
+import JSZip from 'jszip'
 import { applyPicturePlaceholderFrames } from '../../../shared/pptx-picture-frames'
+import {
+  clickStepCount,
+  decorateBuildMarkup,
+  flyOriginsFromTiming,
+  hiddenIdsAtStep,
+  holdBlankLines,
+  motionsAtStep,
+  planClickBuilds,
+  type ClickEffect
+} from '../../../shared/pptx-click-builds'
 import { readPptxCues, type PptxSlideCue } from '../../../shared/pptx-cues'
 import { normalizeSlideBullets, pinDefaultTextColor, type BulletHost } from '../../../shared/slide-bullets'
 
@@ -160,6 +171,30 @@ async function rasterizeMetafileImages(slides: Presentation['slides']): Promise<
   })
 }
 
+async function applyFlyOrigins(bytes: ArrayBuffer, slides: Presentation['slides']): Promise<void> {
+  const zip = await JSZip.loadAsync(bytes)
+  const names = Object.keys(zip.files)
+    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+    .sort((a, b) => Number(a.match(/slide(\d+)/)?.[1] ?? 0) - Number(b.match(/slide(\d+)/)?.[1] ?? 0))
+  for (let index = 0; index < slides.length; index += 1) {
+    const animations = slides[index]?.animations
+    const file = zip.file(names[index] ?? '')
+    if (!animations || !file) continue
+    const origins = flyOriginsFromTiming(await file.async('string'))
+    for (const step of animations.steps) {
+      for (const effect of step.effects) {
+        if (effect.preset !== 'fly-in' && effect.preset !== 'peek-in' && effect.preset !== 'float-in') continue
+        const match = origins.findIndex(
+          (origin) => origin.targetId === effect.targetId && origin.paragraphIndex === effect.paragraphIndex
+        )
+        if (match < 0) continue
+        effect.direction = origins[match]?.direction
+        origins.splice(match, 1)
+      }
+    }
+  }
+}
+
 export async function openLiveSession(source: DeckSource): Promise<LiveSession> {
   const bytes = source.bytes.buffer.slice(
     source.bytes.byteOffset,
@@ -176,6 +211,7 @@ export async function openLiveSession(source: DeckSource): Promise<LiveSession> 
     }
   }
   const presentation = await parse(bytes)
+  await applyFlyOrigins(bytes, presentation.slides)
   for (const slide of presentation.slides) {
     normalizeSlideBullets(slide.elements as unknown as BulletHost[])
   }
@@ -202,17 +238,19 @@ export function liveSlideCount(session: LiveSession): number {
   return session.kind === 'pptx' ? session.presentation.slides.length : session.scenes.length
 }
 
-function hiddenIds(slide: Presentation['slides'][number], step: number): string[] {
-  const animations = slide.animations
-  if (!animations) return []
-  const hidden = new Set(animations.hiddenShapeIds)
-  for (let index = 0; index < step; index += 1) {
-    for (const effect of animations.steps[index]?.effects ?? []) {
-      if (effect.animClass === 'entrance') hidden.delete(effect.targetId)
-      if (effect.animClass === 'exit') hidden.add(effect.targetId)
-    }
-  }
-  return [...hidden]
+function slideEffects(slide: Presentation['slides'][number]): ClickEffect[][] {
+  return (slide.animations?.steps ?? []).map((step) =>
+    step.effects.map((effect) => ({
+      targetId: effect.targetId,
+      paragraphIndex: effect.paragraphIndex,
+      preset: effect.preset,
+      animClass: effect.animClass,
+      trigger: effect.trigger,
+      duration: effect.duration,
+      delay: effect.delay,
+      direction: effect.direction
+    }))
+  )
 }
 
 function pptxMedia(session: PptxSession, index: number): LiveMedia[] {
@@ -318,10 +356,12 @@ export function frameFor(session: LiveSession, index: number, step: number): Liv
   }
   const slide = session.presentation.slides[index]
   if (!slide) return null
+  const plan = planClickBuilds(slideEffects(slide).map((effects) => ({ effects })))
+  const playback = step >= 0
   const rendered = renderSlide(slide, session.presentation.slideSize, {
     fontSubstitutes: session.fontSubstitutes,
     fontCss: session.fontCss,
-    hiddenShapeIds: hiddenIds(slide, step)
+    hiddenShapeIds: playback ? hiddenIdsAtStep(plan, step) : []
   })
   const cue = session.cues[index]
   const slideType = slide.transition?.type
@@ -333,18 +373,27 @@ export function frameFor(session: LiveSession, index: number, step: number): Liv
     cue?.durationMs ||
     (transition === 'none' || transition === 'cut' ? 0 : 500)
   const dir = slide.transition?.direction ?? cue?.dir
-  const steps = slide.animations?.steps.length ?? 0
+  const arriving = playback && step === 0
   return {
-    markup: pinDefaultTextColor(rendered.svg),
+    markup: decorateBuildMarkup(
+      holdBlankLines(pinDefaultTextColor(rendered.svg)),
+      playback ? motionsAtStep(plan, step) : []
+    ),
     width: rendered.width,
     height: rendered.height,
-    transition,
-    durationMs,
-    dir,
+    transition: arriving ? transition : 'none',
+    durationMs: arriving ? durationMs : 0,
+    dir: arriving ? dir : undefined,
     media: pptxMedia(session, index),
-    stepCount: Math.max(1, steps + 1),
+    stepCount: clickStepCount(plan),
     notes: ''
   }
+}
+
+export function presentationStepCount(deckId: string, slideIndex: number): number {
+  const session = resolvedSessions.get(deckId)
+  if (!session) return 1
+  return frameFor(session, slideIndex, 0)?.stepCount ?? 1
 }
 
 let active: { deckId: string; session: LiveSession } | null = null

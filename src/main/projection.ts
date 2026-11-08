@@ -4,7 +4,6 @@ import type { OrionProjectionPayload } from '../shared/projection'
 import type {
   OrionProjectionCommand,
   OrionStackLayerContent,
-  OrionStackSource,
   OrionStackState
 } from '../shared/projection-stack'
 import { type PresentationUiState } from '../shared/presentation-ui-state'
@@ -37,6 +36,10 @@ import {
 
 const mixer = new ProjectionMixerEngine()
 const projectionWindows = new Map<number, BrowserWindow>()
+let stillCaptureWindow: BrowserWindow | null = null
+const stillCaptureContents = new Set<number>()
+const fullscreenEpoch = new WeakMap<BrowserWindow, number>()
+let outputEpoch = 0
 const windowModes = new Map<number, 'shell' | 'web'>()
 const renderWaiters = new Map<number, () => void>()
 
@@ -190,8 +193,10 @@ function enqueueStackWork<T>(work: () => Promise<T>): Promise<T> {
 
 function isProjectionShellWindow(win: BrowserWindow): boolean {
   if (win.isDestroyed()) return false
-  if (win === mainAppWindow) return false
+  if (win === mainAppWindow || win === stillCaptureWindow) return false
   try {
+    if (stillCaptureContents.has(win.webContents.id)) return false
+    if (win.getTitle() === 'orion-preview-capture') return false
     return win.webContents.getURL().includes('projection.html')
   } catch {
     return false
@@ -282,6 +287,7 @@ async function commitStageToOutputs(displayIds: number[]): Promise<void> {
     pushStageState(win)
     await renderWait
     revealOutputWindow(displayId)
+    void captureStillPreview(displayId)
   }
   pushDeckAudioOwners()
 }
@@ -318,18 +324,6 @@ export function runProjectionCommand(
     broadcastPresentationUi()
     return getPresentationUiState()
   })
-}
-
-export function applyStackLayer(
-  source: OrionStackSource,
-  content: OrionStackLayerContent,
-  displayIds: number[]
-): Promise<PresentationUiState> {
-  return runProjectionCommand({ type: 'set-layer', source, content }, displayIds)
-}
-
-export function clearStackSource(source: OrionStackSource): Promise<PresentationUiState> {
-  return runProjectionCommand({ type: 'clear-layer', source }, [])
 }
 
 function projectionPreloadPath(): string {
@@ -409,22 +403,34 @@ function pushStageState(win: BrowserWindow): void {
   }
 }
 
+function bumpFullscreenEpoch(win: BrowserWindow): number {
+  const next = (fullscreenEpoch.get(win) ?? 0) + 1
+  fullscreenEpoch.set(win, next)
+  return next
+}
+
 function placeOnDisplayFullscreen(win: BrowserWindow, display: Display): void {
   if (win.isDestroyed()) return
+  const epoch = bumpFullscreenEpoch(win)
   const apply = (): void => {
-    if (win.isDestroyed()) return
+    if (win.isDestroyed() || fullscreenEpoch.get(win) !== epoch) return
     win.setBounds(display.bounds)
     if (!win.isVisible()) win.showInactive()
     if (!win.isFullScreen()) win.setFullScreen(true)
     keepMainAppFocused()
   }
   apply()
-  if (process.platform === 'linux') win.once('enter-full-screen', apply)
+  if (process.platform === 'linux') {
+    win.once('enter-full-screen', () => {
+      if (fullscreenEpoch.get(win) !== epoch) return
+      apply()
+    })
+  }
   // Replacing a fullscreen shell window drops the new window out of fullscreen
   // unless the fullscreen request is repeated after the old one has closed.
   for (const delay of [120, 400]) {
     setTimeout(() => {
-      if (win.isDestroyed()) return
+      if (win.isDestroyed() || fullscreenEpoch.get(win) !== epoch) return
       if (!win.isFullScreen()) {
         win.setBounds(display.bounds)
         win.showInactive()
@@ -473,19 +479,128 @@ function broadcastOutputPreviewClear(): void {
 
 const previewEpoch = new Map<number, number>()
 
+let stillCaptureDisplayId: number | null = null
+let stillSettledResolve: (() => void) | null = null
+
+function finishStillSettled(): void {
+  const done = stillSettledResolve
+  stillSettledResolve = null
+  done?.()
+}
+
+function waitForStillSettled(timeoutMs: number): Promise<void> {
+  finishStillSettled()
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      if (stillSettledResolve === finish) stillSettledResolve = null
+      resolve()
+    }, timeoutMs)
+    const finish = (): void => {
+      clearTimeout(timer)
+      resolve()
+    }
+    stillSettledResolve = finish
+  })
+}
+
+async function ensureStillCaptureWindow(
+  width: number,
+  height: number,
+  epoch: number
+): Promise<BrowserWindow | null> {
+  const w = Math.max(640, Math.round(width))
+  const h = Math.max(360, Math.round(height))
+  if (!stillCaptureWindow || stillCaptureWindow.isDestroyed()) {
+    stillCaptureWindow = new BrowserWindow({
+      show: false,
+      frame: false,
+      roundedCorners: false,
+      thickFrame: false,
+      backgroundColor: '#000000',
+      skipTaskbar: true,
+      focusable: false,
+      opacity: 0,
+      enableLargerThanScreen: true,
+      title: 'orion-preview-capture',
+      x: -32000,
+      y: -32000,
+      width: w,
+      height: h,
+      webPreferences: {
+        preload: projectionPreloadPath(),
+        sandbox: true,
+        contextIsolation: true,
+        backgroundThrottling: false
+      }
+    })
+    stillCaptureWindow.setIgnoreMouseEvents(true)
+    stillCaptureContents.add(stillCaptureWindow.webContents.id)
+    stillCaptureWindow.on('closed', () => {
+      stillCaptureWindow = null
+    })
+    const loadReady = waitForShellLoad(stillCaptureWindow)
+    await stillCaptureWindow.loadFile(projectionHtmlPath())
+    await loadReady
+    if (!stillCaptureWindow || stillCaptureWindow.isDestroyed() || epoch !== outputEpoch) return null
+    pushContentInsetsToWindow(stillCaptureWindow)
+    pushHymnTypographyToWindow(stillCaptureWindow)
+  }
+  const win = stillCaptureWindow
+  if (!win || epoch !== outputEpoch || win.isDestroyed()) return null
+  win.setOpacity(0)
+  win.setBounds({ x: -32000, y: -32000, width: w, height: h })
+  if (epoch !== outputEpoch || win.isDestroyed()) return null
+  if (!win.isVisible()) win.showInactive()
+  await win.webContents.executeJavaScript('window.__orionStillCapture = true')
+  if (epoch !== outputEpoch || win.isDestroyed()) return null
+  return win
+}
+
+async function captureStillPreview(displayId: number): Promise<void> {
+  const epoch = outputEpoch
+  const display = getElectronDisplay(displayId)
+  if (!display) return
+  try {
+    const win = await ensureStillCaptureWindow(display.bounds.width, display.bounds.height, epoch)
+    if (!win || epoch !== outputEpoch || win.isDestroyed()) return
+    stillCaptureDisplayId = displayId
+    const settled = waitForStillSettled(1800)
+    if (epoch !== outputEpoch) return
+    pushStageState(win)
+    await settled
+  } catch {
+    finishStillSettled()
+  }
+}
+
+const previewBusy = new Set<number>()
+const previewAgain = new Set<number>()
+
 async function captureOutputPreview(win: BrowserWindow, displayId: number): Promise<void> {
   if (win.isDestroyed()) return
+  if (previewBusy.has(displayId)) {
+    previewAgain.add(displayId)
+    return
+  }
   const epoch = (previewEpoch.get(displayId) ?? 0) + 1
   previewEpoch.set(displayId, epoch)
+  previewBusy.add(displayId)
   try {
     const image = await win.webContents.capturePage()
     if (win.isDestroyed() || image.isEmpty()) return
     if (previewEpoch.get(displayId) !== epoch) return
-    const jpeg = image.toJPEG(82)
+    const size = image.getSize()
+    const framed = size.width > 960 ? image.resize({ width: 960 }) : image
+    const jpeg = framed.toJPEG(74)
     const dataUrl = `data:image/jpeg;base64,${jpeg.toString('base64')}`
     broadcastOutputPreviewFrame(displayId, dataUrl)
   } catch {
     /* ignore capture failures */
+  } finally {
+    previewBusy.delete(displayId)
+    if (previewAgain.delete(displayId) && !win.isDestroyed()) {
+      void captureOutputPreview(win, displayId)
+    }
   }
 }
 
@@ -522,27 +637,52 @@ function cancelAllRenderWaits(): void {
 
 function forceDestroyWindow(win: BrowserWindow): void {
   if (win.isDestroyed()) return
-  try {
-    if (win.isFullScreen()) {
-      win.setFullScreen(false)
-    }
-  } catch {
-    /* ignore */
-  }
-  if (!win.isDestroyed()) {
+  bumpFullscreenEpoch(win)
+  const finish = (): void => {
+    if (win.isDestroyed()) return
     try {
       win.hide()
     } catch {
       /* ignore */
     }
-  }
-  if (!win.isDestroyed()) {
     try {
       win.destroy()
     } catch {
       /* ignore */
     }
+    if (!win.isDestroyed()) {
+      try {
+        win.close()
+      } catch {
+        /* ignore */
+      }
+    }
   }
+  let fullscreen = false
+  try {
+    fullscreen = win.isFullScreen()
+  } catch {
+    fullscreen = false
+  }
+  if (!fullscreen) {
+    finish()
+    return
+  }
+  // Windows ignores destroy while a fullscreen transition is in progress, and a
+  // pending fullscreen retry would show the presentation again.
+  win.once('leave-full-screen', finish)
+  try {
+    win.setOpacity(0)
+  } catch {
+    /* ignore */
+  }
+  try {
+    win.setFullScreen(false)
+  } catch {
+    finish()
+    return
+  }
+  setTimeout(finish, 280)
 }
 
 function bumpApplyGeneration(): void {
@@ -852,6 +992,12 @@ export function registerProjectionIpc(): void {
   ipcMain.on('orion:projection-settled', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (!win) return
+    if (stillCaptureWindow && win === stillCaptureWindow) {
+      const displayId = stillCaptureDisplayId
+      if (displayId == null) return
+      void captureOutputPreview(win, displayId).finally(() => finishStillSettled())
+      return
+    }
     const displayId = displayIdForWindow(win)
     if (displayId == null) return
     void captureOutputPreview(win, displayId)
@@ -974,8 +1120,14 @@ export function applyProjection(
 }
 
 export function closeAllProjectionWindows(): void {
+  outputEpoch += 1
+  finishStillSettled()
   suppressCloseHandler = true
   try {
+    if (stillCaptureWindow && !stillCaptureWindow.isDestroyed()) {
+      forceDestroyWindow(stillCaptureWindow)
+    }
+    stillCaptureWindow = null
     cancelAllRenderWaits()
     mixer.clearAll()
 

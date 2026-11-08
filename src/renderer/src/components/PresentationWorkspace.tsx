@@ -46,6 +46,7 @@ export type PresentationWorkspaceProps = {
   loadingDeck: boolean
   activeDeckId: string | null
   activeSlideIndex: number
+  buildStep?: number
   onSelectDeck: (deckId: string) => void
   onSelectSlide: (index: number) => void
   onRemoveDeck: (deckId: string) => void
@@ -68,6 +69,7 @@ export function PresentationWorkspace({
   loadingDeck,
   activeDeckId,
   activeSlideIndex,
+  buildStep = 0,
   onSelectDeck,
   onSelectSlide,
   onRemoveDeck,
@@ -343,6 +345,7 @@ export function PresentationWorkspace({
                 ext={deck.sourceExt}
                 cues={deck.cues}
                 slideIndex={activeSlideIndex}
+                buildStep={buildStep}
                 loadSource={loadDeckSource}
                 drivePlayback
               />

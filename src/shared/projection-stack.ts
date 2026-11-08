@@ -32,6 +32,7 @@ export type OrionStackLayerContent =
       filePath: string
       name: string
       kind: 'video' | 'audio'
+      autoplay?: boolean
     }
   | {
       type: 'deck-slide'
@@ -40,6 +41,7 @@ export type OrionStackLayerContent =
       height: number
       transition: string
       durationMs: number
+      autoplayMedia?: boolean
       media: {
         filePath: string
         leftPct: number
@@ -60,6 +62,8 @@ export type OrionStackLayerContent =
       backgroundColor?: string
       backgroundDimOpacity?: number
       backgroundFit?: 'cover' | 'contain'
+      animation?: 'fade' | 'push' | 'cut'
+      durationMs?: number
     }
   | {
       type: 'dictionary'

@@ -25,6 +25,8 @@ export type ProjectionWireBible = {
   backgroundColor?: string
   backgroundDimOpacity?: number
   backgroundFit?: 'cover' | 'contain'
+  animation?: 'fade' | 'push' | 'cut'
+  durationMs?: number
 }
 
 export type ProjectionWireDictionary = {
@@ -69,6 +71,7 @@ export type ProjectionWireMedia = {
   mediaUrl: string
   name: string
   kind: 'video' | 'audio'
+  autoplay?: boolean
 }
 
 export type ProjectionWireDeckSlide = {
@@ -78,6 +81,7 @@ export type ProjectionWireDeckSlide = {
   height: number
   transition: string
   durationMs: number
+  autoplayMedia?: boolean
   media: {
     mediaUrl: string
     leftPct: number
@@ -231,7 +235,8 @@ export function createStackWire(
       filePath: content.filePath,
       mediaUrl: toMediaUrl(content.filePath),
       name: content.name,
-      kind: content.kind === 'audio' ? 'audio' : 'video'
+      kind: content.kind === 'audio' ? 'audio' : 'video',
+      autoplay: content.autoplay === true
     }
   }
 
@@ -243,6 +248,7 @@ export function createStackWire(
       height: content.height,
       transition: content.transition,
       durationMs: content.durationMs,
+      autoplayMedia: content.autoplayMedia !== false,
       media: content.media.map((item) => ({
         mediaUrl: toMediaUrl(item.filePath),
         leftPct: item.leftPct,
@@ -314,6 +320,10 @@ export function createStackWire(
     translationLabel: content.translationLabel,
     verses: content.verses,
     highlightVerse: content.highlightVerse,
+    ...(content.animation === 'fade' || content.animation === 'push' || content.animation === 'cut'
+      ? { animation: content.animation }
+      : {}),
+    ...(typeof content.durationMs === 'number' ? { durationMs: content.durationMs } : {}),
     ...bgFields
   }
 }

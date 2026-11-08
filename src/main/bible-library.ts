@@ -13,12 +13,7 @@ import { parseBibleSuperSearchJson } from '../shared/bible-biblesupersearch'
 import { chapterFromModule, parseBibleSource } from '../shared/bible-import'
 import { searchModuleText, type BibleSearchHit, type BibleSearchMode, type BibleSearchScope } from '../shared/bible-search'
 import { parseHelloAoSimpleComplete } from '../shared/bible-helloao'
-import type {
-  BibleChapterDto,
-  BibleSourceFormat,
-  InstalledBibleInfo,
-  OrionBibleModule
-} from '../shared/bible-types'
+import type { BibleChapterDto, InstalledBibleInfo, OrionBibleModule } from '../shared/bible-types'
 import { biblesRoot } from './paths'
 
 type BibleMeta = InstalledBibleInfo
@@ -306,13 +301,3 @@ export async function removeInstalledBible(bibleId: string): Promise<boolean> {
   return true
 }
 
-export function formatLabelForSource(format: BibleSourceFormat): string {
-  switch (format) {
-    case 'orion-json':
-      return 'Orion JSON'
-    case 'usfm':
-      return 'USFM'
-    case 'zefania-xml':
-      return 'Zefania XML'
-  }
-}

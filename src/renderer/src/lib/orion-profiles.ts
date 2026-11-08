@@ -10,6 +10,7 @@ import {
 } from '../../../shared/orion-profile'
 import { ORION_PROFILE_SETTINGS_KEYS } from '../../../shared/profile-settings-keys'
 import { reloadBackgroundSettingsFromStorage } from './background-settings'
+import { reloadBibleMotionFromStorage } from './bible-motion'
 import { reloadHymnMotionFromStorage } from './hymn-motion'
 import {
   getProjectionContentInsetsByCategory,
@@ -79,6 +80,7 @@ export function applySettingsSnapshot(
 export function reloadAllProfileBoundSettings(): void {
   reloadBackgroundSettingsFromStorage()
   reloadHymnMotionFromStorage()
+  reloadBibleMotionFromStorage()
   reloadProjectionContentInsetsFromStorage()
   reloadHymnTypographyFromStorage()
   void pushProjectionContentInsetsToMain(getProjectionContentInsetsByCategory())
@@ -313,11 +315,11 @@ export function useActiveProfile(): OrionProfileMeta {
   )
 }
 
-export async function exportActiveProfileToFile(): Promise<string | null> {
+export async function exportActiveProfileToFile(includeContent = false): Promise<string | null> {
   if (typeof window.orion?.exportProfileFile !== 'function') return null
   const json = buildActiveProfileExportJson()
   const name = getActiveProfile().name.replace(/[^\w\s-]/g, '').trim() || 'orion-profile'
-  return window.orion.exportProfileFile(json, `${name}.orionprofile`)
+  return window.orion.exportProfileFile(json, name, includeContent)
 }
 
 export async function importProfileFromFileDialog(activate = true): Promise<OrionProfileMeta | null> {

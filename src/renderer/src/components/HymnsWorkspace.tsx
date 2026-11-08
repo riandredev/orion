@@ -22,7 +22,7 @@ import {
 } from '../../../shared/hymnal-projection-sequence'
 import { listHymnVerseNumbers, normalizeHymnEntry } from '../../../shared/hymnal-line-split'
 import { formatHymnListMeta, countHymnStanzas } from '../../../shared/hymnal-summary'
-import { stanzaDisplayTagWithPart, verseSlidePart } from '../../../shared/hymnal-stanza-format'
+import { lyricSlidePart, stanzaDisplayTagWithPart } from '../../../shared/hymnal-stanza-format'
 import type { HymnEntry, HymnSummary, HymnalStanzaTagStyle } from '../../../shared/hymnal-types'
 import { fetchHymnEntry, fetchHymnalIndex, deleteHymnEntry } from '../lib/hymnals-api'
 import {
@@ -462,7 +462,7 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
       setHymnLiveContent(null)
       return
     }
-    const part = verseSlidePart(entry.stanzas, idx)
+    const part = lyricSlidePart(entry.stanzas, idx)
     setHymnActiveLabel(formatHymnActiveLabel(entry, idx, tagStyle))
     setHymnLiveContent({
       ...base,

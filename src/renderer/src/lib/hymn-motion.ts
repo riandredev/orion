@@ -1,41 +1,25 @@
 import { useSyncExternalStore } from 'react'
-import { orderImageAnimations, type OrderImageAnimation } from '../../../shared/projection-stack'
 import { touchProfileSettings } from './profile-autosave'
+import { coerceLyricAnimation, lyricAnimationOptions, type LyricSlideAnimation } from './lyric-motion'
 
 export const HYMN_MOTION_KEY = 'orion-hymn-motion-v1'
 
-export const hymnSlideAnimations = ['none', ...orderImageAnimations] as const
-
-export type HymnSlideAnimation = (typeof hymnSlideAnimations)[number]
+export type HymnSlideAnimation = LyricSlideAnimation
 
 export type HymnMotionSettings = {
   animation: HymnSlideAnimation
   transitionMs: number
 }
 
-export const hymnAnimationOptions: { value: HymnSlideAnimation; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'crossfade', label: 'Crossfade' },
-  { value: 'fade', label: 'Fade' },
-  { value: 'cut', label: 'Cut' },
-  { value: 'wipe', label: 'Wipe' },
-  { value: 'push', label: 'Push' },
-  { value: 'cover', label: 'Cover' },
-  { value: 'uncover', label: 'Uncover' },
-  { value: 'split', label: 'Split' }
-]
+export const hymnAnimationOptions = lyricAnimationOptions
 
 const fallback: HymnMotionSettings = {
-  animation: 'none',
-  transitionMs: 500
-}
-
-function isAnimation(value: string): value is HymnSlideAnimation {
-  return (hymnSlideAnimations as readonly string[]).includes(value)
+  animation: 'cut',
+  transitionMs: 0
 }
 
 function sanitize(raw: Partial<HymnMotionSettings> | null | undefined): HymnMotionSettings {
-  const animation = typeof raw?.animation === 'string' && isAnimation(raw.animation) ? raw.animation : 'none'
+  const animation = coerceLyricAnimation(typeof raw?.animation === 'string' ? raw.animation : 'cut')
   const transitionMs =
     typeof raw?.transitionMs === 'number' && Number.isFinite(raw.transitionMs)
       ? Math.min(5000, Math.max(0, Math.round(raw.transitionMs)))
@@ -94,10 +78,8 @@ export function hymnMotionForProjection(settings: HymnMotionSettings = getHymnMo
   animation: HymnSlideAnimation
   durationMs: number
 } {
-  if (settings.animation === 'none' || settings.animation === 'cut') {
-    return { animation: settings.animation, durationMs: 0 }
+  if (settings.animation === 'cut') {
+    return { animation: 'cut', durationMs: 0 }
   }
   return { animation: settings.animation, durationMs: settings.transitionMs }
 }
-
-export type { OrderImageAnimation }

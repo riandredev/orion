@@ -8,6 +8,7 @@ export type PresenterViewState = {
   sourceExt: string
   engine: 'live' | 'raster'
   slideIndex: number
+  buildStep: number
   slideCount: number
   slides: PresentationDeckDetail['slides']
 }
@@ -20,6 +21,7 @@ export const emptyPresenterViewState = (): PresenterViewState => ({
   sourceExt: '',
   engine: 'raster',
   slideIndex: 0,
+  buildStep: 0,
   slideCount: 0,
   slides: []
 })

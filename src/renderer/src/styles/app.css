@@ -1349,6 +1349,7 @@ body.projector-shell--resizing {
 .preview-fade {
   position: absolute;
   inset: 0;
+  overflow: hidden;
 }
 
 .preview-fade__layer {
@@ -1382,6 +1383,59 @@ body.projector-shell--resizing {
 @keyframes preview-fade-out {
   from { opacity: 1; }
   to { opacity: 0; }
+}
+
+.preview-motion__fade-in {
+  animation: preview-fade-in var(--fade-ms, 500ms) ease forwards;
+}
+
+.preview-motion__fade-out {
+  animation: preview-fade-out var(--fade-ms, 500ms) ease forwards;
+}
+
+.preview-motion__push-in {
+  animation: preview-push-in var(--fade-ms, 500ms) ease forwards;
+}
+
+.preview-motion__push-out {
+  animation: preview-push-out var(--fade-ms, 500ms) ease forwards;
+}
+
+.preview-motion__wipe {
+  animation: preview-wipe var(--fade-ms, 500ms) ease forwards;
+}
+
+.preview-motion__split {
+  animation: preview-split var(--fade-ms, 500ms) ease forwards;
+}
+
+.preview-motion__uncover {
+  animation: preview-uncover var(--fade-ms, 500ms) ease forwards;
+}
+
+@keyframes preview-push-in {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+
+@keyframes preview-push-out {
+  from { transform: none; }
+  to { transform: translateX(-100%); }
+}
+
+@keyframes preview-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+
+@keyframes preview-split {
+  from { clip-path: inset(0 50% 0 50%); }
+  to { clip-path: inset(0); }
+}
+
+@keyframes preview-uncover {
+  from { clip-path: inset(0 0 0 100%); }
+  to { clip-path: inset(0); }
 }
 
 .projector-preview__deck {
@@ -2497,7 +2551,7 @@ body.projector-shell--resizing {
   flex: 1 1 auto;
   overflow-wrap: anywhere;
   font-family: var(--bible-reference-font, var(--bible-serif));
-  font-weight: 700;
+  font-weight: var(--bible-reference-weight, 700);
   font-size: var(--bible-reference-size, 52px);
   line-height: 1.15;
   color: var(--bible-reference-color, #fff9a7);
@@ -2513,7 +2567,7 @@ body.projector-shell--resizing {
   margin: 0;
   max-width: 28%;
   font-family: var(--bible-translation-font, var(--bible-serif));
-  font-weight: 600;
+  font-weight: var(--bible-translation-weight, 600);
   font-size: var(--bible-translation-size, 28px);
   line-height: 1.2;
   color: var(--bible-translation-color, rgba(255, 255, 255, 0.82));
@@ -2548,7 +2602,7 @@ body.projector-shell--resizing {
   padding: 0.75em 1.15em;
   background: var(--bible-verse-panel, rgba(15, 27, 46, 0.66));
   font-family: var(--bible-verse-font, var(--bible-serif));
-  font-weight: 500;
+  font-weight: var(--bible-verse-weight, 500);
   font-size: var(--bible-verse-size, 64px);
   line-height: var(--bible-line-height, 1.55);
   color: var(--bible-verse-color, #fff);
@@ -2558,16 +2612,19 @@ body.projector-shell--resizing {
 }
 
 .settings-bg__stage-canvas .bible-proj__verse-num {
+  display: inline;
   font-family: var(--bible-verse-num-font, var(--bible-serif));
   font-size: var(--bible-verse-num-size, 64px);
-  font-weight: 700;
-  margin-right: 0.35em;
+  font-weight: var(--bible-verse-num-weight, 700);
+  margin-right: 0.28em;
   color: var(--bible-verse-num-color, rgba(255, 255, 255, 0.95));
+  text-shadow: var(--bible-shadow);
 }
 
-.settings-bg__stage-canvas button.bible-proj__verse-num,
-.settings-bg__stage-canvas button.bible-proj__verse-words {
+.settings-bg__stage-canvas .bible-proj__verse-words {
   display: inline;
+  font-weight: var(--bible-verse-weight, 500);
+  text-shadow: var(--bible-shadow);
 }
 
 /* —— Hymns —— */
@@ -2598,7 +2655,7 @@ body.projector-shell--resizing {
   padding: 0.06em 0.2em;
   font-family: var(--hymn-corner-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
   font-size: var(--hymn-corner-size, 60px);
-  font-weight: 700;
+  font-weight: var(--hymn-corner-weight, 700);
   line-height: 1;
   color: var(--hymn-corner-color, #ffd400);
   background: var(--hymn-corner-panel, transparent);
@@ -2611,7 +2668,7 @@ body.projector-shell--resizing {
   padding: 0.12em 0.45em;
   text-align: var(--hymn-number-align, center);
   font-family: var(--hymn-number-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
-  font-weight: 700;
+  font-weight: var(--hymn-number-weight, 700);
   font-stretch: condensed;
   font-size: var(--hymn-number-size, 72px);
   line-height: 1.04;
@@ -2640,7 +2697,7 @@ body.projector-shell--resizing {
 .settings-bg__stage-canvas .hymn-proj__line {
   margin: 0;
   font-family: inherit;
-  font-weight: 700;
+  font-weight: var(--hymn-lyrics-weight, 700);
   font-stretch: condensed;
   font-size: 1em;
   line-height: inherit;
@@ -2655,6 +2712,7 @@ body.projector-shell--resizing {
   text-align: var(--hymn-author-align, center);
   background: var(--hymn-author-panel, transparent);
   font-family: var(--hymn-author-font, "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif);
+  font-weight: var(--hymn-author-weight, 700);
   font-style: italic;
   font-size: var(--hymn-author-size, 28px);
   color: var(--hymn-author-color, #ffd400);
@@ -2722,7 +2780,8 @@ body.projector-shell--resizing {
 }
 
 .settings-type__size-value {
-  min-width: 2.5rem;
+  min-width: 4.75rem;
+  text-align: right;
   font-variant-numeric: tabular-nums;
   font-size: 13px;
   color: var(--adw-fg);
@@ -2748,7 +2807,7 @@ body.projector-shell--resizing {
   padding: 0.12em 0.45em;
   font-family: var(--dictionary-strongs-font, Cantarell, "Segoe UI", sans-serif);
   font-size: var(--dictionary-strongs-size, 36px);
-  font-weight: 700;
+  font-weight: var(--dictionary-strongs-weight, 700);
   color: rgba(255, 255, 255, 0.55);
   text-align: var(--dictionary-strongs-align, center);
   background: var(--dictionary-strongs-panel, transparent);
@@ -2771,7 +2830,7 @@ body.projector-shell--resizing {
   background: var(--dictionary-lemma-panel, transparent);
   font-family: var(--dictionary-lemma-font, Cantarell, "Segoe UI", sans-serif);
   font-size: var(--dictionary-lemma-size, 96px);
-  font-weight: 700;
+  font-weight: var(--dictionary-lemma-weight, 700);
   line-height: 1.12;
   text-shadow: var(--dictionary-shadow, none);
 }
@@ -2813,7 +2872,7 @@ body.projector-shell--resizing {
   padding: 0.65em 0.75em;
   font-family: var(--dictionary-details-font, "Segoe UI", sans-serif);
   font-size: var(--dictionary-details-size, 28px);
-  font-weight: 600;
+  font-weight: var(--dictionary-details-weight, 600);
   line-height: 1.25;
   color: var(--dictionary-details-color, rgba(255, 255, 255, 0.72));
   text-align: var(--dictionary-details-align, center);
@@ -2846,7 +2905,7 @@ body.projector-shell--resizing {
   font-family: var(--dictionary-definition-font, "Segoe UI", sans-serif);
   font-size: var(--dictionary-definition-size, 36px);
   line-height: var(--dictionary-line-height, 1.5);
-  font-weight: 400;
+  font-weight: var(--dictionary-definition-weight, 400);
   color: rgba(255, 255, 255, 0.72);
   overflow: hidden;
   display: -webkit-box;

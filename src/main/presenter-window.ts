@@ -76,16 +76,22 @@ export function getPresenterViewState(): PresenterViewState {
 
 export async function syncPresenterSlideFromMain(
   deckId: string | null,
-  slideIndex: number
+  slideIndex: number,
+  buildStep = 0
 ): Promise<void> {
   if (!isPresenterViewOpen() || !deckId || presenterState.deckId !== deckId) return
   const clamped = Math.max(0, Math.min(slideIndex, Math.max(0, presenterState.slideCount - 1)))
-  if (clamped === presenterState.slideIndex) return
-  presenterState = { ...presenterState, slideIndex: clamped }
+  const step = Math.max(0, buildStep)
+  if (clamped === presenterState.slideIndex && step === presenterState.buildStep) return
+  presenterState = { ...presenterState, slideIndex: clamped, buildStep: step }
   broadcastPresenterState()
 }
 
-export async function openPresenterView(deckId: string, slideIndex: number): Promise<void> {
+export async function openPresenterView(
+  deckId: string,
+  slideIndex: number,
+  buildStep = 0
+): Promise<void> {
   const deck = await getPresentationDeck(deckId)
   if (!deck || deck.slides.length === 0) {
     throw new Error('No deck loaded.')
@@ -100,6 +106,7 @@ export async function openPresenterView(deckId: string, slideIndex: number): Pro
     sourceExt: deck.sourceExt,
     engine: deck.engine,
     slideIndex: clamped,
+    buildStep: Math.max(0, buildStep),
     slideCount: deck.slides.length,
     slides: deck.slides
   }
@@ -176,9 +183,12 @@ export function registerPresenterWindowIpc(): void {
     presenterWindow.webContents.send('orion:deck-media-sync', raw)
   })
 
-  ipcMain.handle('orion:open-presenter-view', async (_event, deckId: string, slideIndex: number) => {
-    await openPresenterView(deckId, slideIndex)
-  })
+  ipcMain.handle(
+    'orion:open-presenter-view',
+    async (_event, deckId: string, slideIndex: number, buildStep?: number) => {
+      await openPresenterView(deckId, slideIndex, buildStep ?? 0)
+    }
+  )
 
   ipcMain.handle('orion:close-presenter-view', () => closePresenterWindowInternal())
 
@@ -193,7 +203,7 @@ export function registerPresenterWindowIpc(): void {
       0,
       Math.min(slideIndex, Math.max(0, presenterState.slideCount - 1))
     )
-    presenterState = { ...presenterState, slideIndex: clamped, showAllSlides: false }
+    presenterState = { ...presenterState, slideIndex: clamped, buildStep: 0, showAllSlides: false }
     broadcastPresenterState()
     broadcastSlideToMain()
   })
@@ -206,11 +216,8 @@ export function registerPresenterWindowIpc(): void {
 
   ipcMain.handle('orion:presenter-step-slide', (_event, delta: number) => {
     if (!isPresenterViewOpen()) return
-    const next = presenterState.slideIndex + delta
-    const clamped = Math.max(0, Math.min(next, Math.max(0, presenterState.slideCount - 1)))
-    presenterState = { ...presenterState, slideIndex: clamped, showAllSlides: false }
-    broadcastPresenterState()
-    broadcastSlideToMain()
+    const step = delta < 0 ? -1 : 1
+    getMainAppWindow()?.webContents.send('orion:presentation-step-from-presenter', step)
   })
 }
 

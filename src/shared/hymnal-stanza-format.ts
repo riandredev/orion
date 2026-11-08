@@ -40,6 +40,43 @@ export function verseSlidePart(
   return { verse: stanza.verse, part, count }
 }
 
+/** Slide index when one refrain or chorus was split across more than one slide. */
+export function refrainSlidePart(
+  stanzas: HymnStanza[],
+  stanzaIndex: number
+): { number: number; part: number; count: number } | null {
+  const stanza = stanzas[stanzaIndex]
+  if (!stanza || (stanza.kind !== 'refrain' && stanza.kind !== 'chorus')) return null
+  const kind = stanza.kind
+  let number = 0
+  let index = 0
+  while (index < stanzas.length) {
+    if (stanzas[index]?.kind !== kind) {
+      index += 1
+      continue
+    }
+    const start = index
+    while (index < stanzas.length && stanzas[index]?.kind === kind) index += 1
+    number += 1
+    if (stanzaIndex >= start && stanzaIndex < index) {
+      return { number, part: stanzaIndex - start + 1, count: index - start }
+    }
+  }
+  return null
+}
+
+/** Part numbers for a split verse or a split refrain. */
+export function lyricSlidePart(
+  stanzas: HymnStanza[],
+  stanzaIndex: number
+): { part: number; count: number } | null {
+  const verse = verseSlidePart(stanzas, stanzaIndex)
+  if (verse) return { part: verse.part, count: verse.count }
+  const refrain = refrainSlidePart(stanzas, stanzaIndex)
+  if (refrain) return { part: refrain.part, count: refrain.count }
+  return null
+}
+
 /** `1` for a single slide, `1 - 2` when the verse continues on another slide. */
 export function splitVerseSlideLabel(verse: number, part: number, count: number): string {
   if (count <= 1 || part <= 0) return String(verse)
@@ -56,8 +93,13 @@ export function stanzaDisplayTagWithPart(
   if (!stanza) return ''
   const base = stanzaDisplayTag(stanza, style)
   const info = verseSlidePart(stanzas, stanzaIndex)
-  if (!info || info.count <= 1) return base
-  return splitVerseSlideLabel(info.verse, info.part, info.count)
+  if (info && info.count > 1) return splitVerseSlideLabel(info.verse, info.part, info.count)
+  const refrain = refrainSlidePart(stanzas, stanzaIndex)
+  if (refrain && refrain.count > 1) {
+    const name = stanza.kind === 'chorus' ? 'Chorus' : 'Refrain'
+    return `${name} ${refrain.number} - ${refrain.part}`
+  }
+  return base
 }
 
 export function parseStanzaHeaderLine(line: string): Omit<HymnStanza, 'lines'> | null {

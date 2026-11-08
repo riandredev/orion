@@ -4,7 +4,6 @@ import {
   normalizeStrongsId,
   parseStrongsQuery,
   queryLexiconSummaries,
-  searchLexiconSummaries,
   sortLexiconSummariesForBrowse,
   buildDictionaryProjectionInfoBar
 } from './dictionary-lexicon'
@@ -30,10 +29,10 @@ describe('dictionary-lexicon', () => {
   })
 
   it('searches summaries by number, transliteration, or gloss', () => {
-    expect(searchLexiconSummaries(sample, 'H1', 'all', 10)).toHaveLength(1)
-    expect(searchLexiconSummaries(sample, 'logos', 'greek', 10)[0]?.id).toBe('G3056')
-    expect(searchLexiconSummaries(sample, 'kairos', 'greek', 10)[0]?.id).toBe('G2540')
-    expect(searchLexiconSummaries(sample, 'abib', 'hebrew', 10)[0]?.id).toBe('H0024')
+    expect(queryLexiconSummaries(sample, 'H1', 'all', 0, 10).items).toHaveLength(1)
+    expect(queryLexiconSummaries(sample, 'logos', 'greek', 0, 10).items[0]?.id).toBe('G3056')
+    expect(queryLexiconSummaries(sample, 'kairos', 'greek', 0, 10).items[0]?.id).toBe('G2540')
+    expect(queryLexiconSummaries(sample, 'abib', 'hebrew', 0, 10).items[0]?.id).toBe('H0024')
   })
 
   it('sorts Hebrew before Greek for browse', () => {

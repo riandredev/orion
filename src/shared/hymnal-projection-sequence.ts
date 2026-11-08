@@ -65,6 +65,19 @@ export function findRefrainStanzaIndex(stanzas: HymnStanza[]): number {
   return stanzas.findIndex((s) => isRefrainKind(s.kind))
 }
 
+/** Every slide of the refrain that is repeated after each verse, including splits. */
+export function repeatedRefrainIndices(stanzas: HymnStanza[]): number[] {
+  const start = findRefrainStanzaIndex(stanzas)
+  if (start < 0) return []
+  const kind = stanzas[start]!.kind
+  const out: number[] = []
+  for (let index = start; index < stanzas.length; index += 1) {
+    if (stanzas[index]!.kind !== kind) break
+    out.push(index)
+  }
+  return out
+}
+
 function lyricStep(stanzas: HymnStanza[], index: number): HymnProjectionStep {
   return { kind: 'lyrics', stanzaIndex: index, lines: stanzas[index]?.lines ?? [] }
 }
@@ -105,7 +118,8 @@ export function buildHymnProjectionSteps(
   if (stanzas.length === 0) return withBookends([], options)
   const disabled = disabledSet(options)
   const includeRefrain = options?.includeRefrain !== false
-  const refrainIdx = findRefrainStanzaIndex(stanzas)
+  const refrainSlides = repeatedRefrainIndices(stanzas)
+  const refrainIdx = refrainSlides[0] ?? -1
 
   if (refrainIdx < 0) {
     const body: HymnProjectionStep[] = []
@@ -135,7 +149,7 @@ export function buildHymnProjectionSteps(
       body.push(lyricStep(stanzas, i))
     }
     if (includeRefrain) {
-      body.push(lyricStep(stanzas, refrainIdx))
+      for (const index of refrainSlides) body.push(lyricStep(stanzas, index))
     }
   }
   return withBookends(body, options)

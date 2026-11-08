@@ -8,6 +8,10 @@ export function hymnProjectionCornerLabel(
   part?: number | null,
   partCount?: number | null
 ): string {
+  if ((kind === 'refrain' || kind === 'chorus') && partCount != null && partCount > 1 && part != null && part > 0) {
+    const name = kind === 'chorus' ? 'Chorus' : 'Refrain'
+    return `${name} 1 - ${part}`
+  }
   if (kind === 'refrain') return 'Refrain'
   if (kind === 'chorus') return 'chorus'
   if (kind === 'bridge') return 'bridge'

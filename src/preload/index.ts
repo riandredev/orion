@@ -218,8 +218,8 @@ const api = {
   },
   setMainWindowMaximized: (maximized: boolean): Promise<void> =>
     ipcRenderer.invoke('orion:set-main-window-maximized', maximized),
-  exportProfileFile: (json: string, suggestedName: string): Promise<string | null> =>
-    ipcRenderer.invoke('orion:export-profile-file', json, suggestedName),
+  exportProfileFile: (json: string, suggestedName: string, includeContent?: boolean): Promise<string | null> =>
+    ipcRenderer.invoke('orion:export-profile-file', json, suggestedName, includeContent === true),
   importProfileFile: (): Promise<string | null> => ipcRenderer.invoke('orion:import-profile-file'),
   exportSequenceFile: (json: string, suggestedName: string, bundleContent?: boolean): Promise<string | null> =>
     ipcRenderer.invoke('orion:export-sequence-file', json, suggestedName, bundleContent),
@@ -277,12 +277,12 @@ const api = {
       ipcRenderer.removeListener('orion:presentation-import-progress', listener)
     }
   },
-  openPresenterView: (deckId: string, slideIndex: number): Promise<void> =>
-    ipcRenderer.invoke('orion:open-presenter-view', deckId, slideIndex),
+  openPresenterView: (deckId: string, slideIndex: number, buildStep = 0): Promise<void> =>
+    ipcRenderer.invoke('orion:open-presenter-view', deckId, slideIndex, buildStep),
   closePresenterView: (): Promise<void> => ipcRenderer.invoke('orion:close-presenter-view'),
   isPresenterViewOpen: (): Promise<boolean> => ipcRenderer.invoke('orion:is-presenter-view-open'),
-  syncPresenterSlideFromMain: (deckId: string | null, slideIndex: number): Promise<void> =>
-    ipcRenderer.invoke('orion:sync-presenter-slide-from-main', deckId, slideIndex),
+  syncPresenterSlideFromMain: (deckId: string | null, slideIndex: number, buildStep = 0): Promise<void> =>
+    ipcRenderer.invoke('orion:sync-presenter-slide-from-main', deckId, slideIndex, buildStep),
   syncDeckMedia: (command: {
     action: 'play' | 'pause' | 'seek'
     index: number
@@ -324,6 +324,15 @@ const api = {
   downloadAppUpdate: (): Promise<void> => ipcRenderer.invoke('orion:app-update-download'),
   installAppUpdate: (): Promise<void> => ipcRenderer.invoke('orion:app-update-install'),
   dismissAppUpdate: (): Promise<void> => ipcRenderer.invoke('orion:app-update-dismiss'),
+  onPresentationStepFromPresenter: (callback: (delta: number) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, delta: number): void => {
+      callback(delta)
+    }
+    ipcRenderer.on('orion:presentation-step-from-presenter', listener)
+    return () => {
+      ipcRenderer.removeListener('orion:presentation-step-from-presenter', listener)
+    }
+  },
   onPresenterSlideFromWindow: (
     callback: (payload: { deckId: string | null; slideIndex: number }) => void
   ): (() => void) => {

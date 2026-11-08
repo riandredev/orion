@@ -14,6 +14,7 @@ import { liveFlagsFromStack, normalizeStackState } from '../../../shared/present
 import type { OrionDisplayInfo } from '../../../shared/displays'
 import { fileUrlToLocalPath } from '../../../shared/file-url'
 import { projectionDisplayIds } from './display-projection'
+import { loadPlaybackSettings } from './playback-settings'
 
 export { liveFlagsFromStack, normalizeStackState }
 export type { PresentationUiState }
@@ -143,6 +144,7 @@ export async function presentDeckSlide(
     height: number
     transition: string
     durationMs: number
+    autoplayMedia?: boolean
     media: {
       src: string
       leftPct: number
@@ -180,6 +182,7 @@ export async function presentDeckSlide(
         height: frame.height,
         transition: frame.transition,
         durationMs: frame.durationMs,
+        autoplayMedia: frame.autoplayMedia ?? loadPlaybackSettings().autoplayPresentationMedia,
         media
       }
     },
@@ -210,13 +213,14 @@ async function inlineBlobUrls(markup: string): Promise<string> {
 
 export async function presentMediaFile(
   file: { path: string; name: string; kind: 'video' | 'audio' },
-  displays: OrionDisplayInfo[]
+  displays: OrionDisplayInfo[],
+  autoplay = false
 ): Promise<PresentationUiState> {
   return runPresentationCommand(
     {
       type: 'set-layer',
       source: 'presentation',
-      content: { type: 'media', filePath: file.path, name: file.name, kind: file.kind }
+      content: { type: 'media', filePath: file.path, name: file.name, kind: file.kind, autoplay }
     },
     displays
   )

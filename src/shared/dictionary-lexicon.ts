@@ -122,16 +122,6 @@ export function queryLexiconSummaries(
   }
 }
 
-/** @deprecated Use queryLexiconSummaries for pagination */
-export function searchLexiconSummaries(
-  items: LexiconEntrySummary[],
-  query: string,
-  language: LexiconLanguageFilter,
-  limit: number
-): LexiconEntrySummary[] {
-  return queryLexiconSummaries(items, query, language, 0, limit).items
-}
-
 export function primarySenseLabel(entry: {
   name: string
   transliterationHint: string

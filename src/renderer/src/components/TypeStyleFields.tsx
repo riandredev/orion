@@ -7,13 +7,21 @@ import {
   LINE_HEIGHT_MAX,
   LINE_HEIGHT_MIN,
   PROJECTION_FONTS,
-  TEXT_SHADOW_MAX,
-  TEXT_SHADOW_MIN,
+  PROJECTION_FONT_WEIGHTS,
+  TEXT_SHADOW_BLUR_MAX,
+  TEXT_SHADOW_BLUR_MIN,
+  TEXT_SHADOW_OFFSET_MAX,
+  TEXT_SHADOW_OFFSET_MIN,
+  TEXT_SHADOW_OPACITY_MAX,
+  TEXT_SHADOW_OPACITY_MIN,
+  TEXT_SHADOW_SIZE_MAX,
+  TEXT_SHADOW_SIZE_MIN,
   type BibleTextAlign,
   type BibleTextPanel,
   type ProjectionLineHeight,
   type ProjectionTextShadow,
-  type ProjectionTextStyle
+  type ProjectionTextStyle,
+  type TextShadowStyle
 } from '../../../shared/projection-typography'
 import {
   resetProjectionLineHeight,
@@ -156,6 +164,15 @@ export function TypeStyleFields({
         </div>
         <TextColorField label={label} value={value.color} onChange={(color) => onChange({ color })} />
         <div className="settings-bg__field">
+          <span className="settings-field__label">Font weight</span>
+          <AdwSelect
+            aria-label={`${label} font weight`}
+            value={String(value.fontWeight)}
+            options={PROJECTION_FONT_WEIGHTS.map((item) => ({ value: String(item.value), label: item.label }))}
+            onChange={(next) => onChange({ fontWeight: Number(next) as ProjectionTextStyle['fontWeight'] })}
+          />
+        </div>
+        <div className="settings-bg__field">
           <span className="settings-field__label">Font size</span>
           <div className="settings-type__size">
             <AdwScale
@@ -207,30 +224,99 @@ export function LineHeightField({
   )
 }
 
+function ShadowSlider({
+  label,
+  min,
+  max,
+  step,
+  value,
+  display,
+  onChange
+}: {
+  label: string
+  min: number
+  max: number
+  step: number
+  value: number
+  display: string
+  onChange: (next: number) => void
+}): ReactElement {
+  return (
+    <div className="settings-type__block settings-bg__field">
+      <span className="settings-field__label">{label}</span>
+      <div className="settings-type__size">
+        <AdwScale aria-label={label} min={min} max={max} step={step} value={value} onChange={onChange} />
+        <span className="settings-type__size-value">{display}</span>
+      </div>
+    </div>
+  )
+}
+
 export function TextShadowField({
   category,
   value
 }: {
   category: keyof ProjectionTextShadow
-  value: number
+  value: TextShadowStyle
 }): ReactElement {
+  const set = (patch: Partial<TextShadowStyle>): void => {
+    updateProjectionTextShadow(category, patch)
+  }
   return (
-    <div className="settings-type__block settings-bg__field">
-      <span className="settings-field__label">Text shadow</span>
-      <div className="settings-type__size">
-        <AdwScale
-          aria-label="Text shadow"
-          min={TEXT_SHADOW_MIN}
-          max={TEXT_SHADOW_MAX}
-          step={1}
-          value={value}
-          onChange={(next) => updateProjectionTextShadow(category, next)}
-        />
-        <span className="settings-type__size-value">{value}</span>
+    <>
+      <ShadowSlider
+        label="Shadow X"
+        min={TEXT_SHADOW_OFFSET_MIN}
+        max={TEXT_SHADOW_OFFSET_MAX}
+        step={0.01}
+        value={value.x}
+        display={`${value.x.toFixed(2)} em`}
+        onChange={(x) => set({ x })}
+      />
+      <ShadowSlider
+        label="Shadow Y"
+        min={TEXT_SHADOW_OFFSET_MIN}
+        max={TEXT_SHADOW_OFFSET_MAX}
+        step={0.01}
+        value={value.y}
+        display={`${value.y.toFixed(2)} em`}
+        onChange={(y) => set({ y })}
+      />
+      <ShadowSlider
+        label="Shadow blur"
+        min={TEXT_SHADOW_BLUR_MIN}
+        max={TEXT_SHADOW_BLUR_MAX}
+        step={0.01}
+        value={value.blur}
+        display={`${value.blur.toFixed(2)} em`}
+        onChange={(blur) => set({ blur })}
+      />
+      <ShadowSlider
+        label="Shadow size"
+        min={TEXT_SHADOW_SIZE_MIN}
+        max={TEXT_SHADOW_SIZE_MAX}
+        step={1}
+        value={value.size}
+        display={`${value.size}%`}
+        onChange={(size) => set({ size })}
+      />
+      <div className="settings-type__block settings-bg__field">
+        <span className="settings-field__label">Shadow opacity</span>
+        <div className="settings-type__size">
+          <AdwScale
+            aria-label="Shadow opacity"
+            min={TEXT_SHADOW_OPACITY_MIN}
+            max={TEXT_SHADOW_OPACITY_MAX}
+            step={1}
+            value={value.opacity}
+            onChange={(opacity) => set({ opacity })}
+          />
+          <span className="settings-type__size-value">{value.opacity}%</span>
+        </div>
+        <button type="button" className="adw-button" onClick={() => resetProjectionTextShadow(category)}>
+          Reset text shadow
+        </button>
       </div>
-      <button type="button" className="adw-button" onClick={() => resetProjectionTextShadow(category)}>
-        Reset text shadow
-      </button>
-    </div>
+    </>
   )
 }

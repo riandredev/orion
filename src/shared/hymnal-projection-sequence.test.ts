@@ -70,6 +70,19 @@ describe('hymnal-projection-sequence', () => {
     )
   })
 
+  it('walks every part of a split refrain before the next verse', () => {
+    const raw: HymnStanza[] = [
+      { kind: 'verse', verse: 1, lines: ['v1'] },
+      { kind: 'refrain', lines: ['r1', '-----', 'r2'] },
+      { kind: 'verse', verse: 2, lines: ['v2'] }
+    ]
+    const stanzas = expandStanzasForSlides(raw)
+    const lines = buildHymnProjectionSteps(stanzas)
+      .filter((step) => step.kind === 'lyrics')
+      .map((step) => step.lines.join('|'))
+    expect(lines).toEqual(['v1', 'r1', 'r2', 'v2', 'r1', 'r2'])
+  })
+
   it('can omit the title and end slides', () => {
     const stanzas: HymnStanza[] = [
       { kind: 'verse', verse: 1, lines: ['a'] },

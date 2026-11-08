@@ -13,7 +13,10 @@ export const ORION_PROFILE_SETTINGS_KEYS = [
   'orion-sequence-bundle-content',
   'orion-kanban-column-order',
   'orion-hymn-pins-v1',
-  'orion-hymn-motion-v1'
+  'orion-hymn-motion-v1',
+  'orion-bible-motion-v1',
+  'orion-playback-v1',
+  'orion-order-folder-playback-v1'
 ] as const
 
 export type OrionProfileSettingsKey = (typeof ORION_PROFILE_SETTINGS_KEYS)[number]

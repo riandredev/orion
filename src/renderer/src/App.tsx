@@ -12,9 +12,16 @@ import type { HymnsTabRibbonProps } from './components/HymnsTabRibbon'
 import { type PresentationTabRibbonProps } from './components/PresentationTabRibbon'
 import { PresentationWorkspace } from './components/PresentationWorkspace'
 import { MediaWorkspace } from './components/MediaWorkspace'
-import { consumePresentationStep, projectedFrame } from './components/PresentationStage'
+import { projectedFrame } from './components/PresentationStage'
 import { blurShortcutTarget, clearRestoredDialogFocus } from './lib/focus'
-import { forgetLiveSession, loadDeckBytes, loadLiveSession, rememberSession, warmLiveDeck } from './lib/live-deck'
+import {
+  forgetLiveSession,
+  loadDeckBytes,
+  loadLiveSession,
+  presentationStepCount,
+  rememberSession,
+  warmLiveDeck
+} from './lib/live-deck'
 import { OrderKanbanBoard } from './components/OrderKanbanBoard'
 import { WebWorkspace, type WebViewControls } from './components/WebWorkspace'
 import type { WebTabRibbonProps } from './components/WebTabRibbon'
@@ -35,6 +42,7 @@ import { patchDictionaryWorkspaceSession } from './lib/dictionary-workspace-sess
 import { getBibleRibbonActions } from './lib/bible-ribbon-actions'
 import { getHymnsRibbonActions } from './lib/hymns-ribbon-actions'
 import { requestMediaSequenceCue } from './lib/media-sequence-cue'
+import { loadPlaybackSettings } from './lib/playback-settings'
 import {
   getHymnLiveContent,
   setHymnActiveLabel,
@@ -44,6 +52,8 @@ import {
 } from './lib/hymns-ribbon-sync'
 import { formatStrongsDisplay, buildDictionaryProjectionInfoBar } from '../../shared/dictionary-lexicon'
 import { hymnProjectionCornerLabel } from '../../shared/hymn-projection-display'
+import { bibleMotionForProjection } from './lib/bible-motion'
+import { loadOrderFolderPlayback, saveOrderFolderPlayback } from './lib/order-folder-playback'
 import { hymnMotionForProjection } from './lib/hymn-motion'
 import {
   resolveCategoryBackground,
@@ -73,6 +83,7 @@ import {
 import {
   closePresenterView,
   openPresenterView,
+  subscribePresentationStepFromPresenter,
   subscribePresenterSlideFromWindow,
   syncPresenterSlideFromMain
 } from './lib/presenter-view-api'
@@ -126,7 +137,8 @@ import {
 } from './components/OrderBlockRibbon'
 import {
   ProjectorPanel,
-  type OutputPreview
+  type OutputPreview,
+  type OutputPreviewMotion
 } from './components/ProjectorPanel'
 import { TopBar } from './components/TopBar'
 import { SettingsDialog } from './components/SettingsDialog'
@@ -215,8 +227,24 @@ function stackBibleFromContent(
     backgroundImagePath: bg.imagePath,
     backgroundColor: bg.solidColor,
     backgroundDimOpacity: bg.dimOpacity,
-    backgroundFit: bg.fit
+    backgroundFit: bg.fit,
+    ...bibleMotionForProjection()
   }
+}
+
+const previewMotionNames = ['crossfade', 'fade', 'cut', 'wipe', 'push', 'cover', 'uncover', 'split'] as const
+
+function outputPreviewMotion(
+  animation: string | undefined,
+  durationMs: number | undefined
+): OutputPreviewMotion {
+  const named = previewMotionNames.find((name) => name === animation) ?? 'cut'
+  const ms =
+    typeof durationMs === 'number' && Number.isFinite(durationMs)
+      ? Math.min(5000, Math.max(0, Math.round(durationMs)))
+      : 0
+  if (named === 'cut' || ms <= 0) return { animation: 'cut', durationMs: 0 }
+  return { animation: named, durationMs: ms }
 }
 
 function isHymnSlideProjectable(content: HymnLiveContent | null): content is HymnLiveContent {
@@ -329,6 +357,7 @@ function TabWorkspace({
   presentationLoadingDeck,
   presentationDeckId,
   presentationSlideIndex,
+  presentationBuildStep,
   onSelectPresentationDeck,
   onSelectPresentationSlide,
   onImportPresentationDeck,
@@ -366,6 +395,7 @@ function TabWorkspace({
   presentationLoadingDeck: boolean
   presentationDeckId: string | null
   presentationSlideIndex: number
+  presentationBuildStep: number
   onSelectPresentationDeck: (deckId: string) => void
   onSelectPresentationSlide: (index: number) => void
   onImportPresentationDeck: () => void
@@ -393,6 +423,7 @@ function TabWorkspace({
       loadingDeck={presentationLoadingDeck}
       activeDeckId={presentationDeckId}
       activeSlideIndex={presentationSlideIndex}
+      buildStep={presentationBuildStep}
       onSelectDeck={onSelectPresentationDeck}
       onSelectSlide={onSelectPresentationSlide}
       onRemoveDeck={onRemovePresentationDeck}
@@ -488,7 +519,9 @@ export default function App(): ReactElement {
   const dictionaryLive = liveFlags.dictionary
   const hymnsLive = liveFlags.hymns
   const [connectedDisplays, setConnectedDisplays] = useState<OrionDisplayInfo[]>([])
-  const [folderSettings, setFolderSettings] = useState<Record<string, FolderPlaybackSettings>>({})
+  const [folderSettings, setFolderSettings] = useState<Record<string, FolderPlaybackSettings>>(
+    loadOrderFolderPlayback
+  )
   const [sequenceItems, setSequenceItems] = useState<ServiceSequenceItem[]>(loadStoredSequence)
   const [sequenceCursor, setSequenceCursor] = useState<SequenceCursor>({ itemIndex: 0, stepIndex: 0 })
   const [sequenceFollow, setSequenceFollow] = useState(false)
@@ -519,6 +552,7 @@ export default function App(): ReactElement {
   )
   const [presentationDeck, setPresentationDeck] = useState<PresentationDeckDetail | null>(null)
   const [presentationSlideIndex, setPresentationSlideIndex] = useState(0)
+  const [presentationBuildStep, setPresentationBuildStep] = useState(0)
   const [presentationLoadingDeck, setPresentationLoadingDeck] = useState(false)
   const [presentationImportBusy, setPresentationImportBusy] = useState(false)
   const [presentationImportProgress, setPresentationImportProgress] =
@@ -726,6 +760,7 @@ export default function App(): ReactElement {
 
   useEffect(() => {
     const onProfile = (): void => {
+      setFolderSettings(loadOrderFolderPlayback())
       void reloadOrderLibrary()
     }
     window.addEventListener('orion-profile-applied', onProfile)
@@ -825,6 +860,7 @@ export default function App(): ReactElement {
   useEffect(() => {
     const off = subscribePresenterSlideFromWindow(({ deckId, slideIndex }) => {
       if (deckId && deckId === presentationDeckId) {
+        setPresentationBuildStep(0)
         setPresentationSlideIndex(slideIndex)
       }
     })
@@ -832,8 +868,8 @@ export default function App(): ReactElement {
   }, [presentationDeckId])
 
   useEffect(() => {
-    syncPresenterSlideFromMain(presentationDeckId, presentationSlideIndex)
-  }, [presentationDeckId, presentationSlideIndex])
+    syncPresenterSlideFromMain(presentationDeckId, presentationSlideIndex, presentationBuildStep)
+  }, [presentationBuildStep, presentationDeckId, presentationSlideIndex])
 
   useEffect(() => {
     if (tab === 'web') setWebSeen(true)
@@ -968,13 +1004,17 @@ export default function App(): ReactElement {
 
   function patchSettings(patch: Partial<FolderPlaybackSettings>): void {
     if (!activeFolderName) return
-    setFolderSettings((prev) => ({
-      ...prev,
-      [activeFolderName]: {
-        ...settingsForFolder(prev, activeFolderName),
-        ...patch
+    setFolderSettings((prev) => {
+      const next = {
+        ...prev,
+        [activeFolderName]: {
+          ...settingsForFolder(prev, activeFolderName),
+          ...patch
+        }
       }
-    }))
+      saveOrderFolderPlayback(next)
+      return next
+    })
   }
 
   const goOrderLive = useCallback(async () => {
@@ -1092,25 +1132,56 @@ export default function App(): ReactElement {
   }, [toggleHymnsOutput])
 
   const selectPresentationDeck = useCallback((deckId: string) => {
+    setPresentationBuildStep(0)
     setPresentationSlideIndex(0)
     setPresentationDeckId(deckId)
     saveStoredPresentationDeckId(deckId)
   }, [])
 
+  const choosePresentationSlide = useCallback((index: number) => {
+    setPresentationBuildStep(0)
+    setPresentationSlideIndex(index)
+  }, [])
+
   const goPresentationPrev = useCallback(() => {
     if (!presentationDeck || presentationDeck.slides.length === 0) return
-    setPresentationSlideIndex((i) => (i <= 0 ? presentationDeck.slides.length - 1 : i - 1))
-  }, [presentationDeck])
+    if (presentationDeck.engine === 'live' && presentationDeckId && presentationBuildStep > 0) {
+      setPresentationBuildStep((step) => step - 1)
+      return
+    }
+    const count = presentationDeck.slides.length
+    const prev = presentationSlideIndex <= 0 ? count - 1 : presentationSlideIndex - 1
+    const last =
+      presentationDeck.engine === 'live' && presentationDeckId
+        ? Math.max(0, presentationStepCount(presentationDeckId, prev) - 1)
+        : 0
+    setPresentationBuildStep(last)
+    setPresentationSlideIndex(prev)
+  }, [presentationBuildStep, presentationDeck, presentationDeckId, presentationSlideIndex])
 
   const goPresentationNext = useCallback(() => {
     if (!presentationDeck || presentationDeck.slides.length === 0) return
-    if (presentationDeck.engine === 'live' && consumePresentationStep()) return
+    if (presentationDeck.engine === 'live' && presentationDeckId) {
+      const count = presentationStepCount(presentationDeckId, presentationSlideIndex)
+      if (presentationBuildStep + 1 < count) {
+        setPresentationBuildStep((step) => step + 1)
+        return
+      }
+    }
+    setPresentationBuildStep(0)
     setPresentationSlideIndex((i) => (i >= presentationDeck.slides.length - 1 ? 0 : i + 1))
-  }, [presentationDeck])
+  }, [presentationBuildStep, presentationDeck, presentationDeckId, presentationSlideIndex])
+
+  useEffect(() => {
+    return subscribePresentationStepFromPresenter((delta) => {
+      if (delta < 0) goPresentationPrev()
+      else goPresentationNext()
+    })
+  }, [goPresentationNext, goPresentationPrev])
 
   const projectLiveOrRaster = useCallback(async () => {
     if (presentationDeck?.engine === 'live' && presentationDeckId) {
-      const frame = projectedFrame(presentationDeckId, presentationSlideIndex)
+      const frame = projectedFrame(presentationDeckId, presentationSlideIndex, presentationBuildStep)
       if (!frame) return null
       return presentDeckSlide(frame, connectedDisplays)
     }
@@ -1119,6 +1190,7 @@ export default function App(): ReactElement {
   }, [
     presentationDeck,
     presentationDeckId,
+    presentationBuildStep,
     presentationSlideIndex,
     presentationSlidePath,
     connectedDisplays
@@ -1173,14 +1245,15 @@ export default function App(): ReactElement {
     setPresentationDecks(list)
     setPresentationDeckId(result.deck.id)
     setPresentationDeck(result.deck)
+    setPresentationBuildStep(0)
     setPresentationSlideIndex(0)
     saveStoredPresentationDeckId(result.deck.id)
   }, [presentationImportEnabled])
 
   const handleOpenPresenterView = useCallback(async () => {
     if (!presentationDeckId || !presentationDeck?.slides.length) return
-    await openPresenterView(presentationDeckId, presentationSlideIndex)
-  }, [presentationDeckId, presentationDeck, presentationSlideIndex])
+    await openPresenterView(presentationDeckId, presentationSlideIndex, presentationBuildStep)
+  }, [presentationBuildStep, presentationDeckId, presentationDeck, presentationSlideIndex])
 
   const handleDownloadPresentationDeps = useCallback(async () => {
     setPresentationDepsDownloading(true)
@@ -1370,7 +1443,7 @@ export default function App(): ReactElement {
     if (presentationDeck && presentationDeckId && presentationDeck.id !== presentationDeckId) return
     const token =
       presentationDeck?.engine === 'live' && presentationDeckId
-        ? `${presentationDeckId}:${presentationSlideIndex}`
+        ? `${presentationDeckId}:${presentationSlideIndex}:${presentationBuildStep}`
         : presentationSlidePath
     if (!token) return
     if (lastPushedPresentationPathRef.current === null) {
@@ -1382,7 +1455,7 @@ export default function App(): ReactElement {
     void projectLiveOrRaster().then((ui) => {
       if (ui && presentationOutputLiveRef.current) applyProgram(ui)
     })
-  }, [presentationOutputLive, presentationSlidePath, presentationDeck, presentationDeckId, presentationSlideIndex, projectLiveOrRaster, applyProgram])
+  }, [presentationBuildStep, presentationOutputLive, presentationSlidePath, presentationDeck, presentationDeckId, presentationSlideIndex, projectLiveOrRaster, applyProgram])
 
   const sequenceProjectPendingRef = useRef<{ deckId: string; slide: number } | null>(null)
 
@@ -1450,7 +1523,6 @@ export default function App(): ReactElement {
         setTab('hymns')
         if (!project || !hymnContent) return
         const hymnLayer = stackHymnFromContent(hymnContent)
-        await clearPresentationLayer('order')
         await clearPresentationLayer('presentation')
         if (hymnLayer.type !== 'hymn') return
         const ui = await presentHymnLayer(hymnLayer, displays)
@@ -1471,7 +1543,6 @@ export default function App(): ReactElement {
         setTab('bible')
         if (!project) return
         const bibleLayer = stackBibleFromContent(bibleContent)
-        await clearPresentationLayer('order')
         await clearPresentationLayer('presentation')
         if (bibleLayer.type !== 'bible') return
         const ui = await presentBibleLayer(bibleLayer, displays)
@@ -1485,7 +1556,6 @@ export default function App(): ReactElement {
         setTab('dictionary')
         if (!project) return
         const dictionaryLayer = stackDictionaryFromContent(content)
-        await clearPresentationLayer('order')
         await clearPresentationLayer('presentation')
         if (dictionaryLayer.type !== 'dictionary') return
         const ui = await presentDictionaryLayer(dictionaryLayer, displays)
@@ -1513,9 +1583,11 @@ export default function App(): ReactElement {
         requestMediaSequenceCue({ folder: item.folder, path: item.path })
         setTab('media')
         if (!project) return
+        await clearPresentationLayer('bible')
         const ui = await presentMediaFile(
           { path: item.path, name: item.name, kind: item.mediaKind },
-          displays
+          displays,
+          loadPlaybackSettings().autoplayLibraryMedia
         )
         applyProgram(ui)
         return
@@ -1523,6 +1595,7 @@ export default function App(): ReactElement {
       const slide = Math.min(cursor.stepIndex, Math.max(0, item.slideCount - 1))
       setTab('presentation')
       setPresentationDeckId(item.deckId)
+      setPresentationBuildStep(0)
       setPresentationSlideIndex(slide)
       if (!project) return
       sequenceProjectPendingRef.current = { deckId: item.deckId, slide }
@@ -1541,20 +1614,18 @@ export default function App(): ReactElement {
         })
         if (!stillCurrent()) return
         rememberSession(item.deckId, session)
-        const frame = projectedFrame(item.deckId, slide)
+        const frame = projectedFrame(item.deckId, slide, 0)
         if (!stillCurrent() || !frame) return
-        await clearPresentationLayer('order')
         await clearPresentationLayer('bible')
         if (!stillCurrent()) return
         const ui = await presentDeckSlide(frame, connectedDisplaysRef.current)
         sequenceProjectPendingRef.current = null
-        lastPushedPresentationPathRef.current = `${item.deckId}:${slide}`
+        lastPushedPresentationPathRef.current = `${item.deckId}:${slide}:0`
         applyProgram(ui)
         return
       }
       const path = detail.slides[slide]?.path
       if (!path) return
-      await clearPresentationLayer('order')
       await clearPresentationLayer('bible')
       if (!stillCurrent()) return
       const ui = await presentPresentationImage(path, connectedDisplaysRef.current)
@@ -2028,18 +2099,36 @@ export default function App(): ReactElement {
       const libraryWire =
         stageOverlay?.type === 'media' ? stageOverlay : stageBase?.type === 'media' ? stageBase : null
       const imageWire = stageBase?.type === 'image' ? stageBase : null
-      const orderDuration = imageWire?.durationMs ?? 0
-      const orderAnimation = imageWire?.animation
-      const orderFade =
-        outputLive &&
-        !presentationOutputLive &&
-        imageWire &&
-        orderDuration > 0
-          ? {
-              mode: (orderAnimation === 'fade' ? 'fade' : 'crossfade') as 'crossfade' | 'fade',
-              durationMs: orderDuration
-            }
-          : undefined
+      const hymnMotion = hymnMotionForProjection()
+      const bibleMotion = bibleMotionForProjection()
+      const bibleStage = stageOverlay?.type === 'bible' ? stageOverlay : stageBase?.type === 'bible' ? stageBase : null
+      const deckWire =
+        stageOverlay?.type === 'deck-slide' ? stageOverlay : stageBase?.type === 'deck-slide' ? stageBase : null
+      const previewMotion = hymnsLive
+        ? outputPreviewMotion(hymnWire?.animation ?? hymnMotion.animation, hymnWire?.durationMs ?? hymnMotion.durationMs)
+        : bibleLive
+          ? outputPreviewMotion(
+              bibleStage?.animation ?? bibleMotion.animation,
+              bibleStage?.durationMs ?? bibleMotion.durationMs
+            )
+          : dictionaryLive
+            ? outputPreviewMotion('crossfade', 420)
+            : presentationOutputLive && deckWire
+              ? outputPreviewMotion(deckWire.transition, deckWire.durationMs)
+              : outputLive && imageWire
+                ? outputPreviewMotion(imageWire.animation, imageWire.durationMs)
+                : undefined
+      const previewSlideKey = hymnsLive
+        ? `hymn:${hymnWire?.number ?? hymnLive?.number ?? ''}:${(hymnWire?.lines ?? hymnLive?.lines ?? []).join('\n')}`
+        : bibleLive
+          ? `bible:${bibleStage?.reference ?? bibleContent?.reference ?? ''}:${bibleStage?.highlightVerse ?? bibleContent?.highlightVerse ?? ''}:${bibleStage?.verses[0]?.text ?? ''}`
+          : dictionaryLive
+            ? `dict:${stageOverlay?.type === 'dictionary' ? stageOverlay.strongs : stageBase?.type === 'dictionary' ? stageBase.strongs : ''}`
+            : presentationOutputLive
+              ? `deck:${presentationDeckId}:${presentationSlideIndex}:${presentationBuildStep}:${deckWire?.markup.length ?? 0}`
+              : imageWire
+                ? `image:${imageWire.filePath}`
+                : subtitle
 
       return {
         id: String(display.id),
@@ -2050,8 +2139,8 @@ export default function App(): ReactElement {
         previewWebUrl,
         captureDataUrl: outputCaptureFrames[String(display.id)],
         overlay: dictionaryOverlay ?? hymnOverlay ?? bibleOverlay,
-        orderFade,
-        overlayFadeMs: 420,
+        previewMotion,
+        previewSlideKey,
         libraryMedia: libraryWire
           ? { url: filePathToUrl(libraryWire.filePath), kind: libraryWire.kind, name: libraryWire.name }
           : undefined
@@ -2078,6 +2167,7 @@ export default function App(): ReactElement {
     presentationDeck,
     presentationDeckId,
     presentationSlideIndex,
+    presentationBuildStep,
     presentationOutputLive
   ])
 
@@ -2211,8 +2301,9 @@ export default function App(): ReactElement {
               presentationLoadingDeck={presentationLoadingDeck}
               presentationDeckId={presentationDeckId}
               presentationSlideIndex={presentationSlideIndex}
+              presentationBuildStep={presentationBuildStep}
               onSelectPresentationDeck={selectPresentationDeck}
-              onSelectPresentationSlide={setPresentationSlideIndex}
+              onSelectPresentationSlide={choosePresentationSlide}
               onImportPresentationDeck={() => {
                 void handleImportPresentationDeck()
               }}
@@ -2242,7 +2333,7 @@ export default function App(): ReactElement {
           liveFrame={
             presentationDeckId &&
             (program.stage?.base?.type === 'deck-slide' || program.stage?.overlay?.type === 'deck-slide')
-              ? projectedFrame(presentationDeckId, presentationSlideIndex)
+              ? projectedFrame(presentationDeckId, presentationSlideIndex, presentationBuildStep)
               : null
           }
         />

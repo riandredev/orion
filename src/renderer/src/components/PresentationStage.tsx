@@ -11,6 +11,7 @@ import {
   type LiveFrame,
   type LiveSession
 } from '../lib/live-deck'
+import { loadPlaybackSettings } from '../lib/playback-settings'
 
 export type DeckSourceLoader = (
   deckId: string
@@ -21,6 +22,8 @@ type PresentationStageProps = {
   ext: string
   cues?: PptxSlideCue[]
   slideIndex: number
+  /** Click build on this slide. 0 is the slide as it first appears. */
+  buildStep?: number
   loadSource: DeckSourceLoader
   onSlideCount?: (count: number) => void
   showNotes?: boolean
@@ -29,8 +32,6 @@ type PresentationStageProps = {
   /** This stage is the playback clock for outputs. */
   drivePlayback?: boolean
 }
-
-let advanceHandler: (() => boolean) | null = null
 
 type DeckMediaAction = 'play' | 'pause' | 'seek'
 
@@ -86,7 +87,8 @@ function DeckMedia({
   src,
   index,
   style,
-  drivePlayback
+  drivePlayback,
+  autoPlay
 }: {
   kind: 'audio' | 'video'
   src: string
@@ -94,6 +96,7 @@ function DeckMedia({
   style?: { left: string; top: string; width: string; height: string }
   /** Preview clock. Followers only listen. */
   drivePlayback: boolean
+  autoPlay: boolean
 }): ReactElement {
   const ref = useRef<HTMLVideoElement & HTMLAudioElement>(null)
   const [audible, setAudible] = useState(false)
@@ -210,7 +213,7 @@ function DeckMedia({
         ref={ref}
         className="presentation-live__audio"
         src={src}
-        autoPlay={drivePlayback}
+        autoPlay={autoPlay}
         muted={!drivePlayback || !audible}
         controls={drivePlayback}
       />
@@ -221,7 +224,7 @@ function DeckMedia({
       ref={ref}
       className="presentation-live__video"
       src={src}
-      autoPlay={drivePlayback}
+      autoPlay={autoPlay}
       muted={!drivePlayback || !audible}
       controls={drivePlayback}
       playsInline
@@ -231,15 +234,12 @@ function DeckMedia({
   )
 }
 
-export function consumePresentationStep(): boolean {
-  return advanceHandler?.() ?? false
-}
-
 export function PresentationStage({
   deckId,
   ext,
   cues,
   slideIndex,
+  buildStep = 0,
   loadSource,
   onSlideCount,
   showNotes = false,
@@ -248,8 +248,8 @@ export function PresentationStage({
 }: PresentationStageProps): ReactElement {
   const [session, setSession] = useState<LiveSession | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [step, setStep] = useState(0)
   const [frame, setFrame] = useState<LiveFrame | null>(null)
+  const [autoplayMedia, setAutoplayMedia] = useState(() => loadPlaybackSettings().autoplayPresentationMedia)
   const markupRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -283,13 +283,19 @@ export function PresentationStage({
   }, [cues, deckId, ext, loadSource, onSlideCount])
 
   useEffect(() => {
-    setStep(0)
-  }, [deckId, slideIndex])
+    if (!session) return
+    setFrame(renderCachedFrame(deckId, slideIndex, buildStep) ?? frameFor(session, slideIndex, buildStep))
+  }, [buildStep, deckId, session, slideIndex])
 
   useEffect(() => {
-    if (!session) return
-    setFrame(renderCachedFrame(deckId, slideIndex, step) ?? frameFor(session, slideIndex, step))
-  }, [deckId, session, slideIndex, step])
+    const sync = (): void => setAutoplayMedia(loadPlaybackSettings().autoplayPresentationMedia)
+    window.addEventListener('orion-playback-settings', sync)
+    window.addEventListener('orion-profile-applied', sync)
+    return () => {
+      window.removeEventListener('orion-playback-settings', sync)
+      window.removeEventListener('orion-profile-applied', sync)
+    }
+  }, [])
 
   useEffect(() => {
     const root = markupRef.current
@@ -308,23 +314,6 @@ export function PresentationStage({
     observer.observe(root, { childList: true, subtree: true })
     return () => observer.disconnect()
   }, [frame])
-
-  useEffect(() => {
-    advanceHandler = () => {
-      if (!session) return false
-      const next = frameFor(session, slideIndex, step + 1)
-      const current = frameFor(session, slideIndex, step)
-      if (!current || !next) return false
-      if (step + 1 < current.stepCount) {
-        setStep((value) => value + 1)
-        return true
-      }
-      return false
-    }
-    return () => {
-      advanceHandler = null
-    }
-  }, [session, slideIndex, step])
 
   if (error) return <p className="adw-caption presentation-workspace__error">{error}</p>
   if (!frame) {
@@ -347,7 +336,7 @@ export function PresentationStage({
     <div className="presentation-live">
       <div className="presentation-live__fit">
       <div
-        key={`${slideIndex}-${step}`}
+        key={`${slideIndex}-${buildStep}`}
         className={motion ? `presentation-live__stage ${motion}` : 'presentation-live__stage'}
         style={{
           aspectRatio: `${frame.width} / ${frame.height}`,
@@ -378,6 +367,7 @@ export function PresentationStage({
                   }
             }
             drivePlayback={drivePlayback}
+            autoPlay={drivePlayback && autoplayMedia}
           />
         ))}
       </div>
@@ -387,6 +377,6 @@ export function PresentationStage({
   )
 }
 
-export function projectedFrame(deckId: string, slideIndex: number): LiveFrame | null {
-  return activeFrame(deckId, slideIndex, 0)
+export function projectedFrame(deckId: string, slideIndex: number, buildStep = 0): LiveFrame | null {
+  return activeFrame(deckId, slideIndex, buildStep)
 }

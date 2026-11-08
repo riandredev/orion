@@ -111,7 +111,8 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
       type: 'media',
       filePath: assertAllowedImagePath(content.filePath),
       name,
-      kind: content.kind === 'audio' ? 'audio' : 'video'
+      kind: content.kind === 'audio' ? 'audio' : 'video',
+      autoplay: content.autoplay === true
     }
   }
   if (content.type === 'image') {
@@ -145,6 +146,7 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
       height: content.height,
       transition: content.transition.slice(0, 24),
       durationMs: Math.min(5000, Math.max(0, Math.round(content.durationMs))),
+      autoplayMedia: content.autoplayMedia !== false,
       media: content.media.slice(0, 16).flatMap((item) => {
         try {
           return [
@@ -257,17 +259,11 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
       backgroundDimOpacity,
       backgroundFit,
       animation:
-        content.animation === 'none' ||
-        content.animation === 'crossfade' ||
-        content.animation === 'fade' ||
-        content.animation === 'cut' ||
-        content.animation === 'wipe' ||
-        content.animation === 'push' ||
-        content.animation === 'cover' ||
-        content.animation === 'uncover' ||
-        content.animation === 'split'
-          ? content.animation
-          : 'none',
+        content.animation === 'push'
+          ? 'push'
+          : content.animation === 'cut' || content.animation === 'none'
+            ? 'cut'
+            : 'fade',
       durationMs:
         typeof content.durationMs === 'number' && Number.isFinite(content.durationMs)
           ? Math.min(5000, Math.max(0, Math.round(content.durationMs)))
@@ -300,6 +296,12 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
     backgroundImagePath: bible.backgroundImagePath,
     backgroundColor: bible.backgroundColor,
     backgroundDimOpacity: bible.backgroundDimOpacity,
-    backgroundFit: bible.backgroundFit
+    backgroundFit: bible.backgroundFit,
+    animation:
+      content.animation === 'push' ? 'push' : content.animation === 'cut' ? 'cut' : 'fade',
+    durationMs:
+      typeof content.durationMs === 'number' && Number.isFinite(content.durationMs)
+        ? Math.min(5000, Math.max(0, Math.round(content.durationMs)))
+        : 0
   }
 }

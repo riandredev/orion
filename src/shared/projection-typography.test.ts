@@ -8,7 +8,7 @@ describe('hymn typography', () => {
 
   it('clamps a partial update without dropping the other elements', () => {
     const next = clampHymnTypography({ lyrics: { fontId: 'georgia', sizePx: 400 } })
-    expect(next.lyrics).toEqual({ fontId: 'georgia', sizePx: 160, color: '#ffffff' })
+    expect(next.lyrics).toEqual({ fontId: 'georgia', sizePx: 160, fontWeight: 700, color: '#ffffff' })
     expect(next.number).toEqual(DEFAULT_HYMN_TYPOGRAPHY.number)
   })
 })

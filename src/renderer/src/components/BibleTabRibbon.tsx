@@ -1,6 +1,9 @@
 import type { ReactElement } from 'react'
 import { useBibleActivePassage } from '../lib/bible-ribbon-sync'
+import { updateBibleMotion, useBibleMotion } from '../lib/bible-motion'
+import { lyricAnimationOptions } from '../lib/lyric-motion'
 import { AppIcon } from './AppIcon'
+import { AdwSelect } from './AdwSelect'
 import { AdwTooltip } from './AdwTooltip'
 import { Kbd, KbdIcon } from './Kbd'
 import type { AppIconName } from './icons'
@@ -55,6 +58,7 @@ export function BibleTabRibbon({
   onNextBook
 }: BibleTabRibbonProps): ReactElement {
   const activePassage = useBibleActivePassage()
+  const motion = useBibleMotion()
   const hasPassage = activePassage !== 'Select a passage'
   const projectVerse = onProjectLive ?? onGoLive
 
@@ -83,6 +87,31 @@ export function BibleTabRibbon({
         <div className="order-ribbon__section">
           <RibbonIconBtn label="Add to sequence" icon="listPlus" onClick={onAddToSequence} />
           <RibbonIconBtn label="Project verse" icon="play" onClick={projectVerse} />
+        </div>
+        <div className="order-ribbon__section order-ribbon__settings">
+          <label className="order-ribbon__field">
+            <span className="adw-section-label">Transition</span>
+            <input
+              type="number"
+              className="adw-input adw-input--compact adw-input--number-wide"
+              min={0}
+              max={5000}
+              step={100}
+              value={motion.transitionMs}
+              aria-label="Transition milliseconds"
+              onChange={(e) => updateBibleMotion({ transitionMs: Number(e.target.value) || 0 })}
+            />
+            <span className="adw-caption">ms</span>
+          </label>
+          <div className="order-ribbon__field order-ribbon__field--select">
+            <span className="adw-section-label">Animation</span>
+            <AdwSelect
+              value={motion.animation}
+              options={lyricAnimationOptions}
+              aria-label="Verse animation"
+              onChange={(animation) => updateBibleMotion({ animation })}
+            />
+          </div>
         </div>
         <div className="order-ribbon__section order-ribbon__primary">
           <button

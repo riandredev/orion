@@ -212,15 +212,33 @@ export function OrganizationSettingsPanel(): ReactElement {
             disabled={busy}
             onClick={() => {
               setBusy(true)
-              void exportActiveProfileToFile()
+              void exportActiveProfileToFile(false)
                 .then((path) => {
-                  if (path) flash(`Exported to ${path}`)
+                  if (path) flash(`Exported settings to ${path}`)
                   else flash('Export cancelled.')
                 })
+                .catch(() => flash('Could not export the profile.'))
                 .finally(() => setBusy(false))
             }}
           >
-            Export profile file…
+            Export settings…
+          </button>
+          <button
+            type="button"
+            className="adw-button settings-org__io-btn"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true)
+              void exportActiveProfileToFile(true)
+                .then((path) => {
+                  if (path) flash(`Exported settings and content to ${path}`)
+                  else flash('Export cancelled.')
+                })
+                .catch(() => flash('Could not export the profile.'))
+                .finally(() => setBusy(false))
+            }}
+          >
+            Export settings and content…
           </button>
           <button
             type="button"
@@ -237,15 +255,17 @@ export function OrganizationSettingsPanel(): ReactElement {
                     flash('Import cancelled or invalid file.')
                   }
                 })
+                .catch(() => flash('Could not import the profile.'))
                 .finally(() => setBusy(false))
             }}
           >
-            Import profile file…
+            Import profile…
           </button>
         </div>
         <p className="adw-caption settings-org__io-hint">
-          Files use the <code>.orionprofile</code> JSON format (portable settings, not hymnals or
-          Bibles).
+          Settings files use <code>.orionprofile</code>. Settings and content uses{' '}
+          <code>.orionpack</code> and includes hymnals, Bibles, presentations, media, service-order
+          images, and backgrounds.
         </p>
       </div>
     </div>

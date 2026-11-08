@@ -3,6 +3,7 @@ import type { OrionDisplayInfo } from '../../../shared/displays'
 import type { PresentationUiState } from '../../../shared/presentation-ui-state'
 import { projectionDisplayIds } from '../lib/display-projection'
 import { publishLibraryMedia } from '../lib/library-media-sync'
+import { loadPlaybackSettings } from '../lib/playback-settings'
 import { setMediaRibbon, type MediaSortDir, type MediaSortKey } from '../lib/media-ribbon-sync'
 import { subscribeMediaSequenceCue } from '../lib/media-sequence-cue'
 import { clearPresentationLayer, presentMediaFile } from '../lib/projection'
@@ -184,6 +185,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
   const [error, setError] = useState<string | null>(null)
   const playerRef = useRef<HTMLMediaElement | null>(null)
   const libraryEpoch = useRef(0)
+  const startOnPresent = useRef(false)
   const displaysRef = useRef(displays)
   displaysRef.current = displays
   const nameRef = useRef<HTMLInputElement>(null)
@@ -223,8 +225,10 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
       setFolderName(cue.folder)
       const found = (filesByFolder[cue.folder] ?? []).find((file) => file.path === cue.path)
       if (found) {
+        startOnPresent.current = loadPlaybackSettings().autoplayLibraryMedia
         setPlaying(false)
         setPreview(found)
+        if (!startOnPresent.current) playerRef.current?.pause()
       }
     })
   }, [filesByFolder])
@@ -325,11 +329,17 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
       el.volume = 0
     }
     if (libraryEpoch.current === 0) libraryEpoch.current = 1
+    const autoplay = loadPlaybackSettings().autoplayLibraryMedia
+    startOnPresent.current = autoplay
+    if (el) {
+      if (autoplay) void el.play().catch(() => setError('Could not play that file.'))
+      else el.pause()
+    }
     const send = (): void => {
-      publishLibraryMedia(el && !el.paused ? 'play' : 'pause', el?.currentTime || 0, libraryEpoch.current)
+      publishLibraryMedia(autoplay ? 'play' : 'pause', el?.currentTime || 0, libraryEpoch.current)
     }
     send()
-    void presentMediaFile(preview, displaysRef.current).then((ui) => {
+    void presentMediaFile(preview, displaysRef.current, loadPlaybackSettings().autoplayLibraryMedia).then((ui) => {
       send()
       onProjected(ui)
     })
@@ -438,7 +448,10 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     el.addEventListener('playing', start)
     el.addEventListener('pause', stop)
     el.addEventListener('seeked', onSeeked)
-    if (el.paused) send('pause')
+    if (el.paused && startOnPresent.current) {
+      startOnPresent.current = false
+      void el.play().catch(() => setError('Could not play that file.'))
+    } else if (el.paused) send('pause')
     else start()
     return () => {
       window.clearInterval(timer)

@@ -73,7 +73,3 @@ export function applyClearLayer(doc: LayerDocument, source: OrionStackSource): L
   }
   return doc
 }
-
-export function documentIsEmpty(doc: LayerDocument): boolean {
-  return doc.base === null && doc.overlay === null
-}
