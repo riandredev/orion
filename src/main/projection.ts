@@ -285,9 +285,9 @@ async function commitStageToOutputs(displayIds: number[]): Promise<void> {
     if (!win || win.isDestroyed()) continue
     const renderWait = waitForRendered(displayId, 1200)
     pushStageState(win)
+    enqueueStillCapture(displayId)
     await renderWait
     revealOutputWindow(displayId)
-    enqueueStillCapture(displayId)
   }
   pushDeckAudioOwners()
 }
@@ -507,7 +507,6 @@ function enqueueStillCapture(displayId: number): void {
     })
     .finally(() => {
       stillQueueDepth = Math.max(0, stillQueueDepth - 1)
-      if (stillQueueDepth === 0) releaseStillCaptureWindow()
     })
 }
 

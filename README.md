@@ -22,8 +22,8 @@ Orion runs a church service from one computer and sends hymns, scripture, and sl
 
 | Edition | Library |
 | --- | --- |
-| [Orion](https://github.com/riandredev/orion/releases/tag/v1.0.2) | King James Version. Order images and hymnals start empty. |
-| [Orion Panorama](https://github.com/riandredev/orion/releases/tag/v1.0.2-panorama) | Service-order images, Afrikaans and English Adventist hymnals, the King James Version, and Afrikaans 1953. |
+| [Orion](https://github.com/riandredev/orion/releases/tag/v1.0.3) | King James Version. Order images and hymnals start empty. |
+| [Orion Panorama](https://github.com/riandredev/orion/releases/tag/v1.0.3-panorama) | Service-order images, Afrikaans and English Adventist hymnals, the King James Version, and Afrikaans 1953. |
 
 The two editions install side by side and do not share libraries.
 
