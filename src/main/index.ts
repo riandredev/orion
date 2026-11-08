@@ -324,12 +324,23 @@ function createWindow(): void {
   })
 }
 
-app.commandLine.appendSwitch('disable-features', 'SpareRendererForSitePerProcess,BackForwardCache')
-
+const disabledChromiumFeatures = [
+  'SpareRendererForSitePerProcess',
+  'BackForwardCache',
+  'TranslateUI',
+  'InterestFeedContentSuggestions'
+]
 if (process.platform === 'linux') {
+  disabledChromiumFeatures.push('MediaRouter')
+  app.commandLine.appendSwitch('disable-background-networking')
+  app.commandLine.appendSwitch('disable-component-update')
+  app.commandLine.appendSwitch('disable-domain-reliability')
+  app.commandLine.appendSwitch('disable-renderer-backgrounding')
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
   app.commandLine.appendSwitch('class', linuxWindowClass())
 }
+app.commandLine.appendSwitch('disable-features', disabledChromiumFeatures.join(','))
 
 app.whenReady().then(async () => {
   const edition = readEdition()

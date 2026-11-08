@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, screen, type Display, type WebContents } from 'electron'
+import { BrowserWindow, ipcMain, screen, type Display, type NativeImage, type WebContents } from 'electron'
 import { join } from 'path'
 import type { OrionProjectionPayload } from '../shared/projection'
 import type {
@@ -481,17 +481,98 @@ const previewEpoch = new Map<number, number>()
 
 let stillCaptureDisplayId: number | null = null
 let stillSettledResolve: (() => void) | null = null
+let stillPaintWaiter: ((image: NativeImage) => void) | null = null
+let stillCaptureLayoutWidth = 0
+let stillCaptureLayoutHeight = 0
 let outputPreviewOpen = true
 let stillQueue: Promise<void> = Promise.resolve()
 let stillQueueDepth = 0
 
+// A window parked off-screen is painted by the Windows compositor and ignored by
+// Wayland, so Linux photographs an offscreen surface that is never shown.
+const linuxOffscreenCapture = process.platform === 'linux'
+
 function releaseStillCaptureWindow(): void {
   if (stillQueueDepth > 0) return
   stillCaptureDisplayId = null
+  stillCaptureLayoutWidth = 0
+  stillCaptureLayoutHeight = 0
+  stillPaintWaiter = null
   if (stillCaptureWindow && !stillCaptureWindow.isDestroyed()) {
     forceDestroyWindow(stillCaptureWindow)
   }
   stillCaptureWindow = null
+}
+
+function wakeStillCapturePainting(win: BrowserWindow): void {
+  if (!linuxOffscreenCapture || win.isDestroyed()) return
+  try {
+    win.webContents.setFrameRate(30)
+    if (!win.webContents.isPainting()) win.webContents.startPainting()
+  } catch {
+    /* painting is best-effort until the page is ready */
+  }
+}
+
+function idleStillCapturePainting(win: BrowserWindow): void {
+  if (!linuxOffscreenCapture || win.isDestroyed() || stillQueueDepth > 1) return
+  try {
+    win.webContents.setFrameRate(1)
+  } catch {
+    /* window closing */
+  }
+}
+
+function waitForStillPaint(timeoutMs: number): Promise<NativeImage | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      if (stillPaintWaiter === finish) stillPaintWaiter = null
+      resolve(null)
+    }, timeoutMs)
+    const finish = (image: NativeImage): void => {
+      clearTimeout(timer)
+      resolve(image)
+    }
+    stillPaintWaiter = finish
+  })
+}
+
+async function placeStillCaptureWindow(win: BrowserWindow, width: number, height: number): Promise<void> {
+  if (!linuxOffscreenCapture) {
+    win.setOpacity(0)
+    win.setBounds({ x: -32000, y: -32000, width, height })
+    if (!win.isVisible()) win.showInactive()
+    return
+  }
+  const bounds = win.getBounds()
+  if (bounds.width !== width || bounds.height !== height) {
+    win.setBounds({ x: 0, y: 0, width, height })
+  }
+  if (stillCaptureLayoutWidth === width && stillCaptureLayoutHeight === height) return
+  const scale = width > 960 ? 960 / width : 1
+  if (scale === 1) {
+    stillCaptureLayoutWidth = width
+    stillCaptureLayoutHeight = height
+    return
+  }
+  try {
+    const dbg = win.webContents.debugger
+    if (!dbg.isAttached()) dbg.attach('1.3')
+    // Layout stays at the projector size so line breaks match. The bitmap is the
+    // preview width, which is all the card keeps after the JPEG encode.
+    await dbg.sendCommand('Emulation.setDeviceMetricsOverride', {
+      width,
+      height,
+      deviceScaleFactor: scale,
+      mobile: false,
+      dontSetVisibleSize: true
+    })
+    stillCaptureLayoutWidth = width
+    stillCaptureLayoutHeight = height
+  } catch {
+    stillCaptureLayoutWidth = 0
+    stillCaptureLayoutHeight = 0
+  }
 }
 
 function enqueueStillCapture(displayId: number): void {
@@ -551,32 +632,47 @@ async function ensureStillCaptureWindow(
   const w = Math.max(640, Math.round(width))
   const h = Math.max(360, Math.round(height))
   if (!stillCaptureWindow || stillCaptureWindow.isDestroyed()) {
+    stillCaptureLayoutWidth = 0
+    stillCaptureLayoutHeight = 0
     stillCaptureWindow = new BrowserWindow({
       show: false,
       frame: false,
       roundedCorners: false,
       thickFrame: false,
+      hasShadow: false,
       backgroundColor: '#000000',
       skipTaskbar: true,
       focusable: false,
-      opacity: 0,
+      opacity: linuxOffscreenCapture ? 1 : 0,
       enableLargerThanScreen: true,
       title: 'orion-preview-capture',
-      x: -32000,
-      y: -32000,
+      x: linuxOffscreenCapture ? 0 : -32000,
+      y: linuxOffscreenCapture ? 0 : -32000,
       width: w,
       height: h,
       webPreferences: {
         preload: projectionPreloadPath(),
         sandbox: true,
         contextIsolation: true,
-        backgroundThrottling: false
+        backgroundThrottling: false,
+        spellcheck: false,
+        ...(linuxOffscreenCapture ? { offscreen: true, partition: 'orion-still' } : {})
       }
     })
     stillCaptureWindow.setIgnoreMouseEvents(true)
     stillCaptureContents.add(stillCaptureWindow.webContents.id)
+    if (linuxOffscreenCapture) {
+      stillCaptureWindow.webContents.on('paint', (_event, _dirty, image) => {
+        if (image.isEmpty() || !stillPaintWaiter) return
+        const resolve = stillPaintWaiter
+        stillPaintWaiter = null
+        resolve(image)
+      })
+    }
     stillCaptureWindow.on('closed', () => {
       stillCaptureWindow = null
+      stillCaptureLayoutWidth = 0
+      stillCaptureLayoutHeight = 0
     })
     const loadReady = waitForShellLoad(stillCaptureWindow)
     await stillCaptureWindow.loadFile(projectionHtmlPath())
@@ -587,12 +683,11 @@ async function ensureStillCaptureWindow(
   }
   const win = stillCaptureWindow
   if (!win || epoch !== outputEpoch || win.isDestroyed()) return null
-  win.setOpacity(0)
-  win.setBounds({ x: -32000, y: -32000, width: w, height: h })
+  await placeStillCaptureWindow(win, w, h)
   if (epoch !== outputEpoch || win.isDestroyed()) return null
-  if (!win.isVisible()) win.showInactive()
   await win.webContents.executeJavaScript('window.__orionStillCapture = true')
   if (epoch !== outputEpoch || win.isDestroyed()) return null
+  wakeStillCapturePainting(win)
   return win
 }
 
@@ -625,8 +720,20 @@ async function captureOutputPreview(win: BrowserWindow, displayId: number): Prom
   const epoch = (previewEpoch.get(displayId) ?? 0) + 1
   previewEpoch.set(displayId, epoch)
   previewBusy.add(displayId)
+  const still = linuxOffscreenCapture && win === stillCaptureWindow
   try {
-    const image = await win.webContents.capturePage()
+    if (still) {
+      try {
+        win.webContents.invalidate()
+      } catch {
+        /* capturePage still runs */
+      }
+    }
+    let image = await win.webContents.capturePage()
+    if (image.isEmpty() && still && !win.isDestroyed()) {
+      const painted = await waitForStillPaint(250)
+      image = painted && !painted.isEmpty() ? painted : await win.webContents.capturePage()
+    }
     if (win.isDestroyed() || image.isEmpty()) return
     if (previewEpoch.get(displayId) !== epoch) return
     const size = image.getSize()
@@ -638,8 +745,11 @@ async function captureOutputPreview(win: BrowserWindow, displayId: number): Prom
     /* ignore capture failures */
   } finally {
     previewBusy.delete(displayId)
-    if (previewAgain.delete(displayId) && !win.isDestroyed()) {
+    const again = previewAgain.delete(displayId) && !win.isDestroyed()
+    if (again) {
       void captureOutputPreview(win, displayId)
+    } else if (still && !win.isDestroyed()) {
+      idleStillCapturePainting(win)
     }
   }
 }
@@ -803,6 +913,7 @@ function createBaseWindow(display: Display): BrowserWindow {
     roundedCorners: false,
     thickFrame: false,
     backgroundColor: '#000000',
+    hasShadow: false,
     autoHideMenuBar: true,
     fullscreenable: true,
     focusable: false,
@@ -815,7 +926,9 @@ function createBaseWindow(display: Display): BrowserWindow {
       preload: projectionPreloadPath(),
       sandbox: true,
       contextIsolation: true,
-      autoplayPolicy: 'no-user-gesture-required'
+      autoplayPolicy: 'no-user-gesture-required',
+      backgroundThrottling: false,
+      spellcheck: false
     }
   })
 }
@@ -885,6 +998,7 @@ async function ensureWebWindow(displayId: number): Promise<BrowserWindow | null>
       roundedCorners: false,
       thickFrame: false,
     backgroundColor: '#000000',
+    hasShadow: false,
     autoHideMenuBar: true,
     fullscreenable: true,
     focusable: false,
@@ -895,9 +1009,11 @@ async function ensureWebWindow(displayId: number): Promise<BrowserWindow | null>
     height: display.bounds.height,
     webPreferences: {
       sandbox: true,
-        contextIsolation: true,
-        autoplayPolicy: 'no-user-gesture-required'
-      }
+      contextIsolation: true,
+      autoplayPolicy: 'no-user-gesture-required',
+      backgroundThrottling: false,
+      spellcheck: false
+    }
     })
     win.setMenuBarVisibility(false)
     win.on('closed', () => {
