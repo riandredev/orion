@@ -3,7 +3,7 @@ const panorama = process.env.ORION_EDITION === 'panorama'
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId: panorama ? 'com.orion.presenter.panorama' : 'com.orion.presenter',
-  productName: panorama ? 'Orion Panorama' : 'Orion',
+  productName: 'Orion',
   executableName: panorama ? 'OrionPanorama' : 'Orion',
   extraMetadata: {
     desktopName: panorama ? 'orion-panorama.desktop' : 'orion.desktop'
@@ -65,7 +65,7 @@ module.exports = {
     category: 'Office',
     icon: 'build/icons',
     executableName: panorama ? 'orion-panorama' : 'orion',
-    synopsis: panorama ? 'Orion Panorama church presentation' : 'Orion church presentation',
+    synopsis: 'Orion church presentation',
     desktop: {
       entry: {
         StartupWMClass: panorama ? 'orion-panorama' : 'orion',
@@ -77,7 +77,9 @@ module.exports = {
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,
-    shortcutName: panorama ? 'Orion Panorama' : 'Orion',
+    shortcutName: 'Orion',
+    uninstallDisplayName: 'Orion',
+    ...(panorama ? { include: 'build/nsis-panorama-dir.nsh' } : {}),
     artifactName: panorama
       ? 'Orion-Panorama-${version}-windows-setup.${ext}'
       : 'Orion-${version}-windows-setup.${ext}'

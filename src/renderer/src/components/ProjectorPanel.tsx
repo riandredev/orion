@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactElement, type PointerEvent as ReactPointerEvent } from 'react'
 import type { LiveFrame } from '../lib/live-deck'
 import {
   WEB_BROWSER_USER_AGENT,
@@ -56,7 +56,70 @@ type ProjectorPanelProps = {
   liveFrame?: LiveFrame | null
 }
 
-function OutputLiveMirror({ frame }: { frame: LiveFrame }): ReactElement {
+type StreamSlot = {
+  stream: MediaStream | null
+  listeners: Set<() => void>
+}
+
+const streamSlots = new Map<string, StreamSlot>()
+
+function streamSlot(key: string): StreamSlot {
+  let slot = streamSlots.get(key)
+  if (!slot) {
+    slot = { stream: null, listeners: new Set() }
+    streamSlots.set(key, slot)
+  }
+  return slot
+}
+
+function publishStream(key: string, stream: MediaStream): void {
+  const slot = streamSlot(key)
+  if (slot.stream === stream) return
+  slot.stream = stream
+  for (const listener of slot.listeners) listener()
+}
+
+function clearStream(key: string): void {
+  const slot = streamSlots.get(key)
+  if (!slot) return
+  slot.stream = null
+  for (const listener of slot.listeners) listener()
+  if (slot.listeners.size === 0) streamSlots.delete(key)
+}
+
+function useSharedStream(key: string): MediaStream | null {
+  return useSyncExternalStore(
+    (listener) => {
+      const slot = streamSlot(key)
+      slot.listeners.add(listener)
+      return () => {
+        slot.listeners.delete(listener)
+        if (slot.listeners.size === 0 && !slot.stream) streamSlots.delete(key)
+      }
+    },
+    () => streamSlots.get(key)?.stream ?? null
+  )
+}
+
+function captureVideoStream(el: HTMLVideoElement): MediaStream | null {
+  const capture = (el as HTMLVideoElement & { captureStream?: () => MediaStream }).captureStream
+  if (!capture) return null
+  try {
+    return capture.call(el)
+  } catch {
+    return null
+  }
+}
+
+function OutputLiveMirror({
+  frame,
+  primary,
+  scope
+}: {
+  frame: LiveFrame
+  primary: boolean
+  scope: string
+}): ReactElement {
   const markupRef = useRef<HTMLDivElement>(null)
   const mediaRefs = useRef<(HTMLMediaElement | null)[]>([])
 
@@ -72,6 +135,7 @@ function OutputLiveMirror({ frame }: { frame: LiveFrame }): ReactElement {
   }, [frame.markup])
 
   useEffect(() => {
+    if (!primary) return
     let seenEpoch = -1
     return subscribeDeckMedia((command) => {
       if (command.epoch < seenEpoch) return
@@ -80,7 +144,7 @@ function OutputLiveMirror({ frame }: { frame: LiveFrame }): ReactElement {
       if (!el) return
       nudgeMediaElement(el, command)
     })
-  }, [])
+  }, [primary])
 
   return (
     <div
@@ -98,17 +162,14 @@ function OutputLiveMirror({ frame }: { frame: LiveFrame }): ReactElement {
         />
         {frame.media.map((media, index) =>
           media.kind === 'video' ? (
-            <video
+            <DeckPreviewVideo
               key={`${index}-${media.src}`}
-              ref={(node) => {
+              src={media.src}
+              streamKey={`deck:${scope}:${index}:${media.src}`}
+              primary={primary}
+              onBind={(node) => {
                 mediaRefs.current[index] = node
               }}
-              className="presentation-live__video"
-              src={media.src}
-              autoPlay
-              muted
-              playsInline
-              disablePictureInPicture
               style={{
                 left: `${media.leftPct}%`,
                 top: `${media.topPct}%`,
@@ -123,12 +184,91 @@ function OutputLiveMirror({ frame }: { frame: LiveFrame }): ReactElement {
   )
 }
 
-function LibraryOutputPreview({ url }: { url: string }): ReactElement {
+function DeckPreviewVideo({
+  src,
+  streamKey,
+  primary,
+  onBind,
+  style
+}: {
+  src: string
+  streamKey: string
+  primary: boolean
+  onBind: (node: HTMLVideoElement | null) => void
+  style: { left: string; top: string; width: string; height: string }
+}): ReactElement {
+  const shared = useSharedStream(streamKey)
   const ref = useRef<HTMLVideoElement>(null)
+  const [direct, setDirect] = useState(false)
+
+  useEffect(() => {
+    if (primary || shared) return
+    const timer = window.setTimeout(() => setDirect(true), 800)
+    return () => window.clearTimeout(timer)
+  }, [primary, shared])
+
+  const onBindRef = useRef(onBind)
+  onBindRef.current = onBind
+  useEffect(() => {
+    onBindRef.current(ref.current)
+    return () => onBindRef.current(null)
+  }, [])
 
   useEffect(() => {
     const el = ref.current
-    if (!el) return
+    if (!el || !primary) return
+    const publish = (): void => {
+      const stream = captureVideoStream(el)
+      if (stream) publishStream(streamKey, stream)
+    }
+    el.addEventListener('loadeddata', publish)
+    return () => {
+      el.removeEventListener('loadeddata', publish)
+      clearStream(streamKey)
+    }
+  }, [primary, streamKey])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || primary || !shared) return
+    el.srcObject = shared
+    void el.play().catch(() => {
+      /* autoplay can wait for the next frame */
+    })
+    return () => {
+      el.srcObject = null
+    }
+  }, [primary, shared])
+
+  return (
+    <video
+      ref={ref}
+      className="presentation-live__video"
+      src={primary || (!shared && direct) ? src : undefined}
+      autoPlay
+      muted
+      playsInline
+      disablePictureInPicture
+      style={style}
+    />
+  )
+}
+
+function LibraryOutputPreview({ url, primary }: { url: string; primary: boolean }): ReactElement {
+  const ref = useRef<HTMLVideoElement>(null)
+  const streamKey = `library:${url}`
+  const shared = useSharedStream(streamKey)
+  const [direct, setDirect] = useState(false)
+
+  useEffect(() => {
+    if (primary || shared) return
+    const timer = window.setTimeout(() => setDirect(true), 800)
+    return () => window.clearTimeout(timer)
+  }, [primary, shared])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !primary) return
     let seenEpoch = -1
     let pending: LibraryMediaCommand | null = null
     const apply = (command: LibraryMediaCommand): void => {
@@ -142,21 +282,40 @@ function LibraryOutputPreview({ url }: { url: string }): ReactElement {
       el.muted = true
       if (pending) nudgeMediaElement(el, { ...pending, index: 0 })
     }
+    const publish = (): void => {
+      const stream = captureVideoStream(el)
+      if (stream) publishStream(streamKey, stream)
+    }
     el.addEventListener('loadedmetadata', applyPending)
     el.addEventListener('canplay', applyPending)
+    el.addEventListener('loadeddata', publish)
     const unsubscribe = subscribeLibraryMedia(apply)
     return () => {
       unsubscribe()
       el.removeEventListener('loadedmetadata', applyPending)
       el.removeEventListener('canplay', applyPending)
+      el.removeEventListener('loadeddata', publish)
+      clearStream(streamKey)
     }
-  }, [url])
+  }, [primary, streamKey, url])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || primary || !shared) return
+    el.srcObject = shared
+    void el.play().catch(() => {
+      /* the source video owns playback */
+    })
+    return () => {
+      el.srcObject = null
+    }
+  }, [primary, shared])
 
   return (
     <video
       ref={ref}
       className="projector-preview__img"
-      src={url}
+      src={primary || (!shared && direct) ? url : undefined}
       muted
       playsInline
       disablePictureInPicture
@@ -167,6 +326,58 @@ function LibraryOutputPreview({ url }: { url: string }): ReactElement {
 type PreviewWebview = HTMLElement & {
   getWebContentsId: () => number
   executeJavaScript: (code: string) => Promise<unknown>
+  capturePage: () => Promise<{
+    isEmpty: () => boolean
+    getSize: () => { width: number; height: number }
+    resize: (options: { width: number }) => { toDataURL: () => string }
+    toDataURL: () => string
+  }>
+}
+
+const webNodes = new Map<string, PreviewWebview | null>()
+
+function setWebPreviewNode(url: string, node: PreviewWebview | null): void {
+  if (node) webNodes.set(url, node)
+  else if (webNodes.get(url) === node || node === null) webNodes.delete(url)
+}
+
+function WebPreviewEcho({ url, fallback }: { url: string; fallback?: string }): ReactElement {
+  const [shot, setShot] = useState<string | null>(fallback ?? null)
+
+  useEffect(() => {
+    let stopped = false
+    let timer = 0
+    const tick = (): void => {
+      if (stopped) return
+      const node = webNodes.get(url)
+      if (node) {
+        void node
+          .capturePage()
+          .then((image) => {
+            if (stopped || image.isEmpty()) return
+            const size = image.getSize()
+            const framed = size.width > 640 ? image.resize({ width: 640 }) : image
+            setShot(framed.toDataURL())
+          })
+          .catch(() => {
+            /* the guest is navigating */
+          })
+      }
+      timer = window.setTimeout(tick, 180)
+    }
+    tick()
+    return () => {
+      stopped = true
+      window.clearTimeout(timer)
+    }
+  }, [url])
+
+  const src = shot ?? fallback
+  return src ? (
+    <img className="projector-preview__img projector-preview__img--capture" src={src} alt="" />
+  ) : (
+    <span className="projector-preview__placeholder">Web</span>
+  )
 }
 
 function WebOutputPreview({ url }: { url: string }): ReactElement {
@@ -225,11 +436,13 @@ function WebOutputPreview({ url }: { url: string }): ReactElement {
           /* guest navigated away */
         })
     }
+    setWebPreviewNode(url, node)
     node.addEventListener('did-start-loading', onStart)
     node.addEventListener('did-stop-loading', onReady)
     const unsubscribe = subscribeWebMedia(apply)
     return () => {
       ready = false
+      setWebPreviewNode(url, null)
       node.removeEventListener('did-start-loading', onStart)
       node.removeEventListener('did-stop-loading', onReady)
       unsubscribe()
@@ -385,7 +598,7 @@ function DeckFadePreview({ frame, underlay }: { frame: LiveFrame; underlay?: str
       ) : null}
       {previous ? (
         <div className={`preview-fade__deck ${leaveClass}`.trim()}>
-          <OutputLiveMirror frame={previous} />
+          <OutputLiveMirror frame={previous} primary scope={`fade-out:${token}`} />
         </div>
       ) : null}
       <div
@@ -397,7 +610,7 @@ function DeckFadePreview({ frame, underlay }: { frame: LiveFrame; underlay?: str
           setPrevious(null)
         }}
       >
-        <OutputLiveMirror frame={current} />
+        <OutputLiveMirror frame={current} primary scope={`fade-in:${token}`} />
       </div>
     </div>
   )
@@ -587,6 +800,20 @@ export function ProjectorPanel({
     }
   }, [])
 
+  const libraryPrimary = new Set<string>()
+  const webPrimary = new Set<string>()
+  let deckPrimaryTaken = false
+  const claimPrimary = (seen: Set<string>, key: string): boolean => {
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }
+  const claimDeckPrimary = (): boolean => {
+    if (deckPrimaryTaken) return false
+    deckPrimaryTaken = true
+    return true
+  }
+
   return (
     <div
       className={`projector-shell ${open ? '' : 'projector-shell--collapsed'}${resizing ? ' projector-shell--resizing' : ''}`}
@@ -649,14 +876,36 @@ export function ProjectorPanel({
                 )}
               </div>
               <div className="projector-preview__screen">
-                {output.libraryMedia?.kind === 'video' ? (
-                  <LibraryOutputPreview key={output.libraryMedia.url} url={output.libraryMedia.url} />
+                {!open ? (
+                  output.captureDataUrl ? (
+                    <img
+                      className="projector-preview__img projector-preview__img--capture"
+                      src={output.captureDataUrl}
+                      alt=""
+                    />
+                  ) : (
+                    <span className="projector-preview__placeholder">{output.subtitle}</span>
+                  )
+                ) : output.libraryMedia?.kind === 'video' ? (
+                  <LibraryOutputPreview
+                    key={output.libraryMedia.url}
+                    url={output.libraryMedia.url}
+                    primary={claimPrimary(libraryPrimary, output.libraryMedia.url)}
+                  />
                 ) : output.libraryMedia?.kind === 'audio' ? (
                   <span className="projector-preview__placeholder">{output.libraryMedia.name}</span>
                 ) : output.previewWebUrl ? (
-                  <WebOutputPreview key={output.previewWebUrl} url={output.previewWebUrl} />
+                  claimPrimary(webPrimary, output.previewWebUrl) ? (
+                    <WebOutputPreview key={output.previewWebUrl} url={output.previewWebUrl} />
+                  ) : (
+                    <WebPreviewEcho url={output.previewWebUrl} fallback={output.captureDataUrl} />
+                  )
                 ) : output.isLive && liveFrame && liveFrame.media.some((media) => media.kind === 'video') ? (
-                  <OutputLiveMirror frame={liveFrame} />
+                  <OutputLiveMirror
+                    frame={liveFrame}
+                    primary={claimDeckPrimary()}
+                    scope={output.id}
+                  />
                 ) : output.captureDataUrl && output.previewMotion && output.previewSlideKey ? (
                   <MotionPreview
                     src={output.captureDataUrl}

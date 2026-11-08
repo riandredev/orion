@@ -142,7 +142,6 @@ import {
 } from './components/ProjectorPanel'
 import { TopBar } from './components/TopBar'
 import { SettingsDialog } from './components/SettingsDialog'
-import { UpdatePrompt } from './components/UpdatePrompt'
 import { SequencePanel } from './components/SequencePanel'
 import {
   moveSequenceCursor,
@@ -695,6 +694,10 @@ export default function App(): ReactElement {
       setOutputCaptureFrames({})
     })
   }, [refreshProgram])
+
+  useEffect(() => {
+    window.orion?.setOutputPreviewOpen?.(projectorOpen)
+  }, [projectorOpen])
 
   useEffect(() => {
     const offFrame =
@@ -2338,7 +2341,6 @@ export default function App(): ReactElement {
           }
         />
       </div>
-      <UpdatePrompt />
       <SettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

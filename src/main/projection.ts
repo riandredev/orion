@@ -287,7 +287,7 @@ async function commitStageToOutputs(displayIds: number[]): Promise<void> {
     pushStageState(win)
     await renderWait
     revealOutputWindow(displayId)
-    void captureStillPreview(displayId)
+    enqueueStillCapture(displayId)
   }
   pushDeckAudioOwners()
 }
@@ -481,6 +481,47 @@ const previewEpoch = new Map<number, number>()
 
 let stillCaptureDisplayId: number | null = null
 let stillSettledResolve: (() => void) | null = null
+let outputPreviewOpen = true
+let stillQueue: Promise<void> = Promise.resolve()
+let stillQueueDepth = 0
+
+function releaseStillCaptureWindow(): void {
+  if (stillQueueDepth > 0) return
+  stillCaptureDisplayId = null
+  if (stillCaptureWindow && !stillCaptureWindow.isDestroyed()) {
+    forceDestroyWindow(stillCaptureWindow)
+  }
+  stillCaptureWindow = null
+}
+
+function enqueueStillCapture(displayId: number): void {
+  if (!outputPreviewOpen) return
+  stillQueueDepth += 1
+  stillQueue = stillQueue
+    .then(() => {
+      if (!outputPreviewOpen) return
+      return captureStillPreview(displayId)
+    })
+    .catch(() => {
+      /* one display's preview must not block the next */
+    })
+    .finally(() => {
+      stillQueueDepth = Math.max(0, stillQueueDepth - 1)
+      if (stillQueueDepth === 0) releaseStillCaptureWindow()
+    })
+}
+
+function refreshOutputPreviews(): void {
+  if (!outputPreviewOpen) return
+  for (const [displayId, win] of projectionWindows) {
+    if (win.isDestroyed()) continue
+    if (windowModes.get(displayId) === 'web') {
+      void captureOutputPreview(win, displayId)
+    } else {
+      enqueueStillCapture(displayId)
+    }
+  }
+}
 
 function finishStillSettled(): void {
   const done = stillSettledResolve
@@ -871,6 +912,15 @@ async function ensureWebWindow(displayId: number): Promise<BrowserWindow | null>
 }
 
 export function registerProjectionIpc(): void {
+  ipcMain.on('orion:output-preview-open', (_event, open: unknown) => {
+    outputPreviewOpen = open === true
+    if (!outputPreviewOpen) {
+      if (stillQueueDepth === 0) releaseStillCaptureWindow()
+      return
+    }
+    refreshOutputPreviews()
+  })
+
   ipcMain.handle('orion:projection-pull', () => {
     return stageStateFor()
   })

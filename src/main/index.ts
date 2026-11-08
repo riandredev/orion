@@ -7,7 +7,7 @@ import { WEB_BROWSER_USER_AGENT } from '../shared/web-browser'
 import type { OrionProjectionCommand, OrionStackState } from '../shared/projection-stack'
 import { displayInfoFromElectron, sortDisplays } from './displays'
 import { appIcon, installLinuxDesktopEntry, linuxWindowClass } from './app-icon'
-import { registerAppUpdates, scheduleAppUpdateCheck } from './app-updates'
+import { scheduleAppUpdateCheck } from './app-updates'
 import { seedPackagedLibraries } from './content-seed'
 import { readEdition } from './edition'
 import { is } from './env'
@@ -34,8 +34,7 @@ import {
   getDictionaryIndexProgress,
   getDictionaryLexiconEntry,
   getDictionaryScriptureOccurrences,
-  searchDictionaryEntries,
-  warmDictionaryLexiconIndex
+  searchDictionaryEntries
 } from './dictionary'
 import {
   getHymnEntry,
@@ -325,6 +324,8 @@ function createWindow(): void {
   })
 }
 
+app.commandLine.appendSwitch('disable-features', 'SpareRendererForSitePerProcess,BackForwardCache')
+
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
   app.commandLine.appendSwitch('class', linuxWindowClass())
@@ -337,7 +338,6 @@ app.whenReady().then(async () => {
   }
   await seedPackagedLibraries()
   await installLinuxDesktopEntry()
-  registerAppUpdates()
   scheduleAppUpdateCheck()
 
   ipcMain.handle('orion:list-order-folders', () => listOrderFolders())
@@ -559,7 +559,6 @@ app.whenReady().then(async () => {
     }
   )
   registerDisplayListeners()
-  warmDictionaryLexiconIndex()
   createWindow()
 
   if (process.env.ORION_E2E_TEST === '1' || process.argv.includes('--e2e-verify')) {

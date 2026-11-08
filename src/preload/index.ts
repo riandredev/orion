@@ -216,6 +216,9 @@ const api = {
       ipcRenderer.removeListener('orion:output-preview-clear', listener)
     }
   },
+  setOutputPreviewOpen: (open: boolean): void => {
+    ipcRenderer.send('orion:output-preview-open', open)
+  },
   setMainWindowMaximized: (maximized: boolean): Promise<void> =>
     ipcRenderer.invoke('orion:set-main-window-maximized', maximized),
   exportProfileFile: (json: string, suggestedName: string, includeContent?: boolean): Promise<string | null> =>
@@ -307,23 +310,6 @@ const api = {
   setGuestAudioMuted: (webContentsId: number, muted: boolean): void => {
     ipcRenderer.send('orion:set-guest-audio-muted', { webContentsId, muted })
   },
-  onAppUpdate: (
-    callback: (status: import('../shared/app-update').AppUpdateStatus) => void
-  ): (() => void) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      status: import('../shared/app-update').AppUpdateStatus
-    ): void => {
-      callback(status)
-    }
-    ipcRenderer.on('orion:app-update', listener)
-    return () => {
-      ipcRenderer.removeListener('orion:app-update', listener)
-    }
-  },
-  downloadAppUpdate: (): Promise<void> => ipcRenderer.invoke('orion:app-update-download'),
-  installAppUpdate: (): Promise<void> => ipcRenderer.invoke('orion:app-update-install'),
-  dismissAppUpdate: (): Promise<void> => ipcRenderer.invoke('orion:app-update-dismiss'),
   onPresentationStepFromPresenter: (callback: (delta: number) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, delta: number): void => {
       callback(delta)

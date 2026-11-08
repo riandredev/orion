@@ -522,11 +522,12 @@ export function warmLiveDeck(deckId: string, source: DeckSource, firstIndex = 0)
     const count = liveSlideCount(session)
     if (count <= 0) return
     const first = Math.min(Math.max(0, firstIndex), count - 1)
-    void scheduleFrame(deckId, session, first, 0, 0)
-    for (let index = 0; index < count; index += 1) {
-      if (index === first) continue
-      void scheduleFrame(deckId, session, index, 0, 10 + index)
-    }
+    const nearby = [first, first - 1, first + 1].filter((index, order, all) => {
+      return index >= 0 && index < count && all.indexOf(index) === order
+    })
+    nearby.forEach((index, order) => {
+      void scheduleFrame(deckId, session, index, 0, order)
+    })
   })
 }
 

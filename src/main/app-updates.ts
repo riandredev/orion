@@ -1,4 +1,4 @@
-import { app, ipcMain } from 'electron'
+import { app, dialog, type BrowserWindow, type MessageBoxOptions } from 'electron'
 import { spawn } from 'child_process'
 import { createHash } from 'crypto'
 import { createWriteStream } from 'fs'
@@ -6,12 +6,7 @@ import { chmod, copyFile, mkdir, rename, rm, stat } from 'fs/promises'
 import { join } from 'path'
 import { Readable, Transform } from 'stream'
 import { pipeline } from 'stream/promises'
-import {
-  selectUpdate,
-  type AppUpdateStatus,
-  type ReleaseInfo,
-  type SelectedUpdate
-} from '../shared/app-update'
+import { selectUpdate, type ReleaseInfo, type SelectedUpdate } from '../shared/app-update'
 import { readEdition } from './edition'
 import { getMainAppWindow } from './projection'
 
@@ -22,10 +17,22 @@ let downloadedPath: string | null = null
 let abort: AbortController | null = null
 let dismissed = false
 
-function send(status: AppUpdateStatus): void {
+function mainWindow(): BrowserWindow | null {
   const win = getMainAppWindow()
-  if (!win || win.isDestroyed()) return
-  win.webContents.send('orion:app-update', status)
+  if (!win || win.isDestroyed()) return null
+  return win
+}
+
+function setDownloadProgress(percent: number | null): void {
+  const win = mainWindow()
+  if (!win) return
+  win.setProgressBar(percent == null ? -1 : Math.min(1, Math.max(0, percent / 100)))
+}
+
+async function ask(options: MessageBoxOptions): Promise<number> {
+  const win = mainWindow()
+  const result = win ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options)
+  return result.response
 }
 
 async function fetchReleases(): Promise<ReleaseInfo[]> {
@@ -53,7 +60,7 @@ export async function checkForAppUpdate(): Promise<void> {
     if (!selected) return
     pending = selected
     downloadedPath = null
-    send({ phase: 'available', version: selected.version, notes: selected.notes })
+    void promptAvailable(selected)
   } catch {
     /* Offline or rate-limited. The next launch checks again. */
   }
@@ -68,7 +75,7 @@ async function downloadUpdate(): Promise<void> {
   await mkdir(dir, { recursive: true })
   const dest = join(dir, update.asset.name)
   await rm(dest, { force: true })
-  send({ phase: 'downloading', version: update.version, percent: 0 })
+  setDownloadProgress(0)
   try {
     const response = await fetch(update.asset.browser_download_url, {
       signal: controller.signal,
@@ -88,7 +95,7 @@ async function downloadUpdate(): Promise<void> {
           const percent = Math.min(100, Math.round((received / total) * 100))
           if (percent !== lastPercent) {
             lastPercent = percent
-            send({ phase: 'downloading', version: update.version, percent })
+            setDownloadProgress(percent)
           }
         }
         callback(null, chunk)
@@ -103,16 +110,66 @@ async function downloadUpdate(): Promise<void> {
       throw new Error('The downloaded file is incomplete.')
     }
     downloadedPath = dest
-    send({ phase: 'ready', version: update.version })
+    setDownloadProgress(null)
+    await promptReady(update.version)
   } catch (error) {
     await rm(dest, { force: true })
+    setDownloadProgress(null)
     if (controller.signal.aborted) return
-    send({
-      phase: 'error',
-      message: error instanceof Error ? error.message : 'The update could not be downloaded.'
+    const message = error instanceof Error ? error.message : 'The update could not be downloaded.'
+    await ask({
+      type: 'error',
+      title: 'Orion',
+      message: 'The update could not be downloaded.',
+      detail: message,
+      buttons: ['OK'],
+      noLink: true
     })
   } finally {
     abort = null
+  }
+}
+
+async function promptAvailable(update: SelectedUpdate): Promise<void> {
+  const response = await ask({
+    type: 'info',
+    title: 'Orion',
+    message: `Version ${update.version} is available.`,
+    buttons: ['Download', 'Later'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true
+  })
+  if (response !== 0) {
+    dismissUpdate()
+    return
+  }
+  await downloadUpdate()
+}
+
+async function promptReady(version: string): Promise<void> {
+  const response = await ask({
+    type: 'info',
+    title: 'Orion',
+    message: `Restart to finish installing version ${version}.`,
+    buttons: ['Restart', 'Later'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true
+  })
+  if (response === 0) {
+    try {
+      await installUpdate()
+    } catch (error) {
+      await ask({
+        type: 'error',
+        title: 'Orion',
+        message: 'The update could not be installed.',
+        detail: error instanceof Error ? error.message : 'The update could not be installed.',
+        buttons: ['OK'],
+        noLink: true
+      })
+    }
   }
 }
 
@@ -156,23 +213,6 @@ function dismissUpdate(): void {
   dismissed = true
   pending = null
   downloadedPath = null
-}
-
-export function registerAppUpdates(): void {
-  ipcMain.handle('orion:app-update-download', () => downloadUpdate())
-  ipcMain.handle('orion:app-update-install', async () => {
-    try {
-      await installUpdate()
-    } catch (error) {
-      send({
-        phase: 'error',
-        message: error instanceof Error ? error.message : 'The update could not be installed.'
-      })
-    }
-  })
-  ipcMain.handle('orion:app-update-dismiss', () => {
-    dismissUpdate()
-  })
 }
 
 export function scheduleAppUpdateCheck(): void {

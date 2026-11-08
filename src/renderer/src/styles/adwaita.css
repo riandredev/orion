@@ -238,18 +238,6 @@ a {
   margin: 0;
 }
 
-.app-update__notes {
-  margin-top: 8px;
-  max-height: 7.5rem;
-  overflow: auto;
-  white-space: pre-wrap;
-}
-
-.app-update__progress {
-  height: 6px;
-  margin-top: 12px;
-}
-
 .adw-alert-dialog__actions {
   display: flex;
   justify-content: flex-end;

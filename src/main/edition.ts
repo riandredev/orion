@@ -16,7 +16,7 @@ const STANDARD: OrionEdition = {
 
 const PANORAMA: OrionEdition = {
   id: 'panorama',
-  name: 'Orion Panorama',
+  name: 'Orion',
   appUserModelId: 'com.orion.presenter.panorama'
 }
 
