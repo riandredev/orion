@@ -77,6 +77,7 @@ export type ProjectionWireMedia = {
 export type ProjectionWireDeckSlide = {
   type: 'deck-slide'
   markup: string
+  fontCss?: string
   width: number
   height: number
   transition: string
@@ -244,6 +245,7 @@ export function createStackWire(
     return {
       type: 'deck-slide',
       markup: content.markup,
+      ...(content.fontCss ? { fontCss: content.fontCss } : {}),
       width: content.width,
       height: content.height,
       transition: content.transition,

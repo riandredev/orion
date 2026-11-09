@@ -820,6 +820,17 @@ function renderOrderImage(target, data) {
   settleAfter(durationMs)
 }
 
+function installDeckFonts(css) {
+  if (typeof css !== 'string' || css.length === 0) return
+  let style = document.getElementById('orion-deck-fonts')
+  if (!style) {
+    style = document.createElement('style')
+    style.id = 'orion-deck-fonts'
+    document.head.appendChild(style)
+  }
+  if (style.textContent !== css) style.textContent = css
+}
+
 function deckSlideSignature(data) {
   const markup = typeof data.markup === 'string' ? data.markup : ''
   let hash = markup.length >>> 0
@@ -911,9 +922,10 @@ function renderPayload(target, payload) {
   }
 
   if (p.type === 'deck-slide') {
-    const data = /** @type {{ markup?: string; width?: number; height?: number; transition?: string; durationMs?: number; autoplayMedia?: boolean; media?: { mediaUrl: string; leftPct: number; topPct: number; widthPct: number; heightPct: number; kind: string }[] }} */ (
+    const data = /** @type {{ markup?: string; fontCss?: string; width?: number; height?: number; transition?: string; durationMs?: number; autoplayMedia?: boolean; media?: { mediaUrl: string; leftPct: number; topPct: number; widthPct: number; heightPct: number; kind: string }[] }} */ (
       payload
     )
+    installDeckFonts(data.fontCss)
     const signature = deckSlideSignature(data)
     if (target.dataset.deckSlide === signature) return
     target.dataset.deckSlide = signature

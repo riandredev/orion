@@ -149,6 +149,9 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
     return {
       type: 'deck-slide',
       markup: content.markup.slice(0, 12_000_000),
+      ...(typeof content.fontCss === 'string' && content.fontCss.length > 0
+        ? { fontCss: content.fontCss.slice(0, 8_000_000) }
+        : {}),
       width: content.width,
       height: content.height,
       transition: content.transition.slice(0, 24),

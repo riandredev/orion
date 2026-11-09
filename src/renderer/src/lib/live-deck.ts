@@ -15,6 +15,8 @@ import {
   type ClickEffect
 } from '../../../shared/pptx-click-builds'
 import { readPptxCues, type PptxSlideCue } from '../../../shared/pptx-cues'
+import { extractPptxEmbeddedFonts, type PptxEmbeddedFont } from '../../../shared/pptx-embedded-fonts'
+import { inheritPlaceholderFonts } from '../../../shared/pptx-placeholder-fonts'
 import { normalizeSlideBullets, pinDefaultTextColor, type BulletHost } from '../../../shared/slide-bullets'
 
 export type LiveMedia = {
@@ -36,6 +38,7 @@ export type LiveFrame = {
   media: LiveMedia[]
   stepCount: number
   notes: string
+  fontCss?: string
 }
 
 export type DeckSource = {
@@ -89,6 +92,16 @@ function bytesToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000))
   }
   return btoa(binary)
+}
+
+function fontKey(font: { familyName: string; weight: number; italic: boolean }): string {
+  return `${font.familyName}\0${font.weight}\0${font.italic ? 1 : 0}`
+}
+
+function mergeEmbeddedFonts(current: Presentation['fonts']['embeddedFonts'], decoded: PptxEmbeddedFont[]): Presentation['fonts']['embeddedFonts'] {
+  const decodedKeys = new Set(decoded.map(fontKey))
+  const kept = current.filter((font) => font.data && font.data.byteLength > 0 && !decodedKeys.has(fontKey(font)))
+  return [...kept, ...decoded]
 }
 
 function embeddedFontCss(fonts: Presentation['fonts']): string {
@@ -212,7 +225,11 @@ export async function openLiveSession(source: DeckSource): Promise<LiveSession> 
       blobs: new Map()
     }
   }
-  const presentation = await parse(bytes)
+  const presentation = await parse(await inheritPlaceholderFonts(bytes))
+  const embedded = await extractPptxEmbeddedFonts(bytes)
+  const usedFamilies = new Set(presentation.fonts.usedFontFamilies.map((family) => family.toLowerCase()))
+  const needed = embedded.filter((font) => usedFamilies.has(font.familyName.toLowerCase()))
+  if (needed.length > 0) presentation.fonts.embeddedFonts = mergeEmbeddedFonts(presentation.fonts.embeddedFonts, needed)
   await applyFlyOrigins(bytes, presentation.slides)
   for (const slide of presentation.slides) {
     normalizeSlideBullets(slide.elements as unknown as BulletHost[])
@@ -362,7 +379,6 @@ export function frameFor(session: LiveSession, index: number, step: number): Liv
   const playback = step >= 0
   const rendered = renderSlide(slide, session.presentation.slideSize, {
     fontSubstitutes: session.fontSubstitutes,
-    fontCss: session.fontCss,
     hiddenShapeIds: playback ? hiddenIdsAtStep(plan, step) : []
   })
   const cue = session.cues[index]
@@ -388,7 +404,8 @@ export function frameFor(session: LiveSession, index: number, step: number): Liv
     dir: arriving ? dir : undefined,
     media: pptxMedia(session, index),
     stepCount: clickStepCount(plan),
-    notes: ''
+    notes: '',
+    fontCss: session.fontCss
   }
 }
 
@@ -427,9 +444,21 @@ export function getLiveSession(deckId: string): LiveSession | null {
   return resolvedSessions.get(deckId) ?? null
 }
 
+export function installDeckFonts(css: string): void {
+  if (!css || typeof document === 'undefined') return
+  let style = document.getElementById('orion-deck-fonts')
+  if (!(style instanceof HTMLStyleElement)) {
+    style = document.createElement('style')
+    style.id = 'orion-deck-fonts'
+    document.head.appendChild(style)
+  }
+  if (style.textContent !== css) style.textContent = css
+}
+
 export function rememberSession(deckId: string, session: LiveSession): void {
   active = { deckId, session }
   resolvedSessions.set(deckId, session)
+  if (session.kind === 'pptx') installDeckFonts(session.fontCss)
 }
 
 export function forgetLiveSession(deckId: string): void {

@@ -39,6 +39,7 @@ export type OrionStackLayerContent =
   | {
       type: 'deck-slide'
       markup: string
+      fontCss?: string
       width: number
       height: number
       transition: string

@@ -1,6 +1,6 @@
 {
   "name": "orion",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "license": "GPL-3.0-only",
   "description": "Presentation software for church services",
   "main": "./out/main/index.js",
@@ -32,6 +32,7 @@
     "iwork-viewer": "^0.0.2",
     "jszip": "^3.10.1",
     "mdb-reader": "^3.2.0",
+    "mtx-decompressor": "^1.8.0",
     "pdfjs-dist": "^6.5.438",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

@@ -1,5 +1,11 @@
 import type { HTMLAttributes } from 'react'
 
+declare global {
+  interface ImportMeta {
+    glob: (pattern: string, options?: { eager?: boolean; import?: string }) => Record<string, unknown>
+  }
+}
+
 export type { OrionDisplayInfo } from '../../shared/displays'
 
 export type OrderFolderInfo = {

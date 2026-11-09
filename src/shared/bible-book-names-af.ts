@@ -43,7 +43,7 @@ export const AFRIKAANS_BOOK_NAMES: Record<string, string> = {
   mrk: 'Markus',
   luk: 'Lukas',
   jhn: 'Johannes',
-  act: 'Handelinginge',
+  act: 'Handelinge',
   rom: 'Romeine',
   '1co': '1 Korintiërs',
   '2co': '2 Korintiërs',

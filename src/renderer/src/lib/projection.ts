@@ -144,6 +144,7 @@ export async function presentDeckSlide(
     height: number
     transition: string
     durationMs: number
+    fontCss?: string
     autoplayMedia?: boolean
     media: {
       src: string
@@ -178,6 +179,7 @@ export async function presentDeckSlide(
       content: {
         type: 'deck-slide',
         markup,
+        fontCss: frame.fontCss,
         width: frame.width,
         height: frame.height,
         transition: frame.transition,

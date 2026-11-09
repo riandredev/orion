@@ -7,11 +7,17 @@ import {
   type LibraryProgress,
   type LibraryRow
 } from '../../../shared/content-bundles'
-import panoramaChurchArt from '../assets/panorama-church.png'
 import { AdwActionRow } from './AdwActionRow'
 
-const LIBRARY_ART: Record<string, string> = {
-  panorama: panoramaChurchArt
+const libraryIcons = import.meta.glob('../../../../bundles/*/icon.png', {
+  eager: true,
+  import: 'default'
+}) as Record<string, string>
+
+function libraryArt(id: string): string | undefined {
+  const suffix = `/bundles/${id}/icon.png`
+  const match = Object.entries(libraryIcons).find(([path]) => path.replaceAll('\\', '/').endsWith(suffix))
+  return match?.[1]
 }
 
 function shippedList(): LibraryList {
@@ -83,7 +89,7 @@ export function LibrariesSettingsPanel(): ReactElement {
           list.libraries.map((row) => {
             const working = busyId === row.id
             const label = row.status === 'update' ? 'Update' : row.status === 'installed' ? 'Installed' : 'Download'
-            const art = LIBRARY_ART[row.id]
+            const art = libraryArt(row.id)
             return (
               <AdwActionRow
                 key={row.id}

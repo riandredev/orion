@@ -63,6 +63,7 @@ export const AFRIKAANS_BOOK_ALIASES: Record<string, string> = {
   luk: 'luk',
   johannes: 'jhn',
   handelinginge: 'act',
+  handelinge: 'act',
   hand: 'act',
   romeine: 'rom',
   rom: 'rom',

@@ -1,0 +1,12 @@
+{
+  "include": [
+    ["order-images", "order-images"],
+    ["hymnals/adventist-1-afrikaans", "hymnals/adventist-1-afrikaans"],
+    ["hymnals/adventist-2-english-new", "hymnals/adventist-2-english-new"],
+    ["bibles/eng-kjv", "bibles/eng-kjv"],
+    ["bibles/bss-afri", "bibles/bss-afri"],
+    ["images/bible-image.jpg", "images/bible-image.jpg"],
+    ["images/bible-image.png", "images/bible-image.png"],
+    ["images/hymn-image.jpg", "images/hymn-image.jpg"]
+  ]
+}

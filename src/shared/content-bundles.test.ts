@@ -25,6 +25,28 @@ describe('content bundles', () => {
     expect(rows[0]?.status).toBe('update')
   })
 
+  it('lists every catalog entry', () => {
+    const catalog = parseLibraryCatalog({
+      bundles: [
+        {
+          id: 'panorama',
+          name: 'SDA Panorama Church',
+          summary: '',
+          version: '1',
+          downloadUrl: 'https://example.test/panorama.zip'
+        },
+        {
+          id: 'other-church',
+          name: 'Other Church',
+          summary: '',
+          version: '1',
+          downloadUrl: 'https://example.test/other.zip'
+        }
+      ]
+    })
+    expect(libraryRows(catalog ?? [], []).map((row) => row.id)).toEqual(['panorama', 'other-church'])
+  })
+
   it('rejects a catalog entry without an https download', () => {
     expect(
       parseLibraryCatalog({
