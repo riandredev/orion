@@ -34,8 +34,19 @@ function importProgressCaption(progress: PresentationImportProgress | null): str
   return progress.message
 }
 
+function formatToken(ext: string): string {
+  return ext.replace('.', '').toLowerCase()
+}
+
+function deckCountLabel(row: PresentationDeckSummary): string {
+  const pages = formatToken(row.sourceExt) === 'pdf'
+  const unit = pages ? 'page' : 'slide'
+  const plural = row.slideCount === 1 ? '' : 's'
+  return `${row.slideCount} ${unit}${plural}`
+}
+
 function deckTooltip(row: PresentationDeckSummary): string {
-  return `${row.title}\n${row.slideCount} slides · ${row.sourceExt.replace('.', '').toUpperCase()}`
+  return `${row.title}\n${deckCountLabel(row)} · ${formatToken(row.sourceExt).toUpperCase()}`
 }
 
 export type PresentationSlideThumbSize = 's' | 'm' | 'l'
@@ -188,7 +199,7 @@ export function PresentationWorkspace({
               </li>
             ) : decks.length === 0 ? (
               <li className="presentation-workspace__empty adw-caption">
-                Import a .pptx, .ppt, or .key file to begin.
+                Import a .pptx, .key, or .pdf file to begin.
               </li>
             ) : (
               decks.map((row) => {
@@ -238,7 +249,10 @@ export function PresentationWorkspace({
                         <span className="presentation-deck-list__meta">
                           <span className="presentation-deck-list__title">{row.title}</span>
                           <span className="presentation-deck-list__subtitle adw-caption">
-                            {row.slideCount} slides · {row.sourceExt.replace('.', '').toUpperCase()}
+                            {deckCountLabel(row)}
+                            <span className={`presentation-format presentation-format--${formatToken(row.sourceExt)}`}>
+                              {formatToken(row.sourceExt).toUpperCase()}
+                            </span>
                           </span>
                         </span>
                       </button>

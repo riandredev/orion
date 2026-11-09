@@ -25,6 +25,7 @@ export const ORION_PROFILE_SETTINGS_KEYS = [
   'orion-recent-colors-v1',
   'orion-order-view',
   'orion-order-thumb-size',
+  'orion-order-show-names',
   'orion-media-view-2',
   'orion-media-thumb-size',
   'orion-media-sort',

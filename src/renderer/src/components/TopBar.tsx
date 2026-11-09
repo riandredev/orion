@@ -14,6 +14,7 @@ type TopBarProps = {
   activeTab: WorkspaceTab
   onTabChange: (tab: WorkspaceTab) => void
   onOpenSettings: () => void
+  onOpenShortcuts: () => void
   orderBlock?: OrderBlockRibbonProps
   webBlock?: WebTabRibbonProps
   bibleBlock?: BibleTabRibbonProps
@@ -26,6 +27,7 @@ export function TopBar({
   activeTab,
   onTabChange,
   onOpenSettings,
+  onOpenShortcuts,
   orderBlock,
   webBlock,
   bibleBlock,
@@ -54,6 +56,16 @@ export function TopBar({
           })}
         </div>
         <div className="top-chrome__spacer" />
+        <AdwTooltip text="Keyboard shortcuts">
+          <button
+            type="button"
+            className="adw-button adw-button--flat top-chrome__settings-btn"
+            onClick={onOpenShortcuts}
+            aria-label="Keyboard shortcuts"
+          >
+            <AppIcon name="keyboard" size={16} />
+          </button>
+        </AdwTooltip>
         <AdwTooltip text="Settings">
           <button
             type="button"

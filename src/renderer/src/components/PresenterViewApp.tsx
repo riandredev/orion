@@ -29,14 +29,15 @@ export function PresenterViewApp(): ReactElement {
         }
         return
       }
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         const target = e.target as HTMLElement
         const inField =
           target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA'
         if (inField) return
         e.preventDefault()
         blurShortcutTarget(e.target)
-        void window.orionPresenter.stepSlide(e.key === 'ArrowLeft' ? -1 : 1)
+        const back = e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+        void window.orionPresenter.stepSlide(back ? -1 : 1)
       }
     }
     window.addEventListener('keydown', onKeyDown)

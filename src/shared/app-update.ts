@@ -11,6 +11,8 @@ export type AppUpdateStatus =
 export type ReleaseAsset = {
   name: string
   browser_download_url: string
+  /** API asset URL. The public download link can time out before the file starts. */
+  url?: string
   size: number
   digest?: string | null
 }
@@ -71,6 +73,11 @@ export function installerAssetName(
       : `Orion-${version}-linux.AppImage`
   }
   return null
+}
+
+export function installerRequestUrls(asset: ReleaseAsset): string[] {
+  const urls = [asset.url, asset.browser_download_url].filter((url): url is string => Boolean(url))
+  return [...new Set(urls)]
 }
 
 export function selectUpdate(

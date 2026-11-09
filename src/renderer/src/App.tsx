@@ -40,6 +40,7 @@ import {
 } from './lib/dictionary-ribbon-sync'
 import { patchDictionaryWorkspaceSession } from './lib/dictionary-workspace-session'
 import { getBibleRibbonActions } from './lib/bible-ribbon-actions'
+import { getDictionaryRibbonActions, setDictionaryOutputActions } from './lib/dictionary-ribbon-actions'
 import { getHymnsRibbonActions } from './lib/hymns-ribbon-actions'
 import { requestMediaSequenceCue } from './lib/media-sequence-cue'
 import { loadPlaybackSettings } from './lib/playback-settings'
@@ -144,6 +145,7 @@ import {
   type OutputPreview,
   type OutputPreviewMotion
 } from './components/ProjectorPanel'
+import { ShortcutSheet } from './components/ShortcutSheet'
 import { TopBar } from './components/TopBar'
 import { SettingsDialog } from './components/SettingsDialog'
 import { SequencePanel } from './components/SequencePanel'
@@ -306,6 +308,15 @@ function loadStoredPresentationDeckId(): string | null {
 const ORDER_VIEW_KEY = 'orion-order-view'
 
 const ORDER_THUMB_KEY = 'orion-order-thumb-size'
+const ORDER_NAMES_KEY = 'orion-order-show-names'
+
+function loadOrderShowNames(): boolean {
+  try {
+    return localStorage.getItem(ORDER_NAMES_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
 
 function loadOrderThumbSize(): OrderThumbSize {
   try {
@@ -360,6 +371,7 @@ function TabWorkspace({
   onReorderFolders,
   view,
   thumbSize,
+  showImageNames,
   onNewFolder,
   onProjectToOutputs,
   onHymnsProjectStanza,
@@ -398,6 +410,7 @@ function TabWorkspace({
   onReorderFolders: (fromName: string, targetName: string, position: 'before' | 'after') => void
   view: OrderLibraryView
   thumbSize: OrderThumbSize
+  showImageNames: boolean
   onNewFolder: () => void
   onProjectToOutputs: () => void
   onHymnsProjectStanza: () => void
@@ -484,6 +497,7 @@ function TabWorkspace({
           onReorderFolders={onReorderFolders}
           view={view}
           thumbSize={thumbSize}
+          showImageNames={showImageNames}
           onNewFolder={onNewFolder}
         />
       )}
@@ -506,6 +520,7 @@ export default function App(): ReactElement {
   const [tab, setTab] = useState<WorkspaceTab>('order')
   const [webSeen, setWebSeen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('displays')
   const [sequenceOpen, setSequenceOpen] = useState(true)
   const [projectorOpen, setProjectorOpen] = useState(true)
@@ -518,6 +533,7 @@ export default function App(): ReactElement {
   const [playing, setPlaying] = useState(false)
   const [orderView, setOrderView] = useState<OrderLibraryView>(loadOrderView)
   const [orderThumbSize, setOrderThumbSize] = useState<OrderThumbSize>(loadOrderThumbSize)
+  const [orderShowNames, setOrderShowNames] = useState(loadOrderShowNames)
   const [newFolderSignal, setNewFolderSignal] = useState(0)
   const [program, setProgram] = useState<PresentationUiState>(() => emptyPresentationUiState())
   const liveFlags = operatorLiveFlags(program)
@@ -540,6 +556,8 @@ export default function App(): ReactElement {
   const [sequenceItems, setSequenceItems] = useState<ServiceSequenceItem[]>(loadStoredSequence)
   const [sequenceCursor, setSequenceCursor] = useState<SequenceCursor>({ itemIndex: 0, stepIndex: 0 })
   const [sequenceFollow, setSequenceFollow] = useState(false)
+  const toggleOrderOutputRef = useRef<() => void>(() => {})
+  const goOrderLiveRef = useRef<() => void>(() => {})
   const sequenceCursorRef = useRef(sequenceCursor)
   sequenceCursorRef.current = sequenceCursor
   const skipSequenceWrite = useRef(false)
@@ -788,6 +806,7 @@ export default function App(): ReactElement {
       setSequenceItems(loadStoredSequence())
       setOrderView(loadOrderView())
       setOrderThumbSize(loadOrderThumbSize())
+      setOrderShowNames(loadOrderShowNames())
       setPresentationDeckId(loadStoredPresentationDeckId())
       setWebUrlInput(loadLastWebUrl())
       setFolderSettings(loadOrderFolderPlayback())
@@ -939,6 +958,7 @@ export default function App(): ReactElement {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (tab !== 'order' || sequenceFollowsKeys()) return
+      if (document.querySelector('dialog[open]')) return
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') {
         return
@@ -988,6 +1008,14 @@ export default function App(): ReactElement {
         blurShortcutTarget(e.target)
         if (!outputLive) return
         setPlaying((p) => !p)
+      } else if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault()
+        blurShortcutTarget(e.target)
+        toggleOrderOutputRef.current()
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        blurShortcutTarget(e.target)
+        goOrderLiveRef.current()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -1092,6 +1120,12 @@ export default function App(): ReactElement {
     }
     await goOrderLive()
   }, [outputLive, stopOrderProjection, goOrderLive])
+  toggleOrderOutputRef.current = () => {
+    void toggleOrderOutput()
+  }
+  goOrderLiveRef.current = () => {
+    void goOrderLive()
+  }
 
   const goBibleLive = useCallback(async () => {
     const content = getBibleLiveContent()
@@ -1128,6 +1162,17 @@ export default function App(): ReactElement {
     }
     await goDictionaryLive()
   }, [dictionaryLive, stopBibleProjection, goDictionaryLive])
+
+  useEffect(() => {
+    setDictionaryOutputActions({
+      project: () => {
+        void goDictionaryLive()
+      },
+      toggle: () => {
+        void toggleDictionaryOutput()
+      }
+    })
+  }, [goDictionaryLive, toggleDictionaryOutput])
 
   const goHymnsLive = useCallback(async () => {
     const content = getHymnLiveContent()
@@ -1346,6 +1391,27 @@ export default function App(): ReactElement {
   }, [webLive, stopAllProjection, goWebLive])
 
   useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== '?' || event.ctrlKey || event.altKey || event.metaKey) return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+      if (document.querySelector('dialog[open]')) return
+      event.preventDefault()
+      setShortcutsOpen(true)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  useEffect(() => {
     if (tab !== 'presentation') return
 
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -1356,13 +1422,13 @@ export default function App(): ReactElement {
         target.tagName === 'SELECT' ||
         target.tagName === 'TEXTAREA'
 
-      if (e.key === 'ArrowLeft' && !inField) {
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && !inField) {
         e.preventDefault()
         blurShortcutTarget(e.target)
         goPresentationPrev()
         return
       }
-      if (e.key === 'ArrowRight' && !inField) {
+      if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && !inField) {
         e.preventDefault()
         blurShortcutTarget(e.target)
         goPresentationNext()
@@ -1823,6 +1889,16 @@ export default function App(): ReactElement {
     },
     view: orderView,
     thumbSize: orderThumbSize,
+    showImageNames: orderShowNames,
+    onShowImageNamesChange: (next) => {
+      setOrderShowNames(next)
+      try {
+        localStorage.setItem(ORDER_NAMES_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      touchProfileSettings()
+    },
     onThumbSizeChange: (next) => {
       setOrderThumbSize(next)
       try {
@@ -1879,7 +1955,9 @@ export default function App(): ReactElement {
       const live = getDictionaryLiveContent()
       if (!live?.lemma) return
       setSequenceItems((prev) => [...prev, withSequenceId({ kind: 'dictionary', ...live })])
-    }
+    },
+    onPrevEntry: () => getDictionaryRibbonActions().prevEntry?.(),
+    onNextEntry: () => getDictionaryRibbonActions().nextEntry?.()
   }
 
   const hymnsBlock: HymnsTabRibbonProps = {
@@ -2218,6 +2296,7 @@ export default function App(): ReactElement {
         activeTab={tab}
         onTabChange={setTab}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
         orderBlock={tab === 'order' ? orderBlock : undefined}
         webBlock={tab === 'web' ? webBlock : undefined}
         bibleBlock={tab === 'bible' ? bibleBlock : undefined}
@@ -2328,6 +2407,7 @@ export default function App(): ReactElement {
               onReorderFolders={reorderFolders}
               view={orderView}
               thumbSize={orderThumbSize}
+              showImageNames={orderShowNames}
               onNewFolder={() => setNewFolderSignal((n) => n + 1)}
               onProjectToOutputs={() => {
                 void goBibleLive()
@@ -2379,6 +2459,7 @@ export default function App(): ReactElement {
           }
         />
       </div>
+      <ShortcutSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <SettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

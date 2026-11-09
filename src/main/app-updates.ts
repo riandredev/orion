@@ -6,7 +6,7 @@ import { chmod, copyFile, mkdir, rename, rm, stat } from 'fs/promises'
 import { join } from 'path'
 import { Readable, Transform } from 'stream'
 import { pipeline } from 'stream/promises'
-import { selectUpdate, type ReleaseInfo, type SelectedUpdate } from '../shared/app-update'
+import { installerRequestUrls, selectUpdate, type ReleaseAsset, type ReleaseInfo, type SelectedUpdate } from '../shared/app-update'
 import { readEdition } from './edition'
 import { getMainAppWindow } from './projection'
 
@@ -66,6 +66,53 @@ export async function checkForAppUpdate(): Promise<void> {
   }
 }
 
+const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
+
+function wait(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms)
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        reject(signal.reason instanceof Error ? signal.reason : new Error('The download was canceled.'))
+      },
+      { once: true }
+    )
+  })
+}
+
+async function openInstaller(asset: ReleaseAsset, signal: AbortSignal): Promise<Response> {
+  let lastStatus = 0
+  for (const url of installerRequestUrls(asset)) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      if (signal.aborted) throw new Error('The download was canceled.')
+      let response: Response
+      try {
+        response = await fetch(url, {
+          signal,
+          redirect: 'follow',
+          headers: {
+            'User-Agent': 'Orion',
+            Accept: 'application/octet-stream'
+          }
+        })
+      } catch (error) {
+        if (signal.aborted) throw error
+        lastStatus = 0
+        if (attempt < 3) await wait(400 * attempt, signal)
+        continue
+      }
+      if (response.ok && response.body) return response
+      lastStatus = response.status
+      await response.body?.cancel().catch(() => undefined)
+      if (!RETRYABLE_STATUS.has(response.status) || attempt === 3) break
+      await wait(400 * attempt, signal)
+    }
+  }
+  throw new Error(lastStatus ? `GitHub returned ${lastStatus}.` : 'The download did not start.')
+}
+
 async function downloadUpdate(): Promise<void> {
   if (!pending || abort) return
   const update = pending
@@ -76,13 +123,9 @@ async function downloadUpdate(): Promise<void> {
   const dest = join(dir, update.asset.name)
   await rm(dest, { force: true })
   setDownloadProgress(0)
+  let retry = false
   try {
-    const response = await fetch(update.asset.browser_download_url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'Orion' },
-      redirect: 'follow'
-    })
-    if (!response.ok || !response.body) throw new Error('The download did not start.')
+    const response = await openInstaller(update.asset, controller.signal)
     const hash = createHash('sha256')
     let received = 0
     const total = update.asset.size
@@ -117,17 +160,21 @@ async function downloadUpdate(): Promise<void> {
     setDownloadProgress(null)
     if (controller.signal.aborted) return
     const message = error instanceof Error ? error.message : 'The update could not be downloaded.'
-    await ask({
+    const response = await ask({
       type: 'error',
       title: 'Orion',
       message: 'The update could not be downloaded.',
       detail: message,
-      buttons: ['OK'],
+      buttons: ['Try again', 'Close'],
+      defaultId: 0,
+      cancelId: 1,
       noLink: true
     })
+    retry = response === 0
   } finally {
     abort = null
   }
+  if (retry) await downloadUpdate()
 }
 
 async function promptAvailable(update: SelectedUpdate): Promise<void> {

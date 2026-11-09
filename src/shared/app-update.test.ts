@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { selectUpdate, type ReleaseInfo } from './app-update'
+import { installerRequestUrls, selectUpdate, type ReleaseInfo } from './app-update'
 
 const releases: ReleaseInfo[] = [
   {
@@ -50,6 +50,20 @@ describe('selectUpdate', () => {
 
     const standard = selectUpdate(releases, 'standard', 'win32', '0.1.0')
     expect(standard).toBeNull()
+  })
+
+  it('asks GitHub for the asset directly before the public download link', () => {
+    expect(
+      installerRequestUrls({
+        name: 'Orion-Panorama-1.0.5-windows-setup.exe',
+        url: 'https://api.github.com/repos/riandredev/orion/releases/assets/1',
+        browser_download_url: 'https://github.com/riandredev/orion/releases/download/v1.0.5-panorama/Orion-Panorama-1.0.5-windows-setup.exe',
+        size: 10
+      })
+    ).toEqual([
+      'https://api.github.com/repos/riandredev/orion/releases/assets/1',
+      'https://github.com/riandredev/orion/releases/download/v1.0.5-panorama/Orion-Panorama-1.0.5-windows-setup.exe'
+    ])
   })
 
   it('picks the installer for the current platform', () => {

@@ -29,6 +29,11 @@ const folder: IconifyIcon = {
   height: 24,
   body: '<path fill="currentColor" d="M4 6.5A1.5 1.5 0 0 1 5.5 5H9l1.6 2H18.5A1.5 1.5 0 0 1 20 8.5v8A1.5 1.5 0 0 1 18.5 18h-13A1.5 1.5 0 0 1 4 16.5z"/>'
 }
+const keyboard: IconifyIcon = {
+  width: 24,
+  height: 24,
+  body: '<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>'
+}
 const save: IconifyIcon = {
   width: 24,
   height: 24,
@@ -64,6 +69,12 @@ import globe from '@iconify-icons/coolicons/globe-fill-round'
 import video from '@iconify-icons/coolicons/video-fill-round'
 import pin from '@iconify-icons/coolicons/pin-fill-round'
 
+const caption: IconifyIcon = {
+  width: 24,
+  height: 24,
+  body: '<path fill="currentColor" d="M4 4h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1m1 2v7h14V6zm0 12h7v2H5zm9 0h5v2h-5z"/>'
+}
+
 export const AppIcons = {
   plus,
   listPlus,
@@ -84,6 +95,7 @@ export const AppIcons = {
   book,
   presentation,
   settings,
+  keyboard,
   caretLeft: chevronLeft,
   caretRight: chevronRight,
   caretUp: chevronUp,
@@ -93,6 +105,7 @@ export const AppIcons = {
   viewColumns,
   viewGrid,
   viewList,
+  caption,
   globe,
   video,
   trash,

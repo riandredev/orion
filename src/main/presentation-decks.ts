@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import { BrowserWindow, dialog } from 'electron'
 import { spawn } from 'child_process'
 import { randomUUID } from 'crypto'
@@ -5,6 +7,7 @@ import { existsSync } from 'fs'
 import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'fs/promises'
 import { basename, extname, join, resolve } from 'path'
 import JSZip from 'jszip'
+import { countKeynoteSlides } from '../shared/keynote-package'
 import { listPackageMedia, readPptxCues, type PptxSlideCue } from '../shared/pptx-cues'
 import { createCanvas } from '@napi-rs/canvas'
 import type {
@@ -18,7 +21,8 @@ import { presentationsRoot } from './paths'
 import { isPathUnderRoot } from './projection-paths'
 import { resolveSofficeForPresentationImport } from './presentation-import-deps'
 
-const DECK_EXT = new Set(['.pptx', '.key'])
+const DECK_EXT = new Set(['.pptx', '.key', '.pdf'])
+const require = createRequire(__filename)
 const MANIFEST = 'manifest.json'
 /** Target width for slide PNGs (re-import to refresh existing decks). */
 const SLIDE_WIDTH = 2560
@@ -99,6 +103,9 @@ async function runSofficeConvert(sourcePath: string, outDir: string): Promise<vo
 
 async function renderPdfToPngSlides(pdfPath: string, outDir: string): Promise<string[]> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
+    require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')
+  ).href
   const data = new Uint8Array(await readFile(pdfPath))
   const loadingTask = pdfjs.getDocument({ data, useSystemFonts: true })
   const doc = await loadingTask.promise
@@ -108,7 +115,7 @@ async function renderPdfToPngSlides(pdfPath: string, outDir: string): Promise<st
     broadcastImportProgress({
       phase: 'rendering',
       percent: Math.round((pageNum / slideCount) * 100),
-      message: 'Rendering slides…',
+      message: 'Rendering pages…',
       slideIndex: pageNum,
       slideCount
     })
@@ -241,7 +248,7 @@ export async function importPresentationDeckFromDialog(): Promise<PresentationIm
     title: 'Import presentation',
     properties: ['openFile'],
     filters: [
-      { name: 'Presentations', extensions: ['pptx', 'key'] },
+      { name: 'Presentations', extensions: ['pptx', 'key', 'pdf'] },
       { name: 'All files', extensions: ['*'] }
     ]
   })
@@ -253,7 +260,7 @@ export async function importPresentationDeckFromDialog(): Promise<PresentationIm
   if (!DECK_EXT.has(ext)) {
     return {
       ok: false,
-      message: 'Use a .pptx or .key file. Legacy .ppt must be saved as PowerPoint (.pptx) first.'
+      message: 'Use a .pptx, .key, or .pdf file. Legacy .ppt must be saved as PowerPoint (.pptx) first.'
     }
   }
 
@@ -271,6 +278,28 @@ export async function importPresentationDeckFromDialog(): Promise<PresentationIm
       message: 'Reading presentation…'
     })
     const bytes = await readFile(copiedSource)
+    if (ext === '.pdf') {
+      const slideFiles = await renderPdfToPngSlides(copiedSource, dir)
+      if (slideFiles.length === 0) throw new Error('The PDF has no pages.')
+      const manifest: DeckManifest = {
+        version: 2,
+        id,
+        title: titleFromFileName(basename(sourcePath)),
+        sourceFileName,
+        sourceExt: ext,
+        importedAt: new Date().toISOString(),
+        slideCount: slideFiles.length,
+        slideFiles
+      }
+      await writeFile(manifestPath(id), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
+      broadcastImportProgress({
+        phase: 'rendering',
+        percent: 100,
+        message: 'Presentation ready.'
+      })
+      return { ok: true, deck: detailFromManifest(manifest) }
+    }
+
     const mediaDir = join(dir, 'media')
     await mkdir(mediaDir, { recursive: true })
     const zip = await JSZip.loadAsync(bytes)
@@ -290,9 +319,7 @@ export async function importPresentationDeckFromDialog(): Promise<PresentationIm
       slideCount = sheet.slideCount
       cues = sheet.slides
     } else {
-      zip.forEach((path) => {
-        if (/slide/i.test(path) && path.endsWith('.iwa')) slideCount += 1
-      })
+      slideCount = await countKeynoteSlides(bytes)
     }
     if (slideCount === 0) {
       throw new Error('The presentation has no slides.')

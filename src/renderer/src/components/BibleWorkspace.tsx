@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactElement } from 'react'
+import { createPortal } from 'react-dom'
 import { bibleBooks, formatPassageRefForBook, getBookById, getBookDisplayName } from '../data/bible-books'
 import { isAfrikaansBibleTranslation } from '../../../shared/bible-book-names-af'
 import {
@@ -12,6 +13,8 @@ import {
   bibleProjectionTranslationLabel,
   formatBibleProjectionLocation
 } from '../../../shared/bible-projection-display'
+import { bibleCrossRefs, loadBibleCrossRefs } from '../lib/bible-cross-refs'
+import type { BibleCrossRef } from '../../../shared/bible-cross-refs'
 import { fetchBibleChapter } from '../lib/bible-library-api'
 import { useInstalledBibles } from '../lib/use-installed-bibles'
 import { clearBibleRibbonActions, setBibleRibbonActions } from '../lib/bible-ribbon-actions'
@@ -55,6 +58,7 @@ const modeOptions = [
 ]
 
 const HISTORY_HEIGHT_KEY = 'orion-bible-history-height'
+const CROSS_REF_KEY = 'orion-bible-cross-refs'
 const DEFAULT_HISTORY_HEIGHT = 140
 const MIN_HISTORY_HEIGHT = 80
 const MAX_HISTORY_HEIGHT = 360
@@ -79,21 +83,41 @@ function saveHistoryHeight(height: number): void {
   }
 }
 
+function loadShowCrossRefs(): boolean {
+  try {
+    return localStorage.getItem(CROSS_REF_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+function crossRefLabel(ref: BibleCrossRef, afrikaans: boolean): string {
+  const label = formatPassageRefForBook(ref.bookId, ref.chapter, ref.verse, afrikaans)
+  return ref.endVerse && ref.endVerse !== ref.verse ? `${label}\u2013${ref.endVerse}` : label
+}
+
 function RibbonIconBtn({
   label,
   icon,
-  onClick
+  onClick,
+  pressed
 }: {
   label: string
   icon: AppIconName
   onClick?: () => void
+  pressed?: boolean
 }): ReactElement {
   return (
     <AdwTooltip text={label}>
       <button
         type="button"
-        className="adw-button adw-button--flat adw-button--icon-sm bible-verse-toolbar__btn"
+        className={
+          pressed
+            ? 'adw-button adw-button--flat adw-button--icon-sm bible-verse-toolbar__btn bible-verse-toolbar__btn--on'
+            : 'adw-button adw-button--flat adw-button--icon-sm bible-verse-toolbar__btn'
+        }
         aria-label={label}
+        aria-pressed={pressed}
         onClick={onClick}
       >
         <AppIcon name={icon} size={16} />
@@ -132,6 +156,14 @@ export function BibleWorkspace({
     startHeight: number
   } | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [showCrossRefs, setShowCrossRefs] = useState(loadShowCrossRefs)
+  const [crossRefsReady, setCrossRefsReady] = useState(false)
+  const [xrefMenu, setXrefMenu] = useState<{
+    verse: number
+    left: number
+    top: number
+    above: boolean
+  } | null>(null)
 
   const book = getBookById(bookId) ?? bibleBooks[0]
   const filteredBooks = useMemo(() => {
@@ -188,17 +220,57 @@ export function BibleWorkspace({
     saveBibleTranslation(next)
   }, [bibles, translation])
 
+  const chapterLoad = useRef(0)
+  const versesFromLoad = useRef(0)
+  const navHold = useRef<{ bookId: string; chapter: number; verse: number } | null>(null)
+
+  useEffect(() => {
+    if (!showCrossRefs) return
+    let cancelled = false
+    void loadBibleCrossRefs()
+      .then(() => {
+        if (!cancelled) setCrossRefsReady(true)
+      })
+      .catch(() => {
+        if (!cancelled) setCrossRefsReady(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [showCrossRefs])
+
+  useEffect(() => {
+    if (!xrefMenu) return
+    const close = (event: MouseEvent): void => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('.bible-xref-menu') || target.closest('.bible-verse__refs')) return
+      setXrefMenu(null)
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setXrefMenu(null)
+    }
+    window.addEventListener('mousedown', close)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', close)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [xrefMenu])
+
   useEffect(() => {
     if (!translation) {
       setVerses([])
       return
     }
+    const loadId = ++chapterLoad.current
     let cancelled = false
     setChapterLoading(true)
     setChapterError(null)
     void fetchBibleChapter(translation, book.id, chapter)
       .then((result) => {
-        if (cancelled) return
+        if (cancelled || loadId !== chapterLoad.current) return
+        versesFromLoad.current = loadId
         setVerses(result.verses)
       })
       .catch(() => {
@@ -215,11 +287,20 @@ export function BibleWorkspace({
   }, [translation, book.id, chapter])
 
   useEffect(() => {
+    if (versesFromLoad.current !== chapterLoad.current) return
+    const hold = navHold.current
+    if (hold && hold.bookId === bookId && hold.chapter === chapter) {
+      navHold.current = null
+      if (verses.some((v) => v.number === hold.verse)) {
+        if (verse !== hold.verse) setVerse(hold.verse)
+        return
+      }
+    }
     if (verses.length === 0) return
     if (!verses.some((v) => v.number === verse)) {
       setVerse(verses[0]!.number)
     }
-  }, [verses, verse])
+  }, [verses, verse, bookId, chapter])
 
   useEffect(() => {
     setBibleActivePassage(passageRef)
@@ -269,17 +350,23 @@ export function BibleWorkspace({
   function selectBook(id: string): void {
     const next = getBookById(id)
     if (!next) return
+    navHold.current = null
+    setXrefMenu(null)
     setBookId(id)
     setChapter(1)
     setVerse(1)
   }
 
   function selectChapter(n: number): void {
+    navHold.current = null
+    setXrefMenu(null)
     setChapter(n)
     setVerse(1)
   }
 
   function selectVerse(n: number, text: string): void {
+    navHold.current = null
+    setXrefMenu(null)
     setVerse(n)
     const ref = formatPassageRefForBook(bookId, chapter, n, afrikaansBooks)
     const locationLabel = formatBibleProjectionLocation(
@@ -333,9 +420,24 @@ export function BibleWorkspace({
   }
 
   function navigateToPassage(target: { bookId: string; chapter: number; verse: number }): void {
+    navHold.current = target
+    setXrefMenu(null)
     setBookId(target.bookId)
     setChapter(target.chapter)
     setVerse(target.verse)
+  }
+
+  function toggleCrossRefs(): void {
+    setShowCrossRefs((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(CROSS_REF_KEY, next ? '1' : '0')
+      } catch {
+        /* the choice still applies for this session */
+      }
+      return next
+    })
+    setXrefMenu(null)
   }
 
   const bibleCue = useBibleSequenceCue()
@@ -391,6 +493,9 @@ export function BibleWorkspace({
       } else if (e.key === 'Enter') {
         e.preventDefault()
         onProjectToOutputs()
+      } else if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.key === 'Shift' && !e.repeat) {
+        e.preventDefault()
+        toggleCrossRefs()
       }
     }
 
@@ -601,7 +706,12 @@ export function BibleWorkspace({
               ) : null}
             </div>
             <div className="bible-verse-toolbar__actions">
-              <RibbonIconBtn label="Cross references" icon="passageRef" />
+              <RibbonIconBtn
+                label="Cross references"
+                icon="passageRef"
+                pressed={showCrossRefs}
+                onClick={toggleCrossRefs}
+              />
               <span className="bible-verse-toolbar__hint adw-caption">Ctrl Shift</span>
               <RibbonIconBtn
                 label="Add to sequence"
@@ -618,7 +728,12 @@ export function BibleWorkspace({
               />
             </div>
           </header>
-          <ol className="bible-verse-list">
+          <ol
+            className="bible-verse-list"
+            onScroll={() => {
+              if (xrefMenu) setXrefMenu(null)
+            }}
+          >
             {chapterLoading ? (
               <li className="bible-verse-list__status adw-caption">Loading chapter…</li>
             ) : chapterError ? (
@@ -632,13 +747,18 @@ export function BibleWorkspace({
             ) : (
               verses.map((line) => {
                 const selected = line.number === verse
+                const refs =
+                  showCrossRefs && crossRefsReady ? bibleCrossRefs(bookId, chapter, line.number) : []
                 return (
-                  <li key={line.number}>
+                  <li
+                    key={line.number}
+                    className={
+                      selected ? 'bible-verse-row bible-verse-row--selected' : 'bible-verse-row'
+                    }
+                  >
                     <button
                       type="button"
-                      className={
-                        selected ? 'bible-verse bible-verse--selected' : 'bible-verse'
-                      }
+                      className="bible-verse"
                       draggable
                       onDragStart={(event: DragEvent<HTMLButtonElement>) => {
                         writeSequenceDrag(event.dataTransfer, {
@@ -668,6 +788,28 @@ export function BibleWorkspace({
                       <span className="bible-verse__num">{line.number}</span>
                       <span className="bible-verse__text">{line.text}</span>
                     </button>
+                    {refs.length > 0 ? (
+                      <button
+                        type="button"
+                        className="bible-verse__refs"
+                        aria-label={`${refs.length} cross references`}
+                        aria-expanded={xrefMenu?.verse === line.number}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          selectVerse(line.number, line.text)
+                          const rect = event.currentTarget.getBoundingClientRect()
+                          const above = rect.bottom + 288 > window.innerHeight && rect.top > 160
+                          setXrefMenu({
+                            verse: line.number,
+                            left: Math.max(8, Math.min(rect.right - 220, window.innerWidth - 236)),
+                            top: above ? rect.top - 4 : rect.bottom + 4,
+                            above
+                          })
+                        }}
+                      >
+                        {refs.length}
+                      </button>
+                    ) : null}
                   </li>
                 )
               })
@@ -749,6 +891,35 @@ export function BibleWorkspace({
           setLibraryOpen(false)
         }}
       />
+      {xrefMenu && showCrossRefs
+        ? createPortal(
+            <div
+              className="bible-xref-menu"
+              role="menu"
+              style={
+                xrefMenu.above
+                  ? { left: xrefMenu.left, bottom: window.innerHeight - xrefMenu.top }
+                  : { left: xrefMenu.left, top: xrefMenu.top }
+              }
+            >
+              {bibleCrossRefs(bookId, chapter, xrefMenu.verse).map((ref) => {
+                const label = crossRefLabel(ref, afrikaansBooks)
+                return (
+                  <button
+                    key={`${ref.bookId}-${ref.chapter}-${ref.verse}-${ref.endVerse ?? ''}`}
+                    type="button"
+                    role="menuitem"
+                    className="bible-xref-menu__item"
+                    onClick={() => navigateToPassage({ bookId: ref.bookId, chapter: ref.chapter, verse: ref.verse })}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   )
 }

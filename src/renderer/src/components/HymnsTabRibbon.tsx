@@ -4,6 +4,7 @@ import { useHymnActiveLabel, useHymnLiveContent } from '../lib/hymns-ribbon-sync
 import { AppIcon } from './AppIcon'
 import { AdwSelect } from './AdwSelect'
 import { AdwTooltip } from './AdwTooltip'
+import { KbdIcon } from './Kbd'
 import type { AppIconName } from './icons'
 
 export type HymnsTabRibbonProps = {
@@ -76,8 +77,6 @@ export function HymnsTabRibbon({
         <div className="order-ribbon__section order-ribbon__transport">
           <RibbonIconBtn label="Previous slide" icon="skipBack" disabled={!hasHymn} onClick={onPrevSlide} />
           <RibbonIconBtn label="Next slide" icon="skipForward" disabled={!hasHymn} onClick={onNextSlide} />
-          <RibbonIconBtn label="Previous slide" icon="caretUp" disabled={!hasHymn} onClick={onPrevSlide} />
-          <RibbonIconBtn label="Next slide" icon="caretDown" disabled={!hasHymn} onClick={onNextSlide} />
         </div>
         <div className="order-ribbon__section">
           <RibbonIconBtn label="Add to sequence" icon="listPlus" disabled={!hasHymn} onClick={onAddToSequence} />
@@ -130,7 +129,8 @@ export function HymnsTabRibbon({
         </div>
       </div>
       <p className="order-ribbon__hints adw-caption">
-        Search by number or title · Arrow keys move slides · Send to outputs to project
+        Search by number or title · <KbdIcon name="caretLeft" /> <KbdIcon name="caretRight" />{' '}
+        <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> slides · Send to outputs to project
       </p>
     </div>
   )

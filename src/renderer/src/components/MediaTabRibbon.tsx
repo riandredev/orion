@@ -3,6 +3,7 @@ import { useMediaRibbon, type MediaSortKey } from '../lib/media-ribbon-sync'
 import { AppIcon } from './AppIcon'
 import { AdwSelect } from './AdwSelect'
 import { AdwTooltip } from './AdwTooltip'
+import { Kbd, KbdIcon } from './Kbd'
 import type { AppIconName } from './icons'
 import type { OrderLibraryView, OrderThumbSize } from './OrderBlockRibbon'
 
@@ -165,9 +166,10 @@ export function MediaTabRibbon(): ReactElement {
         </div>
       </div>
       <p className="order-ribbon__hints adw-caption">
-        {media.previewing
-          ? 'One soundtrack, from this PC when the main display is not an output.'
-          : 'Click a file to open it. Headings in the list sort the folder.'}
+        <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> folders · <KbdIcon name="caretLeft" />{' '}
+        <KbdIcon name="caretRight" /> files · <Kbd>Space</Kbd> play / pause ·         <Kbd>Enter</Kbd> send to outputs · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> send or stop ·{' '}
+        <Kbd>Esc</Kbd> back
+        {media.previewing ? ' · Sound plays on this PC when the main display is not an output.' : ''}
       </p>
     </div>
   )

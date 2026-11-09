@@ -6,7 +6,15 @@ import {
   saveBibleTranslation,
   type BibleTranslationId
 } from '../data/bible-translations'
+import {
+  clearDictionaryRibbonActions,
+  projectDictionaryEntry,
+  setDictionaryRibbonActions,
+  toggleDictionaryOutputShortcut
+} from '../lib/dictionary-ribbon-actions'
 import { getDictionaryLiveContent, setDictionaryActiveEntry, setDictionaryLiveContent } from '../lib/dictionary-ribbon-sync'
+import { blurShortcutTarget } from '../lib/focus'
+import { sequenceFollowsKeys } from '../lib/sequence-cues'
 import { writeSequenceDrag } from '../lib/sequence-drag'
 import {
   getDictionaryWorkspaceSession,
@@ -102,6 +110,16 @@ export function DictionaryWorkspace(): ReactElement {
   const listFilterKeyRef = useRef<string | null>(`${sessionSeed.query}\0${sessionSeed.language}`)
   const selectedIdRef = useRef(selectedId)
   selectedIdRef.current = selectedId
+  const listEntriesRef = useRef(listEntries)
+  listEntriesRef.current = listEntries
+  const listTotalRef = useRef(listTotal)
+  listTotalRef.current = listTotal
+  const listLoadingMoreRef = useRef(listLoadingMore)
+  listLoadingMoreRef.current = listLoadingMore
+  const queryRef = useRef(query)
+  queryRef.current = query
+  const languageRef = useRef(language)
+  languageRef.current = language
 
   useEffect(() => {
     patchDictionaryWorkspaceSession({ query })
@@ -187,6 +205,91 @@ export function DictionaryWorkspace(): ReactElement {
       })
       .finally(() => setListLoadingMore(false))
   }, [query, language, listEntries.length, listTotal, listLoading, listLoadingMore])
+
+  const revealEntry = useCallback((id: string) => {
+    requestAnimationFrame(() => {
+      const root = listScrollRef.current
+      const el = root?.querySelector(`[data-entry-id="${CSS.escape(id)}"]`)
+      el?.scrollIntoView({ block: 'nearest' })
+    })
+  }, [])
+
+  const stepEntry = useCallback(
+    (delta: number) => {
+      const entries = listEntriesRef.current
+      if (entries.length === 0) return
+      const index = entries.findIndex((item) => item.id === selectedIdRef.current)
+      const nextIndex = index + delta
+      if (nextIndex >= 0 && nextIndex < entries.length) {
+        const id = entries[nextIndex]!.id
+        setSelectedId(id)
+        revealEntry(id)
+        return
+      }
+      if (delta < 0 || entries.length >= listTotalRef.current || listLoadingMoreRef.current) return
+      listLoadingMoreRef.current = true
+      setListLoadingMore(true)
+      void searchDictionaryEntries(queryRef.current, languageRef.current, entries.length, LIST_PAGE_SIZE)
+        .then(({ items }) => {
+          if (items.length === 0) return
+          setListEntries((prev) => {
+            const seen = new Set(prev.map((entry) => entry.id))
+            const merged = [...prev]
+            for (const item of items) {
+              if (!seen.has(item.id)) merged.push(item)
+            }
+            return merged
+          })
+          const id = items[0]!.id
+          setSelectedId(id)
+          revealEntry(id)
+        })
+        .finally(() => setListLoadingMore(false))
+    },
+    [revealEntry, setSelectedId]
+  )
+
+  useEffect(() => {
+    setDictionaryRibbonActions({
+      prevEntry: () => stepEntry(-1),
+      nextEntry: () => stepEntry(1)
+    })
+    return () => clearDictionaryRibbonActions()
+  }, [stepEntry])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (document.querySelector('.dictionary-workspace')?.closest('.tab-keep--hidden')) return
+      if (sequenceFollowsKeys()) return
+      if (document.querySelector('dialog[open]')) return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')
+      ) {
+        return
+      }
+      if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        stepEntry(-1)
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        stepEntry(1)
+      } else if (event.key === 'Enter' && event.ctrlKey) {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        toggleDictionaryOutputShortcut()
+      } else if (event.key === 'Enter') {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        projectDictionaryEntry()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [stepEntry])
 
   const onListScroll = useCallback(() => {
     const el = listScrollRef.current
@@ -456,6 +559,7 @@ export function DictionaryWorkspace(): ReactElement {
                   type="button"
                   role="option"
                   aria-selected={active}
+                  data-entry-id={item.id}
                   className={
                     active
                       ? 'dictionary-entry-list__item dictionary-entry-list__item--active'

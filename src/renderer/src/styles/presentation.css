@@ -204,7 +204,36 @@
 }
 
 .presentation-deck-list__subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--adw-fg-muted);
+}
+
+.presentation-format {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  padding: 0 4px;
+  border-radius: 4px;
+  color: var(--adw-fg);
+  background: color-mix(in srgb, var(--adw-fg) 12%, transparent);
+}
+
+.presentation-format--pptx {
+  color: #ffbe6f;
+  background: color-mix(in srgb, #e66100 28%, transparent);
+}
+
+.presentation-format--key {
+  color: #99c1f1;
+  background: color-mix(in srgb, #3584e4 28%, transparent);
+}
+
+.presentation-format--pdf {
+  color: #ffb1b1;
+  background: color-mix(in srgb, #e01b24 32%, transparent);
 }
 
 .presentation-deck-list__remove {

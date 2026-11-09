@@ -141,7 +141,8 @@ export function PresentationTabRibbon({
         </div>
       </div>
       <p className="order-ribbon__hints adw-caption">
-        <KbdIcon name="caretLeft" /> <KbdIcon name="caretRight" /> slides · <Kbd>Enter</Kbd> project
+        <KbdIcon name="caretLeft" /> <KbdIcon name="caretRight" /> <KbdIcon name="caretUp" />{' '}
+        <KbdIcon name="caretDown" /> slides · <Kbd>Enter</Kbd> project
         slide · <Kbd>Ctrl</Kbd>+<Kbd>Enter</Kbd> send to outputs
       </p>
     </div>

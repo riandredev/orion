@@ -5,7 +5,9 @@ import { projectionDisplayIds } from '../lib/display-projection'
 import { publishLibraryMedia } from '../lib/library-media-sync'
 import { loadPlaybackSettings } from '../lib/playback-settings'
 import { touchProfileSettings } from '../lib/profile-autosave'
+import { blurShortcutTarget } from '../lib/focus'
 import { setMediaRibbon, type MediaSortDir, type MediaSortKey } from '../lib/media-ribbon-sync'
+import { sequenceFollowsKeys } from '../lib/sequence-cues'
 import { subscribeMediaSequenceCue } from '../lib/media-sequence-cue'
 import { clearPresentationLayer, presentMediaFile } from '../lib/projection'
 import { writeSequenceDrag } from '../lib/sequence-drag'
@@ -486,6 +488,106 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     setPlaying(false)
     setPreview(item)
   }
+
+  const navRef = useRef({
+    stepFolder: (_delta: number) => {},
+    stepFile: (_delta: number) => {},
+    togglePlay: () => {},
+    goLive: () => {},
+    back: () => {}
+  })
+  navRef.current = {
+    stepFolder: (delta) => {
+      if (folders.length === 0) return
+      const index = folders.findIndex((folder) => folder.name === folderName)
+      let next = (index < 0 ? 0 : index) + delta
+      if (next < 0) next = folders.length - 1
+      if (next >= folders.length) next = 0
+      const name = folders[next]?.name
+      if (!name || name === folderName) return
+      setFolderName(name)
+      if (!preview) return
+      const files = sortFiles(filesByFolder[name] ?? [])
+      if (files[0]) openFile(files[0])
+      else {
+        playerRef.current?.pause()
+        setPreview(null)
+        setPlaying(false)
+      }
+    },
+    stepFile: (delta) => {
+      if (!folderName) return
+      const files = sortFiles(filesByFolder[folderName] ?? [])
+      if (files.length === 0) return
+      const index = preview ? files.findIndex((file) => file.path === preview.path) : -1
+      let next = index + delta
+      if (index < 0) next = delta > 0 ? 0 : files.length - 1
+      if (next < 0) next = files.length - 1
+      if (next >= files.length) next = 0
+      const file = files[next]
+      if (file) openFile(file)
+    },
+    togglePlay,
+    goLive,
+    back: () => {
+      playerRef.current?.pause()
+      setPreview(null)
+      setPlaying(false)
+    }
+  }
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (document.querySelector('.media-workspace')?.closest('.tab-keep--hidden')) return
+      if (sequenceFollowsKeys()) return
+      if (document.querySelector('dialog[open]')) return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'SELECT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+      const nav = navRef.current
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        nav.stepFolder(-1)
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        nav.stepFolder(1)
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        nav.stepFile(-1)
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        nav.stepFile(1)
+      } else if (event.key === ' ' && preview) {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        nav.togglePlay()
+      } else if (event.key === 'Enter' && event.ctrlKey && preview) {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        nav.goLive()
+      } else if (event.key === 'Enter' && preview) {
+        event.preventDefault()
+        blurShortcutTarget(event.target)
+        if (!live) nav.goLive()
+      } else if (event.key === 'Escape' && preview) {
+        event.preventDefault()
+        nav.back()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [live, preview])
 
   const chooseSort = (key: MediaSortKey): void => {
     if (key === sortKey) {

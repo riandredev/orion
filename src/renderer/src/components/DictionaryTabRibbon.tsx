@@ -2,6 +2,7 @@ import type { ReactElement } from 'react'
 import { useDictionaryActiveEntry } from '../lib/dictionary-ribbon-sync'
 import { AppIcon } from './AppIcon'
 import { AdwTooltip } from './AdwTooltip'
+import { Kbd, KbdIcon } from './Kbd'
 import type { AppIconName } from './icons'
 
 export type DictionaryTabRibbonProps = {
@@ -10,6 +11,8 @@ export type DictionaryTabRibbonProps = {
   live?: boolean
   canProject?: boolean
   onAddToSequence?: () => void
+  onPrevEntry?: () => void
+  onNextEntry?: () => void
 }
 
 function RibbonIconBtn({
@@ -43,7 +46,9 @@ export function DictionaryTabRibbon({
   onProjectLive,
   live = false,
   canProject = false,
-  onAddToSequence
+  onAddToSequence,
+  onPrevEntry,
+  onNextEntry
 }: DictionaryTabRibbonProps): ReactElement {
   const activeEntry = useDictionaryActiveEntry()
   const hasEntry = activeEntry !== 'Select a lexicon entry'
@@ -65,8 +70,8 @@ export function DictionaryTabRibbon({
           </span>
         </div>
         <div className="order-ribbon__section order-ribbon__transport">
-          <RibbonIconBtn label="Previous entry" icon="skipBack" disabled={!hasEntry} />
-          <RibbonIconBtn label="Next entry" icon="skipForward" disabled={!hasEntry} />
+          <RibbonIconBtn label="Previous entry" icon="skipBack" disabled={!hasEntry} onClick={onPrevEntry} />
+          <RibbonIconBtn label="Next entry" icon="skipForward" disabled={!hasEntry} onClick={onNextEntry} />
         </div>
         <div className="order-ribbon__section">
           <RibbonIconBtn label="Add to sequence" icon="listPlus" disabled={!hasEntry} onClick={onAddToSequence} />
@@ -94,7 +99,9 @@ export function DictionaryTabRibbon({
         </div>
       </div>
       <p className="order-ribbon__hints adw-caption">
-        Search and language filters in the bar below · Strong&apos;s numbers like H1 or G3056
+        <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> <KbdIcon name="caretLeft" />{' '}
+        <KbdIcon name="caretRight" /> entries · <Kbd>Enter</Kbd> send to outputs · <Kbd>Ctrl</Kbd>{' '}
+        <Kbd>Enter</Kbd> send or stop · Strong&apos;s numbers like H1 or G3056
       </p>
     </div>
   )

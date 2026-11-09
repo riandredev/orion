@@ -34,6 +34,8 @@ export type OrderBlockRibbonProps = {
   onViewChange: (view: OrderLibraryView) => void
   thumbSize: OrderThumbSize
   onThumbSizeChange: (size: OrderThumbSize) => void
+  showImageNames: boolean
+  onShowImageNamesChange: (show: boolean) => void
   onLibraryChanged: (selectFolder?: string) => void
   newFolderSignal: number
 }
@@ -89,6 +91,8 @@ export function OrderBlockRibbon({
   onViewChange,
   thumbSize,
   onThumbSizeChange,
+  showImageNames,
+  onShowImageNamesChange,
   onLibraryChanged,
   newFolderSignal
 }: OrderBlockRibbonProps): ReactElement {
@@ -222,6 +226,12 @@ export function OrderBlockRibbon({
             icon="viewColumns"
             pressed={view === 'columns'}
             onClick={() => onViewChange('columns')}
+          />
+          <IconButton
+            label={showImageNames ? 'Hide file names' : 'Show file names'}
+            icon="caption"
+            pressed={showImageNames}
+            onClick={() => onShowImageNamesChange(!showImageNames)}
           />
         </div>
 
@@ -370,7 +380,8 @@ export function OrderBlockRibbon({
       />
       <p className="order-ribbon__hints adw-caption">
         <KbdIcon name="caretLeft" /> <KbdIcon name="caretRight" /> previous / next image ·{' '}
-        <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> folders · <Kbd>Space</Kbd> play / pause
+        <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> folders · <Kbd>Space</Kbd> play / pause ·{' '}
+        <Kbd>Enter</Kbd> send to outputs · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> project or stop
       </p>
     </div>
   )

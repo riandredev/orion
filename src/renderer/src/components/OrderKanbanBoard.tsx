@@ -11,6 +11,7 @@ import {
 } from '../lib/column-drag'
 import { writeSequenceDrag } from '../lib/sequence-drag'
 import type { OrderLibraryView, OrderThumbSize } from './OrderBlockRibbon'
+import { AdwAlertDialog } from './AdwAlertDialog'
 import { AdwContextMenu, AdwContextMenuItem } from './AdwContextMenu'
 import { AdwTooltip, orderFolderPath } from './AdwTooltip'
 import { AppIcons, toolbarIconSize } from './icons'
@@ -46,6 +47,7 @@ type OrderKanbanBoardProps = {
   ) => void
   view: OrderLibraryView
   thumbSize: OrderThumbSize
+  showImageNames: boolean
   onNewFolder: () => void
 }
 
@@ -70,6 +72,7 @@ function OrderBrowser({
   onSelectFolder,
   onSelectImage,
   thumbSize,
+  showImageNames,
   onNewFolder,
   folderRefs,
   onReorderPointerDown,
@@ -84,6 +87,7 @@ function OrderBrowser({
   onSelectFolder: (name: string) => void
   onSelectImage: (folderName: string, path: string) => void
   thumbSize: OrderThumbSize
+  showImageNames: boolean
   onNewFolder: () => void
   folderRefs: Map<string, HTMLElement>
   onReorderPointerDown: (event: ReactPointerEvent<HTMLButtonElement>, name: string) => void
@@ -157,9 +161,10 @@ function OrderBrowser({
                     onDragStart={(event) => dragOrderImage(event, active.folder.name, image)}
                     onClick={() => onSelectImage(active.folder.name, image.path)}
                     onContextMenu={(event) => onImageMenu(event, active.folder.name, image)}
+                    title={image.name}
                   >
                     <img src={pathToFileUrl(image.path)} alt="" />
-                    <span>{image.name}</span>
+                    {showImageNames ? <span>{image.name}</span> : null}
                   </button>
                 </li>
               )
@@ -178,9 +183,10 @@ function OrderBrowser({
                     onDragStart={(event) => dragOrderImage(event, active.folder.name, image)}
                     onClick={() => onSelectImage(active.folder.name, image.path)}
                     onContextMenu={(event) => onImageMenu(event, active.folder.name, image)}
+                    title={image.name}
                   >
                     <img src={pathToFileUrl(image.path)} alt="" />
-                    <span>{image.name}</span>
+                    {showImageNames ? <span>{image.name}</span> : null}
                   </button>
                 </li>
               )
@@ -202,6 +208,7 @@ export function OrderKanbanBoard({
   onReorderFolders,
   view,
   thumbSize,
+  showImageNames,
   onNewFolder
 }: OrderKanbanBoardProps): ReactElement {
   const [folderData, setFolderData] = useState<FolderWithImages[]>([])
@@ -210,6 +217,10 @@ export function OrderKanbanBoard({
   const [imageMenu, setImageMenu] = useState<{
     x: number
     y: number
+    folder: string
+    image: OrderFolderImage
+  } | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{
     folder: string
     image: OrderFolderImage
   } | null>(null)
@@ -241,10 +252,16 @@ export function OrderKanbanBoard({
     setImageMenu({ x: event.clientX, y: event.clientY, folder, image })
   }
 
-  async function deleteMenuImage(): Promise<void> {
-    if (!imageMenu || typeof window.orion?.removeLibraryImage !== 'function') return
-    const { folder, image } = imageMenu
+  function askDeleteImage(): void {
+    if (!imageMenu) return
+    setPendingDelete({ folder: imageMenu.folder, image: imageMenu.image })
     setImageMenu(null)
+  }
+
+  async function deleteMenuImage(): Promise<void> {
+    if (!pendingDelete || typeof window.orion?.removeLibraryImage !== 'function') return
+    const { folder, image } = pendingDelete
+    setPendingDelete(null)
     const removed = await window.orion.removeLibraryImage(image.path)
     if (!removed) return
     if (activeImagePath === image.path) {
@@ -488,7 +505,9 @@ export function OrderKanbanBoard({
                               alt=""
                               loading="lazy"
                             />
-                            <span className="kanban-image__label">{image.name}</span>
+                            {showImageNames ? (
+                              <span className="kanban-image__label">{image.name}</span>
+                            ) : null}
                           </button>
                         </li>
                       )
@@ -518,6 +537,7 @@ export function OrderKanbanBoard({
           onSelectFolder={onSelectFolder}
           onSelectImage={onSelectImage}
           thumbSize={thumbSize}
+          showImageNames={showImageNames}
           onNewFolder={onNewFolder}
           folderRefs={columnRefs.current}
           onReorderPointerDown={startFolderRowDrag}
@@ -577,9 +597,23 @@ export function OrderKanbanBoard({
         : null}
       {imageMenu ? (
         <AdwContextMenu x={imageMenu.x} y={imageMenu.y} onClose={() => setImageMenu(null)}>
-          <AdwContextMenuItem label="Delete" destructive onSelect={() => void deleteMenuImage()} />
+          <AdwContextMenuItem label="Delete" destructive onSelect={askDeleteImage} />
         </AdwContextMenu>
       ) : null}
+      <AdwAlertDialog
+        open={pendingDelete != null}
+        title="Delete image?"
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void deleteMenuImage()}
+        body={
+          <p>
+            Delete “{pendingDelete?.image.name}” from {pendingDelete?.folder}. The file is removed
+            from this computer.
+          </p>
+        }
+      />
     </div>
   )
 }

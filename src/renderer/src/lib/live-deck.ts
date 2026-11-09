@@ -1,6 +1,7 @@
 import { parse, type ImageElement, type Presentation, type SlideElement } from '@pagus-kit/core'
 import { buildFontSubstitutes, generateFontCss, renderSlide } from '@pagus-kit/renderer'
 import { parseIworkDocument, type IworkScene, type IworkVisualObject } from 'iwork-viewer'
+import { prepareKeynotePackage } from '../../../shared/keynote-package'
 import JSZip from 'jszip'
 import { applyPicturePlaceholderFrames } from '../../../shared/pptx-picture-frames'
 import {
@@ -201,7 +202,8 @@ export async function openLiveSession(source: DeckSource): Promise<LiveSession> 
     source.bytes.byteOffset + source.bytes.byteLength
   ) as ArrayBuffer
   if (source.ext === '.key') {
-    const doc = await parseIworkDocument(bytes)
+    const prepared = await prepareKeynotePackage(bytes)
+    const doc = await parseIworkDocument(prepared, 'key')
     return {
       kind: 'key',
       scenes: doc.scenes,
