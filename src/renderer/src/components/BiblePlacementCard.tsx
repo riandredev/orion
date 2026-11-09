@@ -36,10 +36,10 @@ const ANCHORS: { value: BibleAnchor; label: string }[] = BIBLE_ANCHORS.map((valu
   label: ANCHOR_LABELS[value]
 }))
 
-const BLOCKS: { id: BibleBlockId; label: string; hint: string }[] = [
-  { id: 'reference', label: 'Reference', hint: 'Book and chapter' },
-  { id: 'translation', label: 'Translation', hint: 'Version name' },
-  { id: 'verse', label: 'Verse', hint: 'Number and text move together' }
+const BLOCKS: { id: BibleBlockId; label: string }[] = [
+  { id: 'reference', label: 'Reference' },
+  { id: 'translation', label: 'Translation' },
+  { id: 'verse', label: 'Verse' }
 ]
 
 const SIDES: { key: keyof BibleBlockMargin; label: string }[] = [
@@ -72,13 +72,7 @@ function anchorSides(anchor: BibleAnchor): (keyof BibleBlockMargin)[] {
   }
 }
 
-export function BiblePlacementCard({
-  blockId,
-  onSelect
-}: {
-  blockId: BibleBlockId
-  onSelect: (id: BibleBlockId) => void
-}): ReactElement {
+export function BiblePlacementCard({ blockId }: { blockId: BibleBlockId }): ReactElement {
   const layout = useBibleBlockLayout()
   const [sidesOpen, setSidesOpen] = useState(false)
   const block = BLOCKS.find((item) => item.id === blockId) ?? BLOCKS[2]!
@@ -92,36 +86,12 @@ export function BiblePlacementCard({
   }, [blockId])
 
   return (
-    <div className="adw-card settings-bg__controls-card">
+    <div className="settings-type__block">
       <div className="settings-bg__section-head">
-        <h3 className="settings-bg__subtitle">Block placement</h3>
-        <p className="adw-caption">
-          Click a line in the preview. Position and margin apply to {block.label.toLowerCase()} only.
-        </p>
+        <h3 className="settings-bg__subtitle">Position</h3>
+        <p className="adw-caption">Position and margin apply to {block.label.toLowerCase()} only.</p>
       </div>
       <div className="settings-bg__form">
-        <div className="adw-list-box" role="listbox" aria-label="Bible blocks">
-          {BLOCKS.map((item) => {
-            const active = item.id === blockId
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="option"
-                aria-selected={active}
-                className={active ? 'adw-action-row bible-block-row bible-block-row--active' : 'adw-action-row bible-block-row'}
-                onClick={() => onSelect(item.id)}
-              >
-                <span className="adw-action-row__content">
-                  <span className="adw-action-row__title">{item.label}</span>
-                  <span className="adw-action-row__subtitle adw-caption">{item.hint}</span>
-                </span>
-                <span className="adw-caption">{ANCHOR_LABELS[layout[item.id]]}</span>
-              </button>
-            )
-          })}
-        </div>
-
         <div className="settings-bg__field">
           <span className="settings-field__label">{block.label} position</span>
           <div className="bible-anchor-grid" role="group" aria-label={`${block.label} position`}>

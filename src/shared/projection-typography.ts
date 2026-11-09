@@ -132,10 +132,10 @@ export function hymnTypographyElementId(value: string): HymnTypographyElementId 
 }
 
 export const BIBLE_TYPOGRAPHY_ELEMENTS = [
-  { id: 'reference', label: 'Reference' },
-  { id: 'translation', label: 'Translation' },
+  { id: 'verse', label: 'Verse' },
   { id: 'verseNumber', label: 'Verse number' },
-  { id: 'verse', label: 'Verse text' }
+  { id: 'reference', label: 'Reference' },
+  { id: 'translation', label: 'Translation' }
 ] as const
 
 export type BibleTypographyElementId = (typeof BIBLE_TYPOGRAPHY_ELEMENTS)[number]['id']

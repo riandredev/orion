@@ -279,13 +279,19 @@ export async function presentHymnLayer(
   return runPresentationCommand({ type: 'set-layer', source: 'bible', content }, displays)
 }
 
+function stopLocalPlayback(): void {
+  window.dispatchEvent(new Event('orion-pause-local-media'))
+}
+
 export async function clearPresentationLayer(
   source: OrionStackSource
 ): Promise<PresentationUiState> {
+  if (source === 'presentation') stopLocalPlayback()
   return runPresentationCommand({ type: 'clear-layer', source }, [])
 }
 
 export async function clearProjection(): Promise<PresentationUiState> {
+  stopLocalPlayback()
   return runPresentationCommand({ type: 'clear-all' }, [])
 }
 

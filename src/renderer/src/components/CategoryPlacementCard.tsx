@@ -63,17 +63,15 @@ export function CategoryPlacementCard<T extends string>({
   blocks,
   blockId,
   layout,
-  onSelect,
   onAnchor,
   onMargin,
   onMarginSides,
   onWidth,
   onReset
 }: {
-  blocks: { id: T; label: string; hint: string }[]
+  blocks: { id: T; label: string }[]
   blockId: T
   layout: PlacedBlockMap<T>
-  onSelect: (id: T) => void
   onAnchor: (id: T, anchor: FlowAnchor) => void
   onMargin: (id: T, side: keyof BibleBlockMargin, value: number) => void
   onMarginSides: (id: T, sides: readonly (keyof BibleBlockMargin)[], value: number) => void
@@ -92,35 +90,12 @@ export function CategoryPlacementCard<T extends string>({
   }, [blockId])
 
   return (
-    <div className="adw-card settings-bg__controls-card">
+    <div className="settings-type__block">
       <div className="settings-bg__section-head">
-        <h3 className="settings-bg__subtitle">Block placement</h3>
-        <p className="adw-caption">
-          Click a line in the preview. Position, margin, and width apply to {block.label.toLowerCase()} only.
-        </p>
+        <h3 className="settings-bg__subtitle">Position</h3>
+        <p className="adw-caption">Position, margin, and width apply to {block.label.toLowerCase()} only.</p>
       </div>
       <div className="settings-bg__form">
-        <div className="adw-list-box" role="listbox" aria-label="Blocks">
-          {blocks.map((item) => {
-            const active = item.id === blockId
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="option"
-                aria-selected={active}
-                className={active ? 'adw-action-row bible-block-row bible-block-row--active' : 'adw-action-row bible-block-row'}
-                onClick={() => onSelect(item.id)}
-              >
-                <span className="adw-action-row__content">
-                  <span className="adw-action-row__title">{item.label}</span>
-                  <span className="adw-action-row__subtitle adw-caption">{item.hint}</span>
-                </span>
-                <span className="adw-caption">{ANCHOR_LABELS[layout[item.id].anchor]}</span>
-              </button>
-            )
-          })}
-        </div>
         <div className="settings-bg__field">
           <span className="settings-field__label">{block.label} position</span>
           <div className="bible-anchor-grid" role="group" aria-label={`${block.label} position`}>

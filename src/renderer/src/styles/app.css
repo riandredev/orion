@@ -31,7 +31,7 @@
   display: flex;
   align-items: stretch;
   min-height: 36px;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: thin;
@@ -51,7 +51,8 @@
 }
 
 .top-chrome__spacer {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .top-chrome__settings-btn {
@@ -2247,11 +2248,7 @@ body.projector-shell--resizing {
   gap: 8px;
   margin-bottom: 10px;
   cursor: pointer;
-  color: var(--adw-fg-muted);
-}
-
-.settings-display-row__project-toggle input {
-  accent-color: var(--adw-accent);
+  color: var(--adw-fg);
 }
 
 .settings-display-row__badges {
@@ -2428,6 +2425,20 @@ body.projector-shell--resizing {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+}
+
+.settings-bg__import-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 16px 12px;
+}
+
+.settings-bg__import-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-bg__tabs {
@@ -3254,6 +3265,44 @@ body.projector-shell--resizing {
   gap: 6px;
 }
 
+.settings-bg__apply {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-bg__apply-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--adw-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-bg__apply-row + .settings-bg__apply-row {
+  border-top: 1px solid var(--adw-view-bg);
+}
+
+.settings-bg__apply-row .settings-field__label {
+  margin: 0;
+}
+
+.settings-bg__apply-mark {
+  color: var(--adw-accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.settings-bg__book-status {
+  margin: 0;
+}
+
 .settings-bg__library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -3265,6 +3314,8 @@ body.projector-shell--resizing {
   flex-direction: column;
   gap: 6px;
   padding: 6px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 148px;
   border-radius: var(--adw-radius-xs);
   border: 1px solid var(--adw-border);
   background: color-mix(in srgb, var(--adw-card-bg) 92%, black);

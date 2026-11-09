@@ -47,7 +47,7 @@ export const AFRIKAANS_BOOK_NAMES: Record<string, string> = {
   rom: 'Romeine',
   '1co': '1 Korintiërs',
   '2co': '2 Korintiërs',
-  gal: 'Galasiane',
+  gal: 'Galasiërs',
   eph: 'Efesiërs',
   php: 'Filippense',
   col: 'Kolossense',

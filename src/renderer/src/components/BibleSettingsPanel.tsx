@@ -23,7 +23,6 @@ import {
   PROJECTION_PREVIEW_STAGE_WIDTH
 } from './BackgroundStagePreview'
 import { BiblePlacementCard } from './BiblePlacementCard'
-import type { BibleBlockId } from '../../../shared/bible-block-layout'
 import { ContentInsetCard } from './ContentInsetCard'
 import { useBibleBlockLayout } from '../lib/bible-block-layout-settings'
 import { LineHeightField, TextPanelFields, TextShadowField, TypeStyleFields } from './TypeStyleFields'
@@ -98,7 +97,7 @@ export function BibleSettingsPanel(): ReactElement {
     return () => observer.disconnect()
   }, [typography, insets, resolved, scale])
 
-  const selectedMeta = BIBLE_TYPOGRAPHY_ELEMENTS.find((item) => item.id === selected) ?? BIBLE_TYPOGRAPHY_ELEMENTS[3]!
+  const selectedMeta = BIBLE_TYPOGRAPHY_ELEMENTS.find((item) => item.id === selected) ?? BIBLE_TYPOGRAPHY_ELEMENTS[0]!
   const imageUrl = fileUrl(resolved.imagePath)
   const canvasStyle: CSSProperties = {
     width: PROJECTION_PREVIEW_STAGE_WIDTH,
@@ -120,37 +119,61 @@ export function BibleSettingsPanel(): ReactElement {
   return (
     <div className="settings-panel settings-bg">
       <h2 className="settings-panel__title">Bible</h2>
-      <p className="adw-caption">
-        Type and margins for scripture. Click a line in the preview to change that element.
-      </p>
+      <p className="adw-caption">Type, box, and position for each part of a scripture slide.</p>
+      <div className="adw-view-switcher" role="tablist" aria-label="Bible slide parts">
+        {BIBLE_TYPOGRAPHY_ELEMENTS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            id={`bible-part-${item.id}`}
+            aria-selected={item.id === selected}
+            aria-controls="bible-part-panel"
+            className={
+              item.id === selected ? 'adw-view-switcher__tab adw-view-switcher__tab--active' : 'adw-view-switcher__tab'
+            }
+            onClick={() => setSelected(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       <div className="settings-bg__grid">
         <div className="settings-type__stack">
-          <div className="adw-card settings-bg__controls-card">
+          <div
+            className="adw-card settings-bg__controls-card"
+            role="tabpanel"
+            id="bible-part-panel"
+            aria-labelledby={`bible-part-${selected}`}
+          >
             <TypeStyleFields
               label={selectedMeta.label}
               value={style}
               onChange={(patch) => updateBibleTypographyElement(selected, patch)}
               onReset={() => resetBibleTypographyElement(selected)}
             />
+            {selected === 'reference' ? (
+              <TextPanelFields
+                label="Book name box"
+                panel={typography.biblePanels.reference}
+                onChange={(patch) => updateBiblePanel('reference', patch)}
+                onReset={() => resetBiblePanel('reference')}
+              />
+            ) : null}
+            {selected === 'verse' ? (
+              <TextPanelFields
+                label="Verse box"
+                panel={typography.biblePanels.verse}
+                onChange={(patch) => updateBiblePanel('verse', patch)}
+                onReset={() => resetBiblePanel('verse')}
+              />
+            ) : null}
+            {selected === 'reference' || selected === 'translation' || selected === 'verse' ? (
+              <BiblePlacementCard blockId={selected} />
+            ) : null}
             <TextShadowField category="bible" value={typography.textShadow.bible} />
-            <TextPanelFields
-              label="Book name box"
-              panel={typography.biblePanels.reference}
-              onChange={(patch) => updateBiblePanel('reference', patch)}
-              onReset={() => resetBiblePanel('reference')}
-            />
-            <TextPanelFields
-              label="Verse box"
-              panel={typography.biblePanels.verse}
-              onChange={(patch) => updateBiblePanel('verse', patch)}
-              onReset={() => resetBiblePanel('verse')}
-            />
           </div>
           <ContentInsetCard category="bible" title="Bible" />
-          <BiblePlacementCard
-            blockId={selected === 'translation' ? 'translation' : selected === 'reference' ? 'reference' : 'verse'}
-            onSelect={(id: BibleBlockId) => setSelected(id === 'verse' ? 'verse' : id)}
-          />
         </div>
         <div className="settings-bg__aside">
         <div className="adw-card settings-bg__preview-card">

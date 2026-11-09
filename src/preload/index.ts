@@ -54,10 +54,26 @@ const api = {
   removeMedia: (filePath: string): Promise<boolean> => ipcRenderer.invoke('orion:remove-media', filePath),
   listBackgroundImages: (): Promise<OrderFolderImage[]> =>
     ipcRenderer.invoke('orion:list-background-images'),
+  backgroundThumb: (filePath: string): Promise<string | null> =>
+    ipcRenderer.invoke('orion:background-thumb', filePath),
   removeLibraryImage: (filePath: string): Promise<boolean> =>
     ipcRenderer.invoke('orion:remove-library-image', filePath),
   importBackgroundImage: (): Promise<OrderFolderImage | null> =>
     ipcRenderer.invoke('orion:import-background-image'),
+  onBackgroundImportProgress: (
+    callback: (progress: import('../shared/background-import').BackgroundImportProgress) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      progress: import('../shared/background-import').BackgroundImportProgress
+    ): void => {
+      callback(progress)
+    }
+    ipcRenderer.on('orion:background-import-progress', listener)
+    return () => {
+      ipcRenderer.removeListener('orion:background-import-progress', listener)
+    }
+  },
   listBibles: (): Promise<import('../shared/bible-types').InstalledBibleInfo[]> =>
     ipcRenderer.invoke('orion:list-bibles'),
   listOnlineBibleTranslations: (): Promise<

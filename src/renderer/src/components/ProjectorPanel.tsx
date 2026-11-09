@@ -8,6 +8,7 @@ import {
 } from '../../../shared/web-browser'
 import { subscribeLibraryMedia, type LibraryMediaCommand } from '../lib/library-media-sync'
 import { subscribeWebMedia, type WebMediaCommand } from '../lib/web-media-sync'
+import { loadPlaybackSettings } from '../lib/playback-settings'
 import { nudgeMediaElement, subscribeDeckMedia } from './PresentationStage'
 import { AppIcon } from './AppIcon'
 import {
@@ -202,6 +203,28 @@ function DeckPreviewVideo({
   const shared = useSharedStream(streamKey)
   const ref = useRef<HTMLVideoElement>(null)
   const [direct, setDirect] = useState(false)
+  const [autoplay, setAutoplay] = useState(() => loadPlaybackSettings().autoplayPresentationMedia)
+
+  useEffect(() => {
+    const sync = (): void => setAutoplay(loadPlaybackSettings().autoplayPresentationMedia)
+    window.addEventListener('orion-playback-settings', sync)
+    window.addEventListener('orion-profile-applied', sync)
+    return () => {
+      window.removeEventListener('orion-playback-settings', sync)
+      window.removeEventListener('orion-profile-applied', sync)
+    }
+  }, [])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const pause = (): void => {
+      el.pause()
+    }
+    window.addEventListener('orion-pause-local-media', pause)
+    if (!autoplay) el.pause()
+    return () => window.removeEventListener('orion-pause-local-media', pause)
+  }, [autoplay, src])
 
   useEffect(() => {
     if (primary || shared) return
@@ -247,7 +270,7 @@ function DeckPreviewVideo({
       ref={ref}
       className="presentation-live__video"
       src={primary || (!shared && direct) ? src : undefined}
-      autoPlay
+      autoPlay={autoplay}
       muted
       playsInline
       disablePictureInPicture

@@ -276,7 +276,7 @@ export function BibleLibraryDialog({
               <a href="https://api.biblesupersearch.com/" target="_blank" rel="noreferrer">
                 Bible SuperSearch
               </a>{' '}
-              (Afrikaans 1953) when online, or import USFM / Zefania XML / Orion JSON from disk.
+              when online, or import USFM / Zefania XML / Orion JSON from disk.
               {catalogSummary ? ` Catalog: ${catalogSummary}.` : ''}
             </p>
           </div>

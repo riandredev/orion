@@ -48,8 +48,12 @@ export type OrionApi = {
   >
   removeMedia: (filePath: string) => Promise<boolean>
   listBackgroundImages: () => Promise<OrderFolderImage[]>
+  backgroundThumb: (filePath: string) => Promise<string | null>
   removeLibraryImage: (filePath: string) => Promise<boolean>
   importBackgroundImage: () => Promise<OrderFolderImage | null>
+  onBackgroundImportProgress: (
+    callback: (progress: import('../../shared/background-import').BackgroundImportProgress) => void
+  ) => () => void
   listBibles: () => Promise<InstalledBibleInfo[]>
   listOnlineBibleTranslations: () => Promise<import('../../shared/bible-online').OnlineBibleTranslation[]>
   importBible: () => Promise<InstalledBibleInfo | null>

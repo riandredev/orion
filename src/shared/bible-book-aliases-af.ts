@@ -72,6 +72,7 @@ export const AFRIKAANS_BOOK_ALIASES: Record<string, string> = {
   '2 korintiers': '2co',
   '2korintiers': '2co',
   galasiane: 'gal',
+  galasiers: 'gal',
   gal: 'gal',
   efesiers: 'eph',
   efe: 'eph',

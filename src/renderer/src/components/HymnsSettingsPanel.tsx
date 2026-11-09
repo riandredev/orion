@@ -2,13 +2,9 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Reac
 import { cssDimOverlay } from '../../../shared/dim-overlay'
 import { projectionContentInsetsPreviewVars } from '../../../shared/projection-content-insets'
 import {
-  HYMN_FONT_SIZE_MAX,
-  HYMN_FONT_SIZE_MIN,
   HYMN_TYPOGRAPHY_ELEMENTS,
   hymnTypographyElementId,
   projectionTypographyCssVars,
-  PROJECTION_FONTS,
-  PROJECTION_FONT_WEIGHTS,
   type HymnTypographyElementId
 } from '../../../shared/projection-typography'
 import { resolveCategoryBackground, useBackgroundSettings } from '../lib/background-settings'
@@ -21,9 +17,7 @@ import {
   useHymnTypography,
   useProjectionTypography
 } from '../lib/projection-typography-settings'
-import { AdwScale } from './AdwScale'
-import { AdwSelect } from './AdwSelect'
-import { LineHeightField, TextColorField, TextPanelFields, TextShadowField } from './TypeStyleFields'
+import { LineHeightField, TextPanelFields, TextShadowField, TypeStyleFields } from './TypeStyleFields'
 import {
   PROJECTION_PREVIEW_STAGE_HEIGHT,
   PROJECTION_PREVIEW_STAGE_WIDTH
@@ -45,11 +39,11 @@ function fileUrl(filePath: string | null): string | undefined {
   return `file:///${normalized.replace(/^\//, '')}`
 }
 
-const HYMN_BOXES: { id: HymnTypographyElementId; label: string }[] = [
-  { id: 'number', label: 'Hymn number box' },
-  { id: 'lyrics', label: 'Lyrics box' },
-  { id: 'corner', label: 'Verse number box' },
-  { id: 'author', label: 'Author box' }
+const HYMN_BLOCKS: { id: HymnTypographyElementId; label: string }[] = [
+  { id: 'number', label: 'Hymn number' },
+  { id: 'corner', label: 'Verse number' },
+  { id: 'lyrics', label: 'Lyrics' },
+  { id: 'author', label: 'Author' }
 ]
 
 export function HymnsSettingsPanel(): ReactElement {
@@ -103,95 +97,59 @@ export function HymnsSettingsPanel(): ReactElement {
   return (
     <div className="settings-panel settings-bg">
       <h2 className="settings-panel__title">Hymns</h2>
-      <p className="adw-caption">
-        Type and margins for hymn slides. Click a line in the preview to change that element.
-      </p>
+      <p className="adw-caption">Type, box, and position for each part of a hymn slide.</p>
+      <div className="adw-view-switcher" role="tablist" aria-label="Hymn slide parts">
+        {HYMN_TYPOGRAPHY_ELEMENTS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            id={`hymn-part-${item.id}`}
+            aria-selected={item.id === selected}
+            aria-controls="hymn-part-panel"
+            className={
+              item.id === selected ? 'adw-view-switcher__tab adw-view-switcher__tab--active' : 'adw-view-switcher__tab'
+            }
+            onClick={() => setSelected(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
 
       <div className="settings-bg__grid">
         <div className="settings-type__stack">
-          <div className="adw-card settings-bg__controls-card">
-            <div className="settings-bg__section-head">
-              <h3 className="settings-bg__subtitle">{selectedMeta.label}</h3>
-              <p className="adw-caption">Font and size apply to every hymn slide.</p>
-            </div>
-            <div className="settings-bg__form">
-              <div className="settings-bg__field">
-                <span className="settings-field__label">Font</span>
-                <AdwSelect
-                  aria-label={`${selectedMeta.label} font`}
-                  value={style.fontId}
-                  options={PROJECTION_FONTS.map((font) => ({ value: font.id, label: font.label }))}
-                  onChange={(fontId) => updateHymnTypographyElement(selected, { fontId })}
-                />
-              </div>
-              <TextColorField
-                label={selectedMeta.label}
-                value={style.color}
-                onChange={(color) => updateHymnTypographyElement(selected, { color })}
-              />
-              <div className="settings-bg__field">
-                <span className="settings-field__label">Font weight</span>
-                <AdwSelect
-                  aria-label={`${selectedMeta.label} font weight`}
-                  value={String(style.fontWeight)}
-                  options={PROJECTION_FONT_WEIGHTS.map((item) => ({ value: String(item.value), label: item.label }))}
-                  onChange={(next) =>
-                    updateHymnTypographyElement(selected, {
-                      fontWeight: Number(next) as (typeof PROJECTION_FONT_WEIGHTS)[number]['value']
-                    })
-                  }
-                />
-              </div>
-              <div className="settings-bg__field">
-                <span className="settings-field__label">Font size</span>
-                <div className="settings-type__size">
-                  <AdwScale
-                    aria-label={`${selectedMeta.label} font size`}
-                    min={HYMN_FONT_SIZE_MIN}
-                    max={HYMN_FONT_SIZE_MAX}
-                    step={2}
-                    value={style.sizePx}
-                    onChange={(sizePx) => updateHymnTypographyElement(selected, { sizePx })}
-                  />
-                  <span className="settings-type__size-value">{style.sizePx}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="adw-button"
-                onClick={() => resetHymnTypographyElement(selected)}
-              >
-                Reset {selectedMeta.label.toLowerCase()}
-              </button>
-              <TextShadowField category="hymns" value={projection.textShadow.hymns} />
-              {HYMN_BOXES.map((box) => (
-                <TextPanelFields
-                  key={box.id}
-                  label={box.label}
-                  panel={projection.hymnPanels[box.id]}
-                  onChange={(patch) => updateHymnPanel(box.id, patch)}
-                  onReset={() => resetHymnPanel(box.id)}
-                />
-              ))}
-            </div>
+          <div
+            className="adw-card settings-bg__controls-card"
+            role="tabpanel"
+            id="hymn-part-panel"
+            aria-labelledby={`hymn-part-${selected}`}
+          >
+            <TypeStyleFields
+              label={selectedMeta.label}
+              value={style}
+              onChange={(patch) => updateHymnTypographyElement(selected, patch)}
+              onReset={() => resetHymnTypographyElement(selected)}
+            />
+            <TextPanelFields
+              label={`${selectedMeta.label} box`}
+              panel={projection.hymnPanels[selected]}
+              onChange={(patch) => updateHymnPanel(selected, patch)}
+              onReset={() => resetHymnPanel(selected)}
+            />
+            <CategoryPlacementCard
+              blocks={HYMN_BLOCKS}
+              blockId={selected}
+              layout={blockLayout}
+              onAnchor={updateHymnBlockAnchor}
+              onMargin={updateHymnBlockMargin}
+              onMarginSides={updateHymnBlockMarginSides}
+              onWidth={updateHymnBlockWidth}
+              onReset={resetHymnBlockLayout}
+            />
+            <TextShadowField category="hymns" value={projection.textShadow.hymns} />
           </div>
           <ContentInsetCard category="hymns" title="Hymns" />
-          <CategoryPlacementCard
-            blocks={[
-              { id: 'number', label: 'Hymn number', hint: 'Number on the slide' },
-              { id: 'corner', label: 'Verse number', hint: 'Stanza marker' },
-              { id: 'lyrics', label: 'Lyrics', hint: 'The verse lines' },
-              { id: 'author', label: 'Author', hint: 'Name under the lyrics' }
-            ]}
-            blockId={selected}
-            layout={blockLayout}
-            onSelect={setSelected}
-            onAnchor={updateHymnBlockAnchor}
-            onMargin={updateHymnBlockMargin}
-            onMarginSides={updateHymnBlockMarginSides}
-            onWidth={updateHymnBlockWidth}
-            onReset={resetHymnBlockLayout}
-          />
         </div>
 
         <div className="settings-bg__aside">

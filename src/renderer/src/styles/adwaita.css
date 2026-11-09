@@ -130,6 +130,42 @@ a {
   cursor: not-allowed;
 }
 
+.adw-view-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 12px;
+  border-bottom: 1px solid var(--adw-border);
+}
+
+.adw-view-switcher__tab {
+  appearance: none;
+  margin: 0 0 -1px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--adw-fg-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.adw-view-switcher__tab:hover {
+  color: var(--adw-fg);
+}
+
+.adw-view-switcher__tab--active {
+  color: var(--adw-accent);
+  border-bottom-color: var(--adw-accent);
+}
+
+.adw-view-switcher__tab:focus-visible {
+  outline: 2px solid var(--adw-accent);
+  outline-offset: -2px;
+}
+
 .adw-progress-bar {
   position: relative;
   height: 4px;

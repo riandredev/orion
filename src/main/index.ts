@@ -1,6 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, screen, session, shell, webContents } from 'electron'
+import { createHash } from 'crypto'
 import { existsSync } from 'fs'
-import { copyFile, mkdir, readdir, rm, stat } from 'fs/promises'
+import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'fs/promises'
+import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { basename, extname, join } from 'path'
 import type { OrionProjectionPayload } from '../shared/projection'
 import { WEB_BROWSER_USER_AGENT } from '../shared/web-browser'
@@ -13,6 +15,7 @@ import { readEdition } from './edition'
 import { installLibrary, installedOrderFolderSort, listLibraries } from './content-bundles'
 import { compareOrderFolderNames } from '../shared/order-folder-sort'
 import { is } from './env'
+import type { BackgroundImportProgress } from '../shared/background-import'
 import { biblesRoot, imagesRoot, orderImagesRoot } from './paths'
 import {
   createMediaFolder,
@@ -227,6 +230,7 @@ async function listBackgroundImages(): Promise<{ name: string; path: string }[]>
         }
         continue
       }
+      if (entry.startsWith('.')) continue
       const ext = extname(entry).toLowerCase()
       if (!IMAGE_EXT.has(ext)) continue
       if (EXCLUDED_BG_NAMES.has(entry.toLowerCase())) continue
@@ -248,6 +252,56 @@ async function listBackgroundImages(): Promise<{ name: string; path: string }[]>
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
 }
 
+let thumbJobs = 0
+const thumbWaiters: (() => void)[] = []
+
+function withThumbSlot<T>(job: () => Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const start = (): void => {
+      thumbJobs += 1
+      job()
+        .then(resolve, reject)
+        .finally(() => {
+          thumbJobs -= 1
+          thumbWaiters.shift()?.()
+        })
+    }
+    if (thumbJobs < 3) start()
+    else thumbWaiters.push(start)
+  })
+}
+
+async function backgroundThumb(filePath: string): Promise<string | null> {
+  const target = filePath.trim()
+  if (!target || !isPathUnderRoot(target, imagesRoot())) return null
+  return withThumbSlot(async () => {
+    let info
+    try {
+      info = await stat(target)
+    } catch {
+      return null
+    }
+    if (!info.isFile()) return null
+    const key = createHash('sha1').update(`${target}|${info.mtimeMs}|${info.size}`).digest('hex')
+    const dir = join(imagesRoot(), 'backgrounds', '.thumbs')
+    const dest = join(dir, `${key}.jpg`)
+    if (existsSync(dest)) return dest
+    try {
+      await mkdir(dir, { recursive: true })
+      const image = await loadImage(target)
+      const scale = Math.min(1, 480 / Math.max(1, image.width))
+      const width = Math.max(1, Math.round(image.width * scale))
+      const height = Math.max(1, Math.round(image.height * scale))
+      const canvas = createCanvas(width, height)
+      canvas.getContext('2d').drawImage(image, 0, 0, width, height)
+      await writeFile(dest, canvas.toBuffer('image/jpeg', 70))
+      return dest
+    } catch {
+      return null
+    }
+  })
+}
+
 async function importBackgroundImage(): Promise<{ name: string; path: string } | null> {
   const res = await dialog.showOpenDialog({
     title: 'Import background images',
@@ -261,13 +315,22 @@ async function importBackgroundImage(): Promise<{ name: string; path: string } |
   const bgDir = join(imagesRoot(), 'backgrounds')
   await mkdir(bgDir, { recursive: true })
 
+  const sources = res.filePaths.filter((sourcePath) => IMAGE_EXT.has(extname(sourcePath).toLowerCase()))
+  if (sources.length === 0) return null
+
+  const win = getMainAppWindow()
+  const report = (progress: BackgroundImportProgress): void => {
+    if (!win || win.isDestroyed()) return
+    win.webContents.send('orion:background-import-progress', progress)
+  }
+
   let imported: { name: string; path: string } | null = null
-  for (const [index, sourcePath] of res.filePaths.entries()) {
+  for (const [index, sourcePath] of sources.entries()) {
     const ext = extname(sourcePath).toLowerCase()
-    if (!IMAGE_EXT.has(ext)) continue
     const safeBase = basename(sourcePath, ext).replace(/[^a-zA-Z0-9._-]/g, '-') || 'image'
     const destName = `${safeBase}-${Date.now().toString(36)}-${index}${ext}`
     const destPath = join(bgDir, destName)
+    report({ current: index + 1, total: sources.length, name: basename(sourcePath) })
     await copyFile(sourcePath, destPath)
     imported = { name: destName, path: destPath }
   }
@@ -391,6 +454,7 @@ app.whenReady().then(async () => {
   )
   ipcMain.handle('orion:remove-media', (_event, filePath: string) => removeMediaFile(String(filePath ?? '')))
   ipcMain.handle('orion:list-background-images', () => listBackgroundImages())
+  ipcMain.handle('orion:background-thumb', (_event, filePath: string) => backgroundThumb(String(filePath ?? '')))
   ipcMain.handle('orion:remove-library-image', (_event, filePath: string) =>
     removeLibraryImage(String(filePath ?? ''))
   )

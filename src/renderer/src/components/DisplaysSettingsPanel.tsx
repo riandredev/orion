@@ -9,6 +9,7 @@ import {
   type DisplayEnabledMap
 } from '../lib/display-enabled'
 import { buildLayoutMonitors, loadSavedLayoutPositions } from '../lib/display-layout'
+import { AdwSwitch } from './AdwSwitch'
 import { AppIcon } from './AppIcon'
 import { DisplayArrangementCanvas } from './DisplayArrangementCanvas'
 
@@ -55,11 +56,12 @@ function DisplayRow({
           )}
         </span>
       </div>
-      <label className="settings-display-row__project-toggle adw-caption">
-        <input
-          type="checkbox"
+      <label className="settings-display-row__project-toggle adw-caption" htmlFor={`display-project-${display.id}`}>
+        <AdwSwitch
+          id={`display-project-${display.id}`}
           checked={projectionEnabled}
-          onChange={(e) => onToggleProjection(e.target.checked)}
+          aria-label="Use for projection"
+          onChange={onToggleProjection}
         />
         Use for projection
       </label>

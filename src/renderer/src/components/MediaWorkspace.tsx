@@ -219,6 +219,14 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
   }, [refreshFolders])
 
   useEffect(() => {
+    const pause = (): void => {
+      playerRef.current?.pause()
+    }
+    window.addEventListener('orion-pause-local-media', pause)
+    return () => window.removeEventListener('orion-pause-local-media', pause)
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
     void (async () => {
       const rows: Record<string, MediaItem[]> = {}

@@ -183,6 +183,9 @@ function DeckMedia({
       if (!armed) return
       publishDeckMedia(el.paused ? 'pause' : 'seek', index, el.currentTime || 0, epoch)
     }
+    const onOutputStopped = (): void => {
+      el.pause()
+    }
     el.addEventListener('pointerdown', arm, true)
     el.addEventListener('click', arm, true)
     el.addEventListener('keydown', arm, true)
@@ -190,11 +193,13 @@ function DeckMedia({
     el.addEventListener('playing', unmute)
     el.addEventListener('pause', onPause)
     el.addEventListener('seeked', onSeeked)
+    window.addEventListener('orion-pause-local-media', onOutputStopped)
     unmute()
     if (!el.paused) startClock()
     return () => {
       armed = false
       stopClock()
+      window.removeEventListener('orion-pause-local-media', onOutputStopped)
       el.removeEventListener('pointerdown', arm, true)
       el.removeEventListener('click', arm, true)
       el.removeEventListener('keydown', arm, true)

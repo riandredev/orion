@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactElement } from 'react'
+import type { BackgroundImportProgress } from '../../../shared/background-import'
 import type { OrderFolderImage } from '../env'
 import {
   resolveCategoryBackground,
@@ -10,7 +11,16 @@ import {
   type BackgroundFit,
   type BackgroundMode
 } from '../lib/background-settings'
-import { getBibleBookBackgrounds, setBibleBookBackground } from '../lib/bible-book-backgrounds'
+import { bibleBooks, getBookDisplayName } from '../../../shared/bible-books'
+import { isAfrikaansBibleTranslation } from '../../../shared/bible-book-names-af'
+import { findInstalledBible, loadBibleTranslation } from '../data/bible-translations'
+import {
+  getBibleBookBackgrounds,
+  resolveBibleBackground,
+  setBibleBookBackground,
+  useBibleBookBackgrounds
+} from '../lib/bible-book-backgrounds'
+import { useInstalledBibles } from '../lib/use-installed-bibles'
 import { AdwColorPicker, type AdwColorSwatch } from './AdwColorPicker'
 import { AdwContextMenu, AdwContextMenuItem } from './AdwContextMenu'
 import { AdwScale } from './AdwScale'
@@ -18,6 +28,63 @@ import { AdwSelect } from './AdwSelect'
 import { AppIcon } from './AppIcon'
 import { BackgroundStagePreview } from './BackgroundStagePreview'
 import { BibleBookBackgroundCard } from './BibleBookBackgroundCard'
+
+function LibraryThumb({
+  path,
+  name,
+  selected,
+  onSelect,
+  onContextMenu
+}: {
+  path: string
+  name: string
+  selected: boolean
+  onSelect: () => void
+  onContextMenu: (event: MouseEvent) => void
+}): ReactElement {
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [src, setSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    const element = buttonRef.current
+    const loadThumb = window.orion?.backgroundThumb
+    if (!element || typeof loadThumb !== 'function') return
+    let cancelled = false
+    const load = (): void => {
+      void loadThumb(path).then((thumb) => {
+        if (!cancelled && thumb) setSrc(pathToFileUrl(thumb))
+      })
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        observer.disconnect()
+        load()
+      },
+      { rootMargin: '240px' }
+    )
+    observer.observe(element)
+    return () => {
+      cancelled = true
+      observer.disconnect()
+    }
+  }, [path])
+
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      className={selected ? 'settings-bg__thumb settings-bg__thumb--selected' : 'settings-bg__thumb'}
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+    >
+      <div className="settings-bg__thumb-frame">
+        {src ? <img src={src} alt="" decoding="async" /> : null}
+      </div>
+      <span className="settings-bg__thumb-name">{name}</span>
+    </button>
+  )
+}
 
 function pathToFileUrl(filePath: string): string {
   const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
@@ -70,7 +137,15 @@ export function BackgroundsSettingsPanel(): ReactElement {
   const [activeCategory, setActiveCategory] = useState<BackgroundCategoryId>('bible')
   const [library, setLibrary] = useState<OrderFolderImage[]>([])
   const [loading, setLoading] = useState(true)
+  const [importBusy, setImportBusy] = useState(false)
+  const [importProgress, setImportProgress] = useState<BackgroundImportProgress | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null)
+  const [bookId, setBookId] = useState(bibleBooks[0]?.id ?? 'gen')
+  const [applyToBook, setApplyToBook] = useState(true)
+  const assignments = useBibleBookBackgrounds()
+  const { bibles } = useInstalledBibles()
+  const afrikaans = isAfrikaansBibleTranslation(findInstalledBible(bibles, loadBibleTranslation()))
+  const bookName = getBookDisplayName(bookId, afrikaans)
 
   const refreshLibrary = useCallback(async () => {
     if (typeof window.orion?.listBackgroundImages !== 'function') {
@@ -91,9 +166,18 @@ export function BackgroundsSettingsPanel(): ReactElement {
     void refreshLibrary()
   }, [refreshLibrary])
 
+  useEffect(() => {
+    if (typeof window.orion?.onBackgroundImportProgress !== 'function') return
+    return window.orion.onBackgroundImportProgress(setImportProgress)
+  }, [])
+
   const categoryMeta = CATEGORIES.find((c) => c.id === activeCategory) ?? CATEGORIES[0]!
   const config = settings[activeCategory]
-  const resolved = resolveCategoryBackground(activeCategory, settings)
+  const categoryBackground = resolveCategoryBackground(activeCategory, settings)
+  const resolved =
+    activeCategory === 'bible' && applyToBook
+      ? resolveBibleBackground(bookId, settings)
+      : categoryBackground
 
   const modeOptions: { value: BackgroundMode; label: string }[] =
     activeCategory === 'defaults'
@@ -108,17 +192,28 @@ export function BackgroundsSettingsPanel(): ReactElement {
         ]
 
   async function handleAddBackground(): Promise<void> {
-    if (typeof window.orion?.importBackgroundImage !== 'function') return
-    const imported = await window.orion.importBackgroundImage()
-    if (!imported) return
-    await refreshLibrary()
-    updateCategoryBackground(activeCategory, {
-      mode: 'image',
-      imagePath: imported.path
-    })
+    if (importBusy || typeof window.orion?.importBackgroundImage !== 'function') return
+    setImportBusy(true)
+    setImportProgress(null)
+    try {
+      const imported = await window.orion.importBackgroundImage()
+      if (!imported) return
+      await refreshLibrary()
+      updateCategoryBackground(activeCategory, {
+        mode: 'image',
+        imagePath: imported.path
+      })
+    } finally {
+      setImportBusy(false)
+      setImportProgress(null)
+    }
   }
 
   function handleSelectLibraryImage(path: string): void {
+    if (activeCategory === 'bible' && applyToBook) {
+      setBibleBookBackground(bookId, path)
+      return
+    }
     updateCategoryBackground(activeCategory, {
       mode: 'image',
       imagePath: path
@@ -155,6 +250,7 @@ export function BackgroundsSettingsPanel(): ReactElement {
         <button
           type="button"
           className="adw-button adw-button--suggested settings-bg__upload-btn"
+          disabled={importBusy}
           onClick={() => void handleAddBackground()}
         >
           <AppIcon name="plus" size={16} />
@@ -284,7 +380,9 @@ export function BackgroundsSettingsPanel(): ReactElement {
           <div className="settings-bg__section-head">
             <h3 className="settings-bg__subtitle">Live stage preview</h3>
             <p className="adw-caption">
-              Sample layout matches live projection for this tab (16∶9).
+              {activeCategory === 'bible' && applyToBook
+                ? `${bookName} on the live stage.`
+                : 'Sample layout matches live projection for this tab (16∶9).'}
             </p>
           </div>
           <BackgroundStagePreview
@@ -300,7 +398,13 @@ export function BackgroundsSettingsPanel(): ReactElement {
         </div>
         {activeCategory === 'bible' ? (
           <div className="adw-card settings-bg__controls-card">
-            <BibleBookBackgroundCard />
+            <BibleBookBackgroundCard
+              bookId={bookId}
+              onBookId={setBookId}
+              assignedName={
+                library.find((image) => backgroundImagesMatch(assignments[bookId], image.path))?.name ?? null
+              }
+            />
           </div>
         ) : null}
         </div>
@@ -311,13 +415,16 @@ export function BackgroundsSettingsPanel(): ReactElement {
           <div>
             <h3 className="settings-bg__subtitle">Background image library</h3>
             <p className="adw-caption">
-              Import images, then click one to assign it to <strong>{categoryMeta.label}</strong>.
+              {activeCategory === 'bible' && applyToBook
+                ? `Click an image to use it for ${bookName}.`
+                : `Click an image to use it for ${categoryMeta.label}.`}
             </p>
           </div>
           <div className="settings-bg__library-actions">
             <button
               type="button"
               className="adw-button adw-button--suggested"
+              disabled={importBusy}
               onClick={() => void handleAddBackground()}
             >
               <AppIcon name="plus" size={16} />
@@ -340,6 +447,55 @@ export function BackgroundsSettingsPanel(): ReactElement {
           </div>
         </div>
 
+        {activeCategory === 'bible' ? (
+          <div className="settings-bg__apply" role="radiogroup" aria-label="Apply the clicked image to">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={applyToBook}
+              className="settings-bg__field settings-bg__apply-row"
+              onClick={() => setApplyToBook(true)}
+            >
+              <span className="settings-field__label">{bookName}</span>
+              {applyToBook ? <span className="settings-bg__apply-mark">✓</span> : <span />}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!applyToBook}
+              className="settings-bg__field settings-bg__apply-row"
+              onClick={() => setApplyToBook(false)}
+            >
+              <span className="settings-field__label">Bible background</span>
+              {!applyToBook ? <span className="settings-bg__apply-mark">✓</span> : <span />}
+            </button>
+          </div>
+        ) : null}
+
+        {importProgress && importProgress.total > 0 ? (
+          <div className="settings-bg__import-progress">
+            <div className="settings-bg__field-row">
+              <span className="adw-caption">
+                Copying {importProgress.current} of {importProgress.total}
+              </span>
+              <span className="adw-caption settings-bg__import-name">{importProgress.name}</span>
+            </div>
+            <div
+              className="adw-progress-bar"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={importProgress.total}
+              aria-valuenow={importProgress.current}
+              aria-label="Image import"
+            >
+              <span
+                className="adw-progress-bar__fill"
+                style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
+
         {loading ? (
           <p className="adw-caption">Loading images…</p>
         ) : library.length === 0 ? (
@@ -347,27 +503,22 @@ export function BackgroundsSettingsPanel(): ReactElement {
         ) : (
           <div className="settings-bg__library-grid">
             {library.map((img) => {
-              const selected = backgroundImagesMatch(config.imagePath, img.path)
+              const selected =
+                activeCategory === 'bible' && applyToBook
+                  ? backgroundImagesMatch(assignments[bookId], img.path)
+                  : backgroundImagesMatch(config.imagePath, img.path)
               return (
-                <button
+                <LibraryThumb
                   key={img.path}
-                  type="button"
-                  className={
-                    selected
-                      ? 'settings-bg__thumb settings-bg__thumb--selected'
-                      : 'settings-bg__thumb'
-                  }
-                  onClick={() => handleSelectLibraryImage(img.path)}
+                  path={img.path}
+                  name={img.name}
+                  selected={selected}
+                  onSelect={() => handleSelectLibraryImage(img.path)}
                   onContextMenu={(event) => {
                     event.preventDefault()
                     setMenu({ x: event.clientX, y: event.clientY, path: img.path })
                   }}
-                >
-                  <div className="settings-bg__thumb-frame">
-                    <img src={pathToFileUrl(img.path)} alt={img.name} loading="lazy" />
-                  </div>
-                  <span className="settings-bg__thumb-name">{img.name}</span>
-                </button>
+                />
               )
             })}
           </div>

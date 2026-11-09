@@ -44,6 +44,9 @@ export function DictionarySettingsPanel(): ReactElement {
   const insets = useProjectionContentInsetsByCategory().dictionary
   const blockLayout = useDictionaryBlockLayout()
   const [selected, setSelected] = useState<DictionaryTypographyElementId>('definition')
+  const selectedMeta =
+    DICTIONARY_TYPOGRAPHY_ELEMENTS.find((item) => item.id === selected) ?? DICTIONARY_TYPOGRAPHY_ELEMENTS[0]!
+  const style = dictionary[selected]
   const backgrounds = useBackgroundSettings()
   const resolved = resolveCategoryBackground('dictionary', backgrounds)
   const scalerRef = useRef<HTMLDivElement>(null)
@@ -80,56 +83,72 @@ export function DictionarySettingsPanel(): ReactElement {
     ...projectionTypographyCssVars(typography)
   }
 
+  const hit = (id: DictionaryTypographyElementId): string =>
+    id === selected ? 'hymn-style-hit hymn-style-hit--selected' : 'hymn-style-hit'
+
   return (
     <div className="settings-panel settings-bg">
       <h2 className="settings-panel__title">Dictionary</h2>
-      <p className="adw-caption">Each part of a word study has its own font and size.</p>
+      <p className="adw-caption">Type, box, and position for each part of a word study.</p>
+      <div className="adw-view-switcher" role="tablist" aria-label="Dictionary slide parts">
+        {DICTIONARY_TYPOGRAPHY_ELEMENTS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            id={`dictionary-part-${item.id}`}
+            aria-selected={item.id === selected}
+            aria-controls="dictionary-part-panel"
+            className={
+              item.id === selected
+                ? 'adw-view-switcher__tab adw-view-switcher__tab--active'
+                : 'adw-view-switcher__tab'
+            }
+            onClick={() => setSelected(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       <div className="settings-bg__grid">
         <div className="settings-type__stack">
-          <div className="adw-card settings-bg__controls-card">
-            {DICTIONARY_TYPOGRAPHY_ELEMENTS.map((item) => (
-              <TypeStyleFields
-                key={item.id}
-                label={item.label}
-                value={dictionary[item.id as DictionaryTypographyElementId]}
-                onChange={(patch) => updateDictionaryTypographyElement(item.id, patch)}
-                onReset={() => resetDictionaryTypographyElement(item.id)}
-              />
-            ))}
-            {DICTIONARY_TYPOGRAPHY_ELEMENTS.map((item) => (
-              <TextPanelFields
-                key={`${item.id}-box`}
-                label={`${item.label} box`}
-                panel={typography.dictionaryPanels[item.id]}
-                onChange={(patch) => updateDictionaryPanel(item.id, patch)}
-                onReset={() => resetDictionaryPanel(item.id)}
-              />
-            ))}
+          <div
+            className="adw-card settings-bg__controls-card"
+            role="tabpanel"
+            id="dictionary-part-panel"
+            aria-labelledby={`dictionary-part-${selected}`}
+          >
+            <TypeStyleFields
+              label={selectedMeta.label}
+              value={style}
+              onChange={(patch) => updateDictionaryTypographyElement(selected, patch)}
+              onReset={() => resetDictionaryTypographyElement(selected)}
+            />
+            <TextPanelFields
+              label={`${selectedMeta.label} box`}
+              panel={typography.dictionaryPanels[selected]}
+              onChange={(patch) => updateDictionaryPanel(selected, patch)}
+              onReset={() => resetDictionaryPanel(selected)}
+            />
+            <CategoryPlacementCard
+              blocks={DICTIONARY_TYPOGRAPHY_ELEMENTS.map((item) => ({ id: item.id, label: item.label }))}
+              blockId={selected}
+              layout={blockLayout}
+              onAnchor={updateDictionaryBlockAnchor}
+              onMargin={updateDictionaryBlockMargin}
+              onMarginSides={updateDictionaryBlockMarginSides}
+              onWidth={updateDictionaryBlockWidth}
+              onReset={resetDictionaryBlockLayout}
+            />
             <TextShadowField category="dictionary" value={typography.textShadow.dictionary} />
           </div>
           <ContentInsetCard category="dictionary" title="Dictionary" />
-          <CategoryPlacementCard
-            blocks={[
-              { id: 'strongs', label: "Strong's number", hint: 'The reference line' },
-              { id: 'lemma', label: 'Original word', hint: 'The word being studied' },
-              { id: 'details', label: 'Details', hint: 'Part of speech and gloss' },
-              { id: 'definition', label: 'Definition', hint: 'The explanation' }
-            ]}
-            blockId={selected}
-            layout={blockLayout}
-            onSelect={setSelected}
-            onAnchor={updateDictionaryBlockAnchor}
-            onMargin={updateDictionaryBlockMargin}
-            onMarginSides={updateDictionaryBlockMarginSides}
-            onWidth={updateDictionaryBlockWidth}
-            onReset={resetDictionaryBlockLayout}
-          />
         </div>
         <div className="settings-bg__aside">
           <div className="adw-card settings-bg__preview-card">
           <div className="settings-bg__section-head">
             <h3 className="settings-bg__subtitle">Preview</h3>
-            <p className="adw-caption">Strong’s number, original word, details, and definition.</p>
+            <p className="adw-caption">Selected: {selectedMeta.label}</p>
           </div>
           <div
             ref={scalerRef}
@@ -143,14 +162,14 @@ export function DictionarySettingsPanel(): ReactElement {
               <div className="settings-bg__stage-layer">
                 <div className={`dictionary-proj bg-stage-demo__fill${Object.values(blockLayout).some((item) => item.anchor !== 'flow') ? ' proj-place' : ''}`}>
                   <p
-                    className={`dictionary-proj__ref ${placedBlockClass(blockLayout.strongs.anchor)}`}
+                    className={`dictionary-proj__ref ${hit('strongs')} ${placedBlockClass(blockLayout.strongs.anchor)}`}
                     data-dictionary-style="strongs"
                     style={placedBlockStyle(blockLayout.strongs) as CSSProperties}
                   >
                     <span className="dictionary-proj__ref-id">G26</span> · Greek
                   </p>
                   <p
-                    className={`dictionary-proj__lemma ${placedBlockClass(blockLayout.lemma.anchor)}`}
+                    className={`dictionary-proj__lemma ${hit('lemma')} ${placedBlockClass(blockLayout.lemma.anchor)}`}
                     data-dictionary-style="lemma"
                     style={placedBlockStyle(blockLayout.lemma) as CSSProperties}
                   >
@@ -164,7 +183,7 @@ export function DictionarySettingsPanel(): ReactElement {
                     </span>
                   </p>
                   <div
-                    className={`dictionary-proj__infobar ${placedBlockClass(blockLayout.details.anchor)}`}
+                    className={`dictionary-proj__infobar ${hit('details')} ${placedBlockClass(blockLayout.details.anchor)}`}
                     data-dictionary-style="details"
                     style={placedBlockStyle(blockLayout.details) as CSSProperties}
                   >
@@ -173,7 +192,7 @@ export function DictionarySettingsPanel(): ReactElement {
                     <p className="dictionary-proj__infobar-seg">love</p>
                   </div>
                   <p
-                    className={`dictionary-proj__definition ${placedBlockClass(blockLayout.definition.anchor)}`}
+                    className={`dictionary-proj__definition ${hit('definition')} ${placedBlockClass(blockLayout.definition.anchor)}`}
                     data-dictionary-style="definition"
                     style={placedBlockStyle(blockLayout.definition) as CSSProperties}
                   >
