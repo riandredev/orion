@@ -188,11 +188,15 @@ async function promptAvailable(update: SelectedUpdate): Promise<void> {
 }
 
 async function promptReady(version: string): Promise<void> {
+  const mac = process.platform === 'darwin'
   const response = await ask({
     type: 'info',
     title: 'Orion',
-    message: `Restart to finish installing version ${version}.`,
-    buttons: ['Restart', 'Later'],
+    message: mac ? `Version ${version} is downloaded.` : `Restart to finish installing version ${version}.`,
+    detail: mac
+      ? 'Open the disk image and drag Orion to Applications, replacing the current app.'
+      : undefined,
+    buttons: mac ? ['Open disk image', 'Later'] : ['Restart', 'Later'],
     defaultId: 0,
     cancelId: 1,
     noLink: true
@@ -219,6 +223,13 @@ async function installUpdate(): Promise<void> {
   if (process.platform === 'win32') {
     const child = spawn(file, ['/S', '--force-run'], { detached: true, stdio: 'ignore' })
     child.unref()
+    app.quit()
+    return
+  }
+  if (process.platform === 'darwin') {
+    const { shell } = await import('electron')
+    const openError = await shell.openPath(file)
+    if (openError) throw new Error(openError)
     app.quit()
     return
   }

@@ -1,3 +1,5 @@
+const macSigned = Boolean(process.env.CSC_LINK)
+
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId: 'com.orion.presenter',
@@ -45,6 +47,19 @@ module.exports = {
     target: [{ target: 'nsis', arch: ['x64'] }],
     icon: 'build/icon.png'
   },
+  mac: {
+    target: [{ target: 'dmg', arch: ['universal'] }],
+    category: 'public.app-category.productivity',
+    icon: 'build/icon.png',
+    artifactName: 'Orion-${version}-mac.${ext}',
+    darkModeSupport: true,
+    minimumSystemVersion: '11.0',
+    identity: macSigned ? undefined : null,
+    hardenedRuntime: macSigned,
+    gatekeeperAssess: false,
+    entitlements: 'build/entitlements.mac.plist',
+    entitlementsInherit: 'build/entitlements.mac.plist'
+  },
   linux: {
     syncDesktopName: true,
     target: [{ target: 'AppImage', arch: ['x64'] }],
@@ -69,5 +84,9 @@ module.exports = {
   },
   appImage: {
     artifactName: 'Orion-${version}-linux.${ext}'
+  },
+  dmg: {
+    artifactName: 'Orion-${version}-mac.${ext}',
+    title: 'Orion ${version}'
   }
 }

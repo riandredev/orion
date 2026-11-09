@@ -97,4 +97,29 @@ describe('selectUpdate', () => {
     )
     expect(update?.asset.name).toBe('Orion-0.2.0-linux.AppImage')
   })
+
+  it('picks the macOS disk image', () => {
+    const update = selectUpdate(
+      [
+        {
+          tag_name: 'v0.2.0',
+          assets: [
+            {
+              name: 'Orion-0.2.0-mac.dmg',
+              browser_download_url: 'https://example.test/orion.dmg',
+              size: 30
+            },
+            {
+              name: 'Orion-0.2.0-windows-setup.exe',
+              browser_download_url: 'https://example.test/orion.exe',
+              size: 11
+            }
+          ]
+        }
+      ],
+      'darwin',
+      '0.1.0'
+    )
+    expect(update?.asset.name).toBe('Orion-0.2.0-mac.dmg')
+  })
 })

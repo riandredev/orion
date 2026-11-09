@@ -55,6 +55,7 @@ export function versionFromTag(tag: string): string | null {
 export function installerAssetName(version: string, platform: NodeJS.Platform): string | null {
   if (platform === 'win32') return `Orion-${version}-windows-setup.exe`
   if (platform === 'linux') return `Orion-${version}-linux.AppImage`
+  if (platform === 'darwin') return `Orion-${version}-mac.dmg`
   return null
 }
 
