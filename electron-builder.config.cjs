@@ -58,7 +58,8 @@ module.exports = {
     hardenedRuntime: macSigned,
     gatekeeperAssess: false,
     entitlements: 'build/entitlements.mac.plist',
-    entitlementsInherit: 'build/entitlements.mac.plist'
+    entitlementsInherit: 'build/entitlements.mac.plist',
+    x64ArchFiles: '**/app.asar.unpacked/**'
   },
   linux: {
     syncDesktopName: true,
