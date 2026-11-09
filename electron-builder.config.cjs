@@ -50,7 +50,7 @@ module.exports = {
   mac: {
     target: [{ target: 'dmg', arch: ['universal'] }],
     category: 'public.app-category.productivity',
-    icon: 'build/icon.png',
+    icon: 'build/icons/1024x1024.png',
     artifactName: 'Orion-${version}-mac.${ext}',
     darkModeSupport: true,
     minimumSystemVersion: '11.0',
