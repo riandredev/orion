@@ -521,6 +521,7 @@ export default function App(): ReactElement {
   const [webSeen, setWebSeen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [libraryUpdates, setLibraryUpdates] = useState(0)
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('displays')
   const [sequenceOpen, setSequenceOpen] = useState(true)
   const [projectorOpen, setProjectorOpen] = useState(true)
@@ -814,6 +815,22 @@ export default function App(): ReactElement {
     }
     window.addEventListener('orion-profile-applied', onProfile)
     return () => window.removeEventListener('orion-profile-applied', onProfile)
+  }, [reloadOrderLibrary])
+
+  useEffect(() => {
+    const load = (): void => {
+      void window.orion
+        .listLibraries()
+        .then((list) => setLibraryUpdates(list.updates))
+        .catch(() => undefined)
+    }
+    const onLibraries = (): void => {
+      load()
+      void reloadOrderLibrary()
+    }
+    load()
+    window.addEventListener('orion-libraries-changed', onLibraries)
+    return () => window.removeEventListener('orion-libraries-changed', onLibraries)
   }, [reloadOrderLibrary])
 
   useEffect(() => {
@@ -2297,6 +2314,7 @@ export default function App(): ReactElement {
         onTabChange={setTab}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShortcuts={() => setShortcutsOpen(true)}
+        libraryUpdates={libraryUpdates}
         orderBlock={tab === 'order' ? orderBlock : undefined}
         webBlock={tab === 'web' ? webBlock : undefined}
         bibleBlock={tab === 'bible' ? bibleBlock : undefined}

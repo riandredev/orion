@@ -1,5 +1,3 @@
-export type AppEditionId = 'standard' | 'panorama'
-
 export type AppUpdatePhase = 'available' | 'downloading' | 'ready' | 'error'
 
 export type AppUpdateStatus =
@@ -31,7 +29,7 @@ export type SelectedUpdate = {
   asset: ReleaseAsset
 }
 
-const TAG = /^v(\d+\.\d+\.\d+)(?:-panorama)?$/
+const TAG = /^v(\d+\.\d+\.\d+)$/
 
 export function parseVersion(value: string): [number, number, number] | null {
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(value.trim())
@@ -49,29 +47,14 @@ export function compareVersions(left: string, right: string): number {
   return 0
 }
 
-export function versionFromTag(tag: string, edition: AppEditionId): string | null {
+export function versionFromTag(tag: string): string | null {
   const match = TAG.exec(tag.trim())
-  if (!match) return null
-  const panorama = tag.trim().endsWith('-panorama')
-  if (edition === 'panorama' ? !panorama : panorama) return null
-  return match[1]
+  return match ? match[1] : null
 }
 
-export function installerAssetName(
-  edition: AppEditionId,
-  version: string,
-  platform: NodeJS.Platform
-): string | null {
-  if (platform === 'win32') {
-    return edition === 'panorama'
-      ? `Orion-Panorama-${version}-windows-setup.exe`
-      : `Orion-${version}-windows-setup.exe`
-  }
-  if (platform === 'linux') {
-    return edition === 'panorama'
-      ? `Orion-Panorama-${version}-linux.AppImage`
-      : `Orion-${version}-linux.AppImage`
-  }
+export function installerAssetName(version: string, platform: NodeJS.Platform): string | null {
+  if (platform === 'win32') return `Orion-${version}-windows-setup.exe`
+  if (platform === 'linux') return `Orion-${version}-linux.AppImage`
   return null
 }
 
@@ -82,16 +65,15 @@ export function installerRequestUrls(asset: ReleaseAsset): string[] {
 
 export function selectUpdate(
   releases: ReleaseInfo[],
-  edition: AppEditionId,
   platform: NodeJS.Platform,
   currentVersion: string
 ): SelectedUpdate | null {
   let best: SelectedUpdate | null = null
   for (const release of releases) {
     if (release.draft || release.prerelease) continue
-    const version = versionFromTag(release.tag_name, edition)
+    const version = versionFromTag(release.tag_name)
     if (!version || compareVersions(version, currentVersion) <= 0) continue
-    const name = installerAssetName(edition, version, platform)
+    const name = installerAssetName(version, platform)
     const asset = name ? release.assets?.find((item) => item.name === name) : undefined
     if (!asset?.browser_download_url) continue
     if (!best || compareVersions(version, best.version) > 0) {

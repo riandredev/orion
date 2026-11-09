@@ -55,6 +55,7 @@
 }
 
 .top-chrome__settings-btn {
+  position: relative;
   width: 30px;
   min-width: 30px;
   padding: 0;
@@ -1783,6 +1784,10 @@ body.projector-shell--resizing {
 }
 
 .settings-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   text-align: left;
   border: none;
   background: transparent;
@@ -1792,6 +1797,51 @@ body.projector-shell--resizing {
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
+}
+
+.settings-nav-item__dot,
+.top-chrome__update-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--adw-accent);
+  flex: none;
+}
+
+.top-chrome__update-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+}
+
+.settings-libraries {
+  margin-top: 16px;
+}
+
+.settings-dialog__content .library-row {
+  min-height: 0;
+  padding: 8px 12px;
+}
+
+.library-row__art {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  display: block;
+}
+
+.library-row__progress {
+  display: block;
+  margin-top: 8px;
+}
+
+.library-row__meta {
+  display: block;
+  margin-top: 2px;
+}
+
+.settings-libraries__status {
+  padding: 12px 16px;
 }
 
 .settings-nav-item:hover {

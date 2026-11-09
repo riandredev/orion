@@ -87,6 +87,12 @@ export type OrionApi = {
     items: import('../../shared/dictionary-types').DictionaryScriptureOccurrence[]
   }>
   listHymnals: () => Promise<import('../../shared/hymnal-types').HymnalMeta[]>
+  listLibraries: () => Promise<import('../../shared/content-bundles').LibraryList>
+  installLibrary: (id: string) => Promise<{ ok: true } | { ok: false; message: string }>
+  onLibraryProgress: (
+    callback: (progress: import('../../shared/content-bundles').LibraryProgress) => void
+  ) => () => void
+  onLibrariesList: (callback: (list: import('../../shared/content-bundles').LibraryList) => void) => () => void
   getHymnalIndex: (hymnalId: string) => Promise<import('../../shared/hymnal-types').HymnSummary[]>
   getHymnEntry: (
     hymnalId: string,

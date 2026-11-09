@@ -118,6 +118,34 @@ const api = {
   }> => ipcRenderer.invoke('orion:get-dictionary-scripture', strongs, options),
   listHymnals: (): Promise<import('../shared/hymnal-types').HymnalMeta[]> =>
     ipcRenderer.invoke('orion:list-hymnals'),
+  listLibraries: (): Promise<import('../shared/content-bundles').LibraryList> =>
+    ipcRenderer.invoke('orion:list-libraries'),
+  installLibrary: (id: string): Promise<{ ok: true } | { ok: false; message: string }> =>
+    ipcRenderer.invoke('orion:install-library', id),
+  onLibraryProgress: (
+    callback: (progress: import('../shared/content-bundles').LibraryProgress) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      progress: import('../shared/content-bundles').LibraryProgress
+    ): void => {
+      callback(progress)
+    }
+    ipcRenderer.on('orion:library-progress', listener)
+    return () => ipcRenderer.removeListener('orion:library-progress', listener)
+  },
+  onLibrariesList: (
+    callback: (list: import('../shared/content-bundles').LibraryList) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      list: import('../shared/content-bundles').LibraryList
+    ): void => {
+      callback(list)
+    }
+    ipcRenderer.on('orion:libraries-list', listener)
+    return () => ipcRenderer.removeListener('orion:libraries-list', listener)
+  },
   getHymnalIndex: (hymnalId: string): Promise<import('../shared/hymnal-types').HymnSummary[]> =>
     ipcRenderer.invoke('orion:get-hymnal-index', hymnalId),
   getHymnEntry: (

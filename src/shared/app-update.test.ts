@@ -43,13 +43,25 @@ const releases: ReleaseInfo[] = [
 ]
 
 describe('selectUpdate', () => {
-  it('keeps each edition on its own release line', () => {
-    const panorama = selectUpdate(releases, 'panorama', 'win32', '0.1.0')
-    expect(panorama?.version).toBe('0.2.0')
-    expect(panorama?.asset.name).toBe('Orion-Panorama-0.2.0-windows-setup.exe')
-
-    const standard = selectUpdate(releases, 'standard', 'win32', '0.1.0')
-    expect(standard).toBeNull()
+  it('ignores panorama tags and stays on the Orion release line', () => {
+    const releasesWithStandard: ReleaseInfo[] = [
+      ...releases,
+      {
+        tag_name: 'v0.2.0',
+        body: 'Orion',
+        assets: [
+          {
+            name: 'Orion-0.2.0-windows-setup.exe',
+            browser_download_url: 'https://example.test/orion-new.exe',
+            size: 11
+          }
+        ]
+      }
+    ]
+    const selected = selectUpdate(releasesWithStandard, 'win32', '0.1.0')
+    expect(selected?.version).toBe('0.2.0')
+    expect(selected?.asset.name).toBe('Orion-0.2.0-windows-setup.exe')
+    expect(selectUpdate(releases, 'win32', '0.1.0')).toBeNull()
   })
 
   it('asks GitHub for the asset directly before the public download link', () => {
@@ -67,7 +79,22 @@ describe('selectUpdate', () => {
   })
 
   it('picks the installer for the current platform', () => {
-    const update = selectUpdate(releases, 'panorama', 'linux', '0.1.0')
-    expect(update?.asset.name).toBe('Orion-Panorama-0.2.0-linux.AppImage')
+    const update = selectUpdate(
+      [
+        {
+          tag_name: 'v0.2.0',
+          assets: [
+            {
+              name: 'Orion-0.2.0-linux.AppImage',
+              browser_download_url: 'https://example.test/orion.AppImage',
+              size: 22
+            }
+          ]
+        }
+      ],
+      'linux',
+      '0.1.0'
+    )
+    expect(update?.asset.name).toBe('Orion-0.2.0-linux.AppImage')
   })
 })

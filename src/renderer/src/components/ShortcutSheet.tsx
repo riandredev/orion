@@ -89,6 +89,15 @@ const groups: ShortcutGroup[] = [
             <KbdIcon name="caretDown" />
           </>
         )
+      },
+      { label: 'Send to outputs', keys: <Kbd>Enter</Kbd> },
+      {
+        label: 'Project or stop',
+        keys: (
+          <>
+            <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd>
+          </>
+        )
       }
     ]
   },

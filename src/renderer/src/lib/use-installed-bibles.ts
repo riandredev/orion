@@ -29,6 +29,11 @@ export function useInstalledBibles(): {
 
   useEffect(() => {
     void refresh()
+    const onLibraries = (): void => {
+      void refresh()
+    }
+    window.addEventListener('orion-libraries-changed', onLibraries)
+    return () => window.removeEventListener('orion-libraries-changed', onLibraries)
   }, [refresh])
 
   const importNew = useCallback(async () => {

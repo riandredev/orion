@@ -4,8 +4,8 @@ import { compareOrderFolderNames } from './order-folder-sort'
 const names = ['Boodskap', 'Doop', 'Welkom', 'Lesstudie', 'Spesiale Item']
 
 describe('compareOrderFolderNames', () => {
-  it('sorts the standard edition A to Z', () => {
-    expect([...names].sort((a, b) => compareOrderFolderNames(a, b, 'standard'))).toEqual([
+  it('sorts A to Z by default', () => {
+    expect([...names].sort((a, b) => compareOrderFolderNames(a, b, 'az'))).toEqual([
       'Boodskap',
       'Doop',
       'Lesstudie',
@@ -14,8 +14,8 @@ describe('compareOrderFolderNames', () => {
     ])
   })
 
-  it('sorts panorama Z to A', () => {
-    expect([...names].sort((a, b) => compareOrderFolderNames(a, b, 'panorama'))).toEqual([
+  it('sorts Z to A when a library asks for that order', () => {
+    expect([...names].sort((a, b) => compareOrderFolderNames(a, b, 'za'))).toEqual([
       'Welkom',
       'Spesiale Item',
       'Lesstudie',

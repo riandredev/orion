@@ -7,7 +7,6 @@ import { join } from 'path'
 import { Readable, Transform } from 'stream'
 import { pipeline } from 'stream/promises'
 import { installerRequestUrls, selectUpdate, type ReleaseAsset, type ReleaseInfo, type SelectedUpdate } from '../shared/app-update'
-import { readEdition } from './edition'
 import { getMainAppWindow } from './projection'
 
 const RELEASES_URL = 'https://api.github.com/repos/riandredev/orion/releases?per_page=20'
@@ -50,13 +49,7 @@ async function fetchReleases(): Promise<ReleaseInfo[]> {
 export async function checkForAppUpdate(): Promise<void> {
   if (!app.isPackaged || dismissed || pending) return
   try {
-    const edition = readEdition()
-    const selected = selectUpdate(
-      await fetchReleases(),
-      edition.id,
-      process.platform,
-      app.getVersion()
-    )
+    const selected = selectUpdate(await fetchReleases(), process.platform, app.getVersion())
     if (!selected) return
     pending = selected
     downloadedPath = null

@@ -26,6 +26,7 @@ export type SettingsSection =
   | 'dictionary'
   | 'sequence'
   | 'organization'
+  | 'libraries'
   | 'about'
 
 export const settingsSections: { id: SettingsSection; label: string }[] = [
@@ -36,6 +37,7 @@ export const settingsSections: { id: SettingsSection; label: string }[] = [
   { id: 'dictionary', label: 'Dictionary' },
   { id: 'sequence', label: 'Sequence' },
   { id: 'organization', label: 'Organization' },
+  { id: 'libraries', label: 'Libraries' },
   { id: 'about', label: 'About' }
 ]
 

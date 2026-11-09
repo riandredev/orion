@@ -10,6 +10,7 @@ import { appIcon, applyLinuxWindowIdentity, installLinuxDesktopEntry, linuxWindo
 import { scheduleAppUpdateCheck } from './app-updates'
 import { seedPackagedLibraries } from './content-seed'
 import { readEdition } from './edition'
+import { installLibrary, installedOrderFolderSort, listLibraries } from './content-bundles'
 import { compareOrderFolderNames } from '../shared/order-folder-sort'
 import { is } from './env'
 import { biblesRoot, imagesRoot, orderImagesRoot } from './paths'
@@ -90,8 +91,8 @@ async function listOrderFolders(): Promise<
     ).length
     folders.push({ name, imageCount })
   }
-  const edition = readEdition().id
-  return folders.sort((a, b) => compareOrderFolderNames(a.name, b.name, edition))
+  const sort = await installedOrderFolderSort()
+  return folders.sort((a, b) => compareOrderFolderNames(a.name, b.name, sort))
 }
 
 async function listImagesInOrderFolder(
@@ -433,6 +434,8 @@ app.whenReady().then(async () => {
     getDictionaryLexiconEntry(strongs)
   )
   ipcMain.handle('orion:list-hymnals', () => listInstalledHymnals())
+  ipcMain.handle('orion:list-libraries', () => listLibraries())
+  ipcMain.handle('orion:install-library', (_event, id: string) => installLibrary(id))
   ipcMain.handle('orion:get-hymnal-index', (_event, hymnalId: string) => getHymnalIndex(hymnalId))
   ipcMain.handle('orion:get-hymn-entry', (_event, hymnalId: string, hymnId: string) =>
     getHymnEntry(hymnalId, hymnId)

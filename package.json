@@ -1,6 +1,6 @@
 {
   "name": "orion",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "license": "GPL-3.0-only",
   "description": "Presentation software for church services",
   "main": "./out/main/index.js",
@@ -15,8 +15,7 @@
     "test:e2e": "electron-vite build && electron ./out/main/index.js --e2e-verify",
     "dist:win": "electron-vite build && electron-builder --win --config electron-builder.config.cjs",
     "dist:linux": "electron-vite build && node scripts/ensure-linux-canvas.cjs && electron-builder --linux AppImage --config electron-builder.config.cjs",
-    "dist:panorama:win": "electron-vite build && set ORION_EDITION=panorama&& electron-builder --win --config electron-builder.config.cjs",
-    "dist:panorama:linux": "electron-vite build && node scripts/ensure-linux-canvas.cjs && set ORION_EDITION=panorama&& electron-builder --linux AppImage --config electron-builder.config.cjs",
+    "pack:library": "node scripts/pack-content-bundle.mjs",
     "bundle:kjv": "npx tsx scripts/bundle-kjv.ts",
     "bundle:adventist-hymnals": "npx tsx scripts/bundle-adventist-hymnals.ts"
   },

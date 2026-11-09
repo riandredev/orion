@@ -15,6 +15,7 @@ type TopBarProps = {
   onTabChange: (tab: WorkspaceTab) => void
   onOpenSettings: () => void
   onOpenShortcuts: () => void
+  libraryUpdates?: number
   orderBlock?: OrderBlockRibbonProps
   webBlock?: WebTabRibbonProps
   bibleBlock?: BibleTabRibbonProps
@@ -28,6 +29,7 @@ export function TopBar({
   onTabChange,
   onOpenSettings,
   onOpenShortcuts,
+  libraryUpdates = 0,
   orderBlock,
   webBlock,
   bibleBlock,
@@ -74,6 +76,7 @@ export function TopBar({
             aria-label="Settings"
           >
             <AppIcon name="settings" size={16} />
+            {libraryUpdates > 0 ? <span className="top-chrome__update-dot" /> : null}
           </button>
         </AdwTooltip>
       </div>

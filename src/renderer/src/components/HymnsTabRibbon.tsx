@@ -4,7 +4,7 @@ import { useHymnActiveLabel, useHymnLiveContent } from '../lib/hymns-ribbon-sync
 import { AppIcon } from './AppIcon'
 import { AdwSelect } from './AdwSelect'
 import { AdwTooltip } from './AdwTooltip'
-import { KbdIcon } from './Kbd'
+import { Kbd, KbdIcon } from './Kbd'
 import type { AppIconName } from './icons'
 
 export type HymnsTabRibbonProps = {
@@ -130,7 +130,8 @@ export function HymnsTabRibbon({
       </div>
       <p className="order-ribbon__hints adw-caption">
         Search by number or title · <KbdIcon name="caretLeft" /> <KbdIcon name="caretRight" />{' '}
-        <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> slides · Send to outputs to project
+        <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> slides · <Kbd>Enter</Kbd> send to
+        outputs · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> project or stop
       </p>
     </div>
   )

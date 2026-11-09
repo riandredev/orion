@@ -9,6 +9,7 @@ import {
   type SetStateAction
 } from 'react'
 import { formatHymnActiveLabel, queryHymnSummaries } from '../../../shared/hymnal-query'
+import { blurShortcutTarget } from '../lib/focus'
 import {
   buildHymnProjectionSteps,
   clampProjectionStep,
@@ -625,15 +626,25 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
     const onKeyDown = (e: KeyboardEvent): void => {
       if (document.querySelector('.hymns-workspace')?.closest('.tab-keep--hidden')) return
       if (sequenceFollowsKeys()) return
+      if (document.querySelector('dialog[open]')) return
       const target = e.target as HTMLElement
       if (
         target.tagName === 'INPUT' ||
         target.tagName === 'SELECT' ||
-        target.tagName === 'TEXTAREA'
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
       ) {
         return
       }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault()
+        blurShortcutTarget(e.target)
+        onGoLive?.()
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        blurShortcutTarget(e.target)
+        onProjectStanza?.()
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         e.preventDefault()
         selectProjectionOffset(1)
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
@@ -643,7 +654,7 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [selectProjectionOffset])
+  }, [onGoLive, onProjectStanza, selectProjectionOffset])
 
   useEffect(() => {
     setHymnsRibbonActions({

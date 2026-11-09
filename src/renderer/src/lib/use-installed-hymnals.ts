@@ -17,6 +17,11 @@ export function useInstalledHymnals(): {
 
   useEffect(() => {
     void refresh()
+    const onLibraries = (): void => {
+      void refresh()
+    }
+    window.addEventListener('orion-libraries-changed', onLibraries)
+    return () => window.removeEventListener('orion-libraries-changed', onLibraries)
   }, [refresh])
 
   const importFile = useCallback(async () => {

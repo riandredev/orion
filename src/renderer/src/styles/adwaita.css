@@ -498,48 +498,29 @@ a {
   position: absolute;
   z-index: 200;
   left: 0;
-  top: calc(100% + 6px);
+  top: calc(100% + 4px);
   width: max-content;
   max-width: min(420px, 85vw);
   padding: 6px 10px;
-  border-radius: var(--adw-radius-sm);
-  border: 1px solid var(--adw-border-strong);
-  background: var(--adw-popover-bg);
-  color: var(--adw-fg);
-  font-size: 12px;
-  line-height: 1.35;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgb(0 0 6 / 80%);
+  color: #fff;
+  font-family: var(--adw-font);
+  font-size: 14px;
+  line-height: 1.2;
+  box-shadow: none;
   pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-2px);
-  transition:
-    opacity 120ms ease 400ms,
-    visibility 120ms ease 400ms,
-    transform 120ms ease 400ms;
 }
 
 .adw-tooltip--fixed {
   position: fixed;
   z-index: 10000;
-  opacity: 0;
-  visibility: visible;
-  transform: translateY(-4px);
-  font-family: var(--adw-font);
   white-space: nowrap;
-  transition:
-    opacity 180ms ease,
-    transform 180ms ease;
-}
-
-.adw-tooltip--fixed.adw-tooltip--visible {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .adw-tooltip--measure {
-  opacity: 0;
-  pointer-events: none;
+  visibility: hidden;
 }
 
 .adw-tooltip--mono {
@@ -925,6 +906,11 @@ a {
   min-height: 44px;
   padding: 6px 12px;
   border-bottom: 1px solid var(--adw-border);
+}
+
+.adw-action-row__prefix {
+  flex: none;
+  display: flex;
 }
 
 .adw-action-row:last-child {

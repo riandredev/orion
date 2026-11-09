@@ -13,7 +13,7 @@ function iconPath(): string {
 
 /** Window class shared by the desktop entry and the running Linux window. */
 export function linuxWindowClass(): string {
-  return readEdition().id === 'panorama' ? 'orion-panorama' : 'orion'
+  return 'orion'
 }
 
 /**

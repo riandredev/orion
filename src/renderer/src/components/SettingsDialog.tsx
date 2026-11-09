@@ -9,6 +9,7 @@ import { BibleSettingsPanel } from './BibleSettingsPanel'
 import { DictionarySettingsPanel } from './DictionarySettingsPanel'
 import { DisplaysSettingsPanel } from './DisplaysSettingsPanel'
 import { HymnsSettingsPanel } from './HymnsSettingsPanel'
+import { LibrariesSettingsPanel } from './LibrariesSettingsPanel'
 import { OrganizationSettingsPanel } from './OrganizationSettingsPanel'
 import { SequenceSettingsPanel } from './SequenceSettingsPanel'
 
@@ -37,6 +38,8 @@ function SettingsPanel({ section }: { section: SettingsSection }): ReactElement 
       return <SequenceSettingsPanel />
     case 'organization':
       return <OrganizationSettingsPanel />
+    case 'libraries':
+      return <LibrariesSettingsPanel />
     case 'about':
       return <AboutSettingsPanel />
   }
@@ -53,6 +56,7 @@ export function SettingsDialog({
   const closeTimerRef = useRef<number | undefined>(undefined)
   const [mounted, setMounted] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [libraryUpdates, setLibraryUpdates] = useState(0)
 
   const releaseDialog = useCallback(() => {
     const el = dialogRef.current
@@ -120,6 +124,19 @@ export function SettingsDialog({
     []
   )
 
+  useEffect(() => {
+    if (!mounted) return
+    const load = (): void => {
+      void window.orion
+        .listLibraries()
+        .then((list) => setLibraryUpdates(list.updates))
+        .catch(() => undefined)
+    }
+    load()
+    window.addEventListener('orion-libraries-changed', load)
+    return () => window.removeEventListener('orion-libraries-changed', load)
+  }, [mounted])
+
   const onDialogClick = (e: MouseEvent<HTMLDialogElement>): void => {
     if (e.target === e.currentTarget) beginClose()
   }
@@ -166,7 +183,10 @@ export function SettingsDialog({
                 }
                 onClick={() => onSectionChange(item.id)}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.id === 'libraries' && libraryUpdates > 0 ? (
+                  <span className="settings-nav-item__dot" aria-label="Library update available" />
+                ) : null}
               </button>
             ))}
           </nav>
