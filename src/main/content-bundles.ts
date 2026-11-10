@@ -1,12 +1,15 @@
 import { createHash } from 'crypto'
 import { createReadStream } from 'fs'
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'fs/promises'
-import { dirname, join, relative, sep } from 'path'
+import { dirname, join, relative, resolve, sep } from 'path'
 import { pipeline } from 'stream/promises'
 import { app } from 'electron'
 import JSZip from 'jszip'
 import {
+  libraryInstallAction,
   libraryRows,
+  libraryUninstallRemoves,
+  mergeLibraryPreview,
   parseLibraryCatalog,
   parseLibraryManifest,
   type LibraryCatalogEntry,
@@ -105,8 +108,132 @@ async function sha256File(path: string): Promise<string> {
   return hash.digest('hex')
 }
 
-function toLibraryList(entries: LibraryCatalogEntry[], installed: InstalledRecord[], error: string | null): LibraryList {
+type LibraryFileState = { seen: Set<string>; removed: Set<string> }
+
+function libraryFilesPath(id: string): string {
+  return join(bundlesDir(), `${id}.files.json`)
+}
+
+async function readFileState(id: string): Promise<LibraryFileState> {
+  try {
+    const parsed = await readJson(libraryFilesPath(id))
+    const raw = parsed as { seen?: unknown; removed?: unknown }
+    const seen = new Set((Array.isArray(raw.seen) ? raw.seen : []).filter((item) => typeof item === 'string'))
+    const removed = new Set(
+      (Array.isArray(raw.removed) ? raw.removed : []).filter((item) => typeof item === 'string')
+    )
+    return { seen, removed }
+  } catch {
+    return { seen: new Set(), removed: new Set() }
+  }
+}
+
+async function writeFileState(id: string, state: LibraryFileState): Promise<void> {
+  await mkdir(bundlesDir(), { recursive: true })
+  await writeFile(
+    libraryFilesPath(id),
+    JSON.stringify({ seen: [...state.seen], removed: [...state.removed] }),
+    'utf8'
+  )
+}
+
+function libraryRel(absPath: string): string | null {
+  for (const kind of KINDS) {
+    const root = kindRoot(kind)
+    if (!isPathUnderRoot(absPath, root)) continue
+    const within = relative(root, absPath).split(sep).join('/')
+    if (!within || within.startsWith('..')) continue
+    return `${kind}/${within}`
+  }
+  return null
+}
+
+function destinationFor(rel: string): { dest: string; root: string } | null {
+  const kind = KINDS.find((item) => rel === item || rel.startsWith(`${item}/`))
+  if (!kind) return null
+  const within = rel.slice(kind.length + 1)
+  if (!within) return null
+  const root = kindRoot(kind)
+  const dest = join(root, ...within.split('/'))
+  if (!isPathUnderRoot(dest, root)) return null
+  return { dest, root }
+}
+
+async function fileIsPresent(rel: string): Promise<boolean> {
+  const target = destinationFor(rel)
+  if (!target) return false
+  try {
+    return (await stat(target.dest)).isFile()
+  } catch {
+    return false
+  }
+}
+
+async function removeEmptyParents(filePath: string, root: string): Promise<void> {
+  let dir = dirname(filePath)
+  const rootResolved = resolve(root)
+  while (resolve(dir) !== rootResolved && isPathUnderRoot(dir, root)) {
+    const names = await readdir(dir).catch(() => null)
+    if (!names || names.length > 0) break
+    await rm(dir, { recursive: false }).catch(() => undefined)
+    dir = dirname(dir)
+  }
+}
+
+/** A pack file that never landed still needs an update. A file that was present and then removed stays gone. */
+async function libraryNeedsFiles(id: string): Promise<boolean> {
+  const index = await readIndex(id)
+  const state = await readFileState(id)
+  let changed = false
+  let missing = false
+  for (const rel of Object.keys(index)) {
+    if (state.removed.has(rel)) continue
+    if (await fileIsPresent(rel)) {
+      if (!state.seen.has(rel)) {
+        state.seen.add(rel)
+        changed = true
+      }
+      continue
+    }
+    if (state.seen.has(rel)) {
+      state.seen.delete(rel)
+      state.removed.add(rel)
+      changed = true
+      continue
+    }
+    missing = true
+  }
+  if (changed) await writeFileState(id, state)
+  return missing
+}
+
+/** Remember a library file the user removed so a later update does not put it back. */
+export async function forgetLibraryFile(absPath: string): Promise<void> {
+  const rel = libraryRel(absPath)
+  if (!rel) return
+  const installed = await readInstalled()
+  for (const item of installed) {
+    const index = await readIndex(item.id)
+    const matches = Object.keys(index).filter((key) => key === rel || key.startsWith(`${rel}/`))
+    if (matches.length === 0) continue
+    const state = await readFileState(item.id)
+    for (const key of matches) {
+      state.seen.delete(key)
+      state.removed.add(key)
+    }
+    await writeFileState(item.id, state)
+  }
+}
+
+async function toLibraryList(
+  entries: LibraryCatalogEntry[],
+  installed: InstalledRecord[],
+  error: string | null
+): Promise<LibraryList> {
   const libraries = libraryRows(entries, installed)
+  for (const row of libraries) {
+    if (row.status === 'installed' && (await libraryNeedsFiles(row.id))) row.status = 'update'
+  }
   return {
     libraries,
     updates: libraries.filter((item) => item.status === 'update').length,
@@ -123,13 +250,18 @@ async function readCatalogFile(path: string): Promise<LibraryCatalogEntry[] | nu
 }
 
 async function localCatalog(): Promise<LibraryCatalogEntry[]> {
+  const shipped = (await readCatalogFile(shippedCatalogPath())) ?? []
   const cached = await readCatalogFile(join(bundlesDir(), 'catalog.json'))
-  if (cached && cached.length > 0) return cached
-  return (await readCatalogFile(shippedCatalogPath())) ?? []
+  const entries = cached && cached.length > 0 ? cached : shipped
+  return mergeLibraryPreview(entries, shipped)
 }
 
 function catalogSignature(entries: LibraryCatalogEntry[]): string {
   return JSON.stringify(entries)
+}
+
+function catalogIdentity(entries: LibraryCatalogEntry[]): string {
+  return JSON.stringify(entries.map(({ preview: _preview, ...entry }) => entry))
 }
 
 let catalogRefresh: Promise<void> | null = null
@@ -154,10 +286,15 @@ async function refreshRemoteCatalog(current: LibraryCatalogEntry[]): Promise<voi
     })
     if (!response.ok) return
     const remote = parseLibraryCatalog(await response.json())
-    if (!remote || catalogSignature(remote) === catalogSignature(current)) return
-    await mkdir(bundlesDir(), { recursive: true })
-    await writeFile(join(bundlesDir(), 'catalog.json'), JSON.stringify({ bundles: remote }), 'utf8')
-    emitLibraryList(toLibraryList(remote, await readInstalled(), null))
+    if (!remote) return
+    const shipped = (await readCatalogFile(shippedCatalogPath())) ?? []
+    const merged = mergeLibraryPreview(remote, shipped)
+    if (catalogIdentity(remote) !== catalogIdentity(current)) {
+      await mkdir(bundlesDir(), { recursive: true })
+      await writeFile(join(bundlesDir(), 'catalog.json'), JSON.stringify({ bundles: remote }), 'utf8')
+    }
+    if (catalogSignature(merged) === catalogSignature(current)) return
+    emitLibraryList(await toLibraryList(merged, await readInstalled(), null))
   } catch {
     /* the shipped catalog stays on screen when the network catalog is unreachable */
   }
@@ -166,7 +303,7 @@ async function refreshRemoteCatalog(current: LibraryCatalogEntry[]): Promise<voi
 export async function listLibraries(): Promise<LibraryList> {
   const [entries, installed] = await Promise.all([localCatalog(), readInstalled()])
   scheduleCatalogRefresh(entries)
-  return toLibraryList(entries, installed, null)
+  return await toLibraryList(entries, installed, null)
 }
 
 export async function installedOrderFolderSort(): Promise<LibraryFolderSort> {
@@ -197,6 +334,7 @@ async function listFiles(root: string): Promise<{ rel: string; abs: string }[]> 
 
 async function applyTree(root: string, manifest: LibraryManifest, onProgress: (done: number, total: number) => void): Promise<void> {
   const previous = await readIndex(manifest.id)
+  const state = await readFileState(manifest.id)
   const files = (await listFiles(root)).filter((file) => file.rel !== 'manifest.json')
   const next: InstallIndex = {}
   let done = 0
@@ -205,6 +343,7 @@ async function applyTree(root: string, manifest: LibraryManifest, onProgress: (d
     done += 1
     onProgress(done, files.length)
     if (!kind) continue
+    if (state.removed.has(file.rel)) continue
     const within = file.rel.slice(kind.length + 1)
     if (!within) continue
     const destRoot = kindRoot(kind)
@@ -217,13 +356,16 @@ async function applyTree(root: string, manifest: LibraryManifest, onProgress: (d
     } catch {
       liveSha = null
     }
-    const owned = previous[file.rel] != null && liveSha === previous[file.rel]
-    if (liveSha == null || (owned && liveSha !== bundleSha)) {
+    const action = libraryInstallAction(previous[file.rel], liveSha, bundleSha)
+    if (action === 'leave') continue
+    if (action === 'copy') {
       await mkdir(dirname(dest), { recursive: true })
       await copyFile(file.abs, dest)
     }
+    if (await fileIsPresent(file.rel)) state.seen.add(file.rel)
     next[file.rel] = bundleSha
   }
+  await writeFileState(manifest.id, state)
   await mkdir(bundlesDir(), { recursive: true })
   await writeFile(indexPath(manifest.id), JSON.stringify(next), 'utf8')
   const installed = (await readInstalled()).filter((item) => item.id !== manifest.id)
@@ -319,5 +461,47 @@ export async function installLibrary(id: string): Promise<{ ok: true } | { ok: f
     installing = false
     await rm(temp, { recursive: true, force: true }).catch(() => undefined)
     await rm(zipPath, { force: true }).catch(() => undefined)
+  }
+}
+
+export async function uninstallLibrary(id: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (installing) return { ok: false, message: 'A library is already being installed.' }
+  if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(id)) return { ok: false, message: 'That library is not available.' }
+  const installed = await readInstalled()
+  if (!installed.some((item) => item.id === id)) return { ok: false, message: 'That library is not installed.' }
+  installing = true
+  try {
+    const index = await readIndex(id)
+    const state = await readFileState(id)
+    const others = installed.filter((item) => item.id !== id)
+    const otherIndexes = await Promise.all(others.map(async (item) => readIndex(item.id)))
+    for (const [rel, sha] of Object.entries(index)) {
+      const target = destinationFor(rel)
+      if (!target) continue
+      try {
+        let liveSha: string | null = null
+        if ((await stat(target.dest)).isFile()) liveSha = await sha256File(target.dest)
+        const claimedByAnotherLibrary = otherIndexes.some((other) => other[rel] === sha)
+        if (!libraryUninstallRemoves(sha, liveSha, state.removed.has(rel), claimedByAnotherLibrary)) continue
+        await rm(target.dest)
+        await removeEmptyParents(target.dest, target.root)
+      } catch {
+        /* a missing or locked file stays as it is */
+      }
+    }
+    await rm(indexPath(id), { force: true }).catch(() => undefined)
+    await rm(libraryFilesPath(id), { force: true }).catch(() => undefined)
+    await writeFile(
+      installedPath(),
+      JSON.stringify(installed.filter((item) => item.id !== id), null, 2),
+      'utf8'
+    )
+    invalidateHymnalCache()
+    return { ok: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'The library could not be removed.'
+    return { ok: false, message }
+  } finally {
+    installing = false
   }
 }

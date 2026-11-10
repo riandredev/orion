@@ -673,15 +673,18 @@ function applyBibleBlockLayout(wrap, top, location, translation, body, layout) {
   const version = layout?.translation || 'top'
   const verse = layout?.verse || 'center'
   if (reference === 'top' && version === 'top' && verse === 'center') return
-  if (version === reference) setBlockMargin(top, margin.reference)
   wrap.classList.add('bible-proj--anchored')
+  top.classList.add('bible-proj__pair', `bible-anchor-${reference}`)
+  setBlockMargin(top, margin.reference)
+  setBlockMargin(location, {})
+  location.style.width = ''
+  location.style.maxWidth = ''
+  applyBlockWidth(top, widths.reference)
   const split = version !== reference
   if (split) {
     wrap.classList.add('bible-proj--split-heading')
-    location.classList.add(`bible-anchor-${reference}`)
     translation.classList.add(`bible-anchor-${version}`)
-  } else {
-    top.classList.add('bible-proj__pair', `bible-anchor-${reference}`)
+    wrap.appendChild(translation)
   }
   body.classList.add(`bible-anchor-${verse}`)
 }

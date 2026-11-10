@@ -249,17 +249,19 @@ export function OrderKanbanBoard({
   } | null>(null)
   const [drag, setDrag] = useState<ColumnDragState | null>(null)
   const columnRefs = useRef(new Map<string, HTMLElement>())
+  const hasFolderRows = useRef(false)
 
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      setLoading(true)
+      if (!hasFolderRows.current) setLoading(true)
       const rows: FolderWithImages[] = []
       for (const folder of folders) {
         const images = await window.orion.listOrderFolderImages(folder.name)
         rows.push({ folder, images })
       }
       if (!cancelled) {
+        hasFolderRows.current = rows.length > 0
         setFolderData(rows)
         setLoading(false)
       }

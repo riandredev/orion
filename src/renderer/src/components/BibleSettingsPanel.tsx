@@ -40,6 +40,8 @@ export function BibleSettingsPanel(): ReactElement {
   const backgrounds = useBackgroundSettings()
   const layout = useBibleBlockLayout()
   const parts = bibleProjPartClasses(layout)
+  const anchored = parts.wrap.includes('bible-proj--anchored')
+  const splitHeading = parts.wrap.includes('bible-proj--split-heading')
   const marginStyle = (block: 'reference' | 'translation' | 'verse'): CSSProperties => {
     const width = layout.width[block]
     return {
@@ -193,20 +195,27 @@ export function BibleSettingsPanel(): ReactElement {
             <div className="settings-bg__stage-canvas orion-projection-content-insets" style={canvasStyle}>
               <div className="settings-bg__stage-layer">
                 <div className={`${parts.wrap} bg-stage-demo__fill`}>
-                  <div
-                    className={parts.top}
-                    style={
-                      layout.translation === layout.reference ? marginStyle('reference') : undefined
-                    }
-                  >
+                  <div className={parts.top} style={anchored ? marginStyle('reference') : undefined}>
                     <button
                       type="button"
                       data-bible-style="reference"
                       className={`${parts.location} ${hit('reference')}`}
-                      style={marginStyle('reference')}
+                      style={anchored ? undefined : marginStyle('reference')}
                     >
                       John 3:16
                     </button>
+                    {splitHeading ? null : (
+                      <button
+                        type="button"
+                        data-bible-style="translation"
+                        className={`${parts.translation} ${hit('translation')}`}
+                        style={marginStyle('translation')}
+                      >
+                        King James Version
+                      </button>
+                    )}
+                  </div>
+                  {splitHeading ? (
                     <button
                       type="button"
                       data-bible-style="translation"
@@ -215,7 +224,7 @@ export function BibleSettingsPanel(): ReactElement {
                     >
                       King James Version
                     </button>
-                  </div>
+                  ) : null}
                   <div className={parts.body} style={marginStyle('verse')}>
                     <div ref={verseRef} className="bible-proj__text">
                       <span

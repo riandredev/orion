@@ -1928,8 +1928,138 @@ body.projector-shell--resizing {
   margin-top: 16px;
 }
 
-.settings-libraries {
+.library-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 20px;
+}
+
+.library-index__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 160px;
+  padding: 16px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.library-index__item:hover,
+.library-index__item:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.library-index__item img,
+.library-index__mark {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.library-index__mark {
+  border-radius: 8px;
+  background: var(--adw-card-bg);
+}
+
+.library-index__name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.library-index__item .adw-caption {
+  margin: 0;
+}
+
+.library-detail__back {
+  margin: 0 0 16px;
+}
+
+.library-detail__title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.library-detail__title img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.library-detail__title h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.library-detail__title .adw-caption {
+  margin: 4px 0 0;
+}
+
+.library-detail__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.library-detail__summary {
+  max-width: 62ch;
+  margin: 16px 0 0;
+}
+
+.library-detail__group {
+  margin-top: 28px;
+}
+
+.library-detail__group h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.library-detail__folder + .library-detail__folder {
   margin-top: 16px;
+}
+
+.library-detail__folder h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.library-detail__thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.library-detail__thumbs img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: #000;
+  border: 1px solid var(--adw-border);
+  border-radius: 6px;
+}
+
+.library-detail__group ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.library-detail__group li {
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .settings-dialog__content .library-row {
@@ -2932,12 +3062,7 @@ body.projector-shell--resizing {
   max-width: 80%;
 }
 
-.bible-proj--split-heading .bible-proj__top {
-  display: contents;
-}
-
 :is(.bible-proj--anchored, .proj-place) .bible-proj__pair,
-.bible-proj--split-heading .bible-proj__location,
 .bible-proj--split-heading .bible-proj__translation,
 :is(.bible-proj--anchored, .proj-place) .bible-proj__body {
   position: absolute;
@@ -3017,6 +3142,12 @@ body.projector-shell--resizing {
   bottom: var(--block-margin-bottom, 0vmin);
   top: auto;
   transform: none;
+}
+
+:is(.bible-proj--anchored, .proj-place) .bible-proj__pair {
+  width: auto;
+  max-width: calc(100% - var(--block-margin-left, 0vmin) - var(--block-margin-right, 0vmin));
+  box-sizing: border-box;
 }
 
 .bible-anchor-grid {

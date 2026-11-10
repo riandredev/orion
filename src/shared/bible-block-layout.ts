@@ -142,12 +142,8 @@ export function bibleProjPartClasses(layout: BibleBlockLayout): {
   const split = layout.translation !== layout.reference
   return {
     wrap: `bible-proj bible-proj--anchored${split ? ' bible-proj--split-heading' : ''}`,
-    top: split
-      ? 'bible-proj__top'
-      : `bible-proj__top bible-proj__pair ${bibleAnchorClass(layout.reference)}`,
-    location: split
-      ? `bible-proj__location ${bibleAnchorClass(layout.reference)}`
-      : 'bible-proj__location',
+    top: `bible-proj__top bible-proj__pair ${bibleAnchorClass(layout.reference)}`,
+    location: 'bible-proj__location',
     translation: split
       ? `bible-proj__translation ${bibleAnchorClass(layout.translation)}`
       : 'bible-proj__translation',

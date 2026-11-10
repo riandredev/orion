@@ -414,12 +414,7 @@
         position: relative;
       }
 
-      .bible-proj--split-heading .bible-proj__top {
-        display: contents;
-      }
-
       :is(.bible-proj--anchored, .proj-place) .bible-proj__pair,
-      .bible-proj--split-heading .bible-proj__location,
       .bible-proj--split-heading .bible-proj__translation,
       :is(.bible-proj--anchored, .proj-place) .bible-proj__body {
         position: absolute;
@@ -499,6 +494,12 @@
         bottom: var(--block-margin-bottom, 0vmin);
         top: auto;
         transform: none;
+      }
+
+      :is(.bible-proj--anchored, .proj-place) .bible-proj__pair {
+        width: auto;
+        max-width: calc(100% - var(--block-margin-left, 0vmin) - var(--block-margin-right, 0vmin));
+        box-sizing: border-box;
       }
 
       .dictionary-proj {

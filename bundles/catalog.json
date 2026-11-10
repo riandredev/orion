@@ -5,7 +5,52 @@
       "name": "SDA Panorama Church",
       "summary": "Service order folders, Adventist hymnals, Afrikaans and English Bibles, and the matching backgrounds.",
       "version": "2",
-      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-2.zip"
+      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-2.zip",
+      "preview": [
+        {
+          "label": "Service order",
+          "items": ["Boodskap", "Doop", "Gebed", "Kinderstorie", "Klingeloffergawe", "Lesstudie", "Nagmaal", "Offergawe", "Spesiale Item", "Welkom"],
+          "images": [
+            { "folder": "Doop", "src": "preview/order/Doop/image1.jpg", "alt": "Doop slide" },
+            { "folder": "Gebed", "src": "preview/order/Gebed/image1.jpg", "alt": "Gebed slide" },
+            { "folder": "Kinderstorie", "src": "preview/order/Kinderstorie/image1.jpg", "alt": "Kinderstorie slide" },
+            { "folder": "Klingeloffergawe", "src": "preview/order/Klingeloffergawe/image1.jpg", "alt": "Klingeloffergawe slide" },
+            { "folder": "Lesstudie", "src": "preview/order/Lesstudie/image1.jpg", "alt": "Lesstudie slide" },
+            { "folder": "Lesstudie", "src": "preview/order/Lesstudie/image2.jpg", "alt": "Lesstudie slide" },
+            { "folder": "Lesstudie", "src": "preview/order/Lesstudie/image3.jpg", "alt": "Lesstudie slide" },
+            { "folder": "Lesstudie", "src": "preview/order/Lesstudie/image4.jpg", "alt": "Lesstudie slide" },
+            { "folder": "Lesstudie", "src": "preview/order/Lesstudie/image5.jpg", "alt": "Lesstudie slide" },
+            { "folder": "Lesstudie", "src": "preview/order/Lesstudie/image6.jpg", "alt": "Lesstudie slide" },
+            { "folder": "Offergawe", "src": "preview/order/Offergawe/image1.jpg", "alt": "Offergawe slide" },
+            { "folder": "Spesiale Item", "src": "preview/order/Spesiale Item/image1.jpg", "alt": "Spesiale Item slide" },
+            { "folder": "Welkom", "src": "preview/order/Welkom/image1.jpg", "alt": "Welkom slide" },
+            { "folder": "Welkom", "src": "preview/order/Welkom/image2.jpg", "alt": "Welkom slide" },
+            { "folder": "Welkom", "src": "preview/order/Welkom/image3.jpg", "alt": "Welkom slide" },
+            { "folder": "Welkom", "src": "preview/order/Welkom/image4.jpg", "alt": "Welkom slide" },
+            { "folder": "Welkom", "src": "preview/order/Welkom/image5.jpg", "alt": "Welkom slide" },
+            { "folder": "Welkom", "src": "preview/order/Welkom/image6.jpg", "alt": "Welkom slide" },
+            { "folder": "Welkom", "src": "preview/order/Welkom/image7.jpg", "alt": "Welkom slide" },
+            { "folder": "Welkom", "src": "preview/order/Welkom/image8.jpg", "alt": "Welkom slide" },
+            { "folder": "Welkom", "src": "preview/order/Welkom/image9.jpg", "alt": "Welkom slide" }
+          ]
+        },
+        {
+          "label": "Hymnals",
+          "items": ["Afrikaans Adventist, 482 hymns", "English Adventist, 695 hymns"]
+        },
+        {
+          "label": "Bibles",
+          "items": ["Afrikaans 1953", "King James Version"]
+        },
+        {
+          "label": "Backgrounds",
+          "items": ["Bible", "Hymn"],
+          "images": [
+            { "src": "preview/backgrounds/bible.jpg", "alt": "Bible background" },
+            { "src": "preview/backgrounds/hymn.jpg", "alt": "Hymn background" }
+          ]
+        }
+      ]
     }
   ]
 }

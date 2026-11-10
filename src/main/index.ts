@@ -12,7 +12,13 @@ import { appIcon, applyLinuxWindowIdentity, installLinuxDesktopEntry, linuxWindo
 import { scheduleAppUpdateCheck } from './app-updates'
 import { seedPackagedLibraries } from './content-seed'
 import { readEdition } from './edition'
-import { installLibrary, installedOrderFolderSort, listLibraries } from './content-bundles'
+import {
+  forgetLibraryFile,
+  installLibrary,
+  installedOrderFolderSort,
+  listLibraries,
+  uninstallLibrary
+} from './content-bundles'
 import { compareOrderFolderNames } from '../shared/order-folder-sort'
 import { is } from './env'
 import type { BackgroundImportProgress } from '../shared/background-import'
@@ -452,12 +458,20 @@ app.whenReady().then(async () => {
   ipcMain.handle('orion:import-media', (_event, folderName: string) =>
     importMediaIntoFolder(String(folderName ?? ''))
   )
-  ipcMain.handle('orion:remove-media', (_event, filePath: string) => removeMediaFile(String(filePath ?? '')))
+  ipcMain.handle('orion:remove-media', async (_event, filePath: string) => {
+    const target = String(filePath ?? '')
+    const removed = await removeMediaFile(target)
+    if (removed) await forgetLibraryFile(target)
+    return removed
+  })
   ipcMain.handle('orion:list-background-images', () => listBackgroundImages())
   ipcMain.handle('orion:background-thumb', (_event, filePath: string) => backgroundThumb(String(filePath ?? '')))
-  ipcMain.handle('orion:remove-library-image', (_event, filePath: string) =>
-    removeLibraryImage(String(filePath ?? ''))
-  )
+  ipcMain.handle('orion:remove-library-image', async (_event, filePath: string) => {
+    const target = String(filePath ?? '')
+    const removed = await removeLibraryImage(target)
+    if (removed) await forgetLibraryFile(target)
+    return removed
+  })
   ipcMain.handle('orion:import-background-image', () => importBackgroundImage())
   ipcMain.handle('orion:list-bibles', () => listInstalledBibles())
   ipcMain.handle('orion:import-bible', () => importBibleFromDialog())
@@ -465,7 +479,11 @@ app.whenReady().then(async () => {
   ipcMain.handle('orion:download-bible', (_event, translationId: string) =>
     downloadHelloAoTranslation(translationId)
   )
-  ipcMain.handle('orion:remove-bible', (_event, bibleId: string) => removeInstalledBible(bibleId))
+  ipcMain.handle('orion:remove-bible', async (_event, bibleId: string) => {
+    const removed = await removeInstalledBible(bibleId)
+    if (removed) await forgetLibraryFile(join(biblesRoot(), bibleId))
+    return removed
+  })
   ipcMain.handle(
     'orion:get-bible-chapter',
     (_event, bibleId: string, bookId: string, chapter: number) =>
@@ -500,6 +518,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('orion:list-hymnals', () => listInstalledHymnals())
   ipcMain.handle('orion:list-libraries', () => listLibraries())
   ipcMain.handle('orion:install-library', (_event, id: string) => installLibrary(id))
+  ipcMain.handle('orion:uninstall-library', (_event, id: string) => uninstallLibrary(id))
   ipcMain.handle('orion:get-hymnal-index', (_event, hymnalId: string) => getHymnalIndex(hymnalId))
   ipcMain.handle('orion:get-hymn-entry', (_event, hymnalId: string, hymnId: string) =>
     getHymnEntry(hymnalId, hymnId)

@@ -138,6 +138,8 @@ const api = {
     ipcRenderer.invoke('orion:list-libraries'),
   installLibrary: (id: string): Promise<{ ok: true } | { ok: false; message: string }> =>
     ipcRenderer.invoke('orion:install-library', id),
+  uninstallLibrary: (id: string): Promise<{ ok: true } | { ok: false; message: string }> =>
+    ipcRenderer.invoke('orion:uninstall-library', id),
   onLibraryProgress: (
     callback: (progress: import('../shared/content-bundles').LibraryProgress) => void
   ): (() => void) => {

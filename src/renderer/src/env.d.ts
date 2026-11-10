@@ -99,6 +99,7 @@ export type OrionApi = {
   listHymnals: () => Promise<import('../../shared/hymnal-types').HymnalMeta[]>
   listLibraries: () => Promise<import('../../shared/content-bundles').LibraryList>
   installLibrary: (id: string) => Promise<{ ok: true } | { ok: false; message: string }>
+  uninstallLibrary: (id: string) => Promise<{ ok: true } | { ok: false; message: string }>
   onLibraryProgress: (
     callback: (progress: import('../../shared/content-bundles').LibraryProgress) => void
   ) => () => void
