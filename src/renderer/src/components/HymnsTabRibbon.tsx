@@ -3,6 +3,7 @@ import { hymnAnimationOptions, updateHymnMotion, useHymnMotion } from '../lib/hy
 import { useHymnActiveLabel, useHymnLiveContent } from '../lib/hymns-ribbon-sync'
 import { AppIcon } from './AppIcon'
 import { AdwSelect } from './AdwSelect'
+import { withTransitionIcons } from './TransitionIcon'
 import { AdwTooltip } from './AdwTooltip'
 import { Kbd, KbdIcon } from './Kbd'
 import type { AppIconName } from './icons'
@@ -106,7 +107,7 @@ export function HymnsTabRibbon({
             <span className="adw-section-label">Animation</span>
             <AdwSelect
               value={motion.animation}
-              options={hymnAnimationOptions}
+              options={withTransitionIcons(hymnAnimationOptions)}
               aria-label="Slide animation"
               onChange={(animation) => updateHymnMotion({ animation })}
             />

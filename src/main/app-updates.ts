@@ -25,7 +25,15 @@ function mainWindow(): BrowserWindow | null {
 function setDownloadProgress(percent: number | null): void {
   const win = mainWindow()
   if (!win) return
-  win.setProgressBar(percent == null ? -1 : Math.min(1, Math.max(0, percent / 100)))
+  if (percent == null) {
+    win.setProgressBar(-1)
+    return
+  }
+  if (percent < 0) {
+    win.setProgressBar(2)
+    return
+  }
+  win.setProgressBar(Math.min(1, Math.max(0, percent / 100)))
 }
 
 async function ask(options: MessageBoxOptions): Promise<number> {
@@ -60,6 +68,8 @@ export async function checkForAppUpdate(): Promise<void> {
 }
 
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
+const START_TIMEOUT_MS = 20_000
+const STALL_TIMEOUT_MS = 20_000
 
 function wait(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -75,35 +85,113 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
-async function openInstaller(asset: ReleaseAsset, signal: AbortSignal): Promise<Response> {
-  let lastStatus = 0
+function linkAbort(parent: AbortSignal, controller: AbortController): () => void {
+  if (parent.aborted) {
+    controller.abort(parent.reason)
+    return () => undefined
+  }
+  const onAbort = (): void => controller.abort(parent.reason)
+  parent.addEventListener('abort', onAbort)
+  return () => parent.removeEventListener('abort', onAbort)
+}
+
+async function writeInstaller(
+  response: Response,
+  dest: string,
+  total: number,
+  attempt: AbortController,
+  parent: AbortSignal
+): Promise<string> {
+  const hash = createHash('sha256')
+  let received = 0
+  let lastByteAt = Date.now()
+  let lastPercent = -1
+  const stall = setInterval(() => {
+    if (Date.now() - lastByteAt < STALL_TIMEOUT_MS) return
+    attempt.abort(new Error('The download stalled.'))
+  }, 2000)
+  const counter = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      lastByteAt = Date.now()
+      hash.update(chunk)
+      received += chunk.length
+      if (total > 0) {
+        const percent = Math.min(100, Math.round((received / total) * 100))
+        if (percent !== lastPercent) {
+          lastPercent = percent
+          setDownloadProgress(percent)
+        }
+      }
+      callback(null, chunk)
+    }
+  })
+  try {
+    await pipeline(
+      Readable.fromWeb(response.body as import('stream/web').ReadableStream),
+      counter,
+      createWriteStream(dest)
+    )
+  } finally {
+    clearInterval(stall)
+  }
+  if (parent.aborted || attempt.signal.aborted) {
+    throw new Error(parent.aborted ? 'The download was canceled.' : 'The download stalled.')
+  }
+  if (total > 0 && received !== total) {
+    throw new Error('The downloaded file is incomplete.')
+  }
+  return hash.digest('hex')
+}
+
+async function downloadInstaller(asset: ReleaseAsset, dest: string, parent: AbortSignal): Promise<void> {
+  let lastError: Error | null = null
   for (const url of installerRequestUrls(asset)) {
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      if (signal.aborted) throw new Error('The download was canceled.')
-      let response: Response
+    for (let attemptNo = 1; attemptNo <= 2; attemptNo += 1) {
+      if (parent.aborted) throw new Error('The download was canceled.')
+      const attempt = new AbortController()
+      const unlink = linkAbort(parent, attempt)
+      const started = setTimeout(() => attempt.abort(new Error('The download did not start.')), START_TIMEOUT_MS)
+      setDownloadProgress(-1)
       try {
-        response = await fetch(url, {
-          signal,
+        const response = await fetch(url, {
+          signal: attempt.signal,
           redirect: 'follow',
           headers: {
             'User-Agent': 'Orion',
-            Accept: 'application/octet-stream'
+            ...(url.includes('api.github.com') ? { Accept: 'application/octet-stream' } : {})
           }
         })
+        clearTimeout(started)
+        if (!response.ok || !response.body) {
+          await response.body?.cancel().catch(() => undefined)
+          throw new Error(response.status ? `GitHub returned ${response.status}.` : 'The download did not start.')
+        }
+        const headerLength = Number(response.headers.get('content-length'))
+        const total = headerLength > 0 ? headerLength : asset.size
+        const sha256 = await writeInstaller(response, dest, total, attempt, parent)
+        const digest = asset.digest?.replace(/^sha256:/, '')
+        if (digest && sha256 !== digest.toLowerCase()) {
+          throw new Error('The downloaded file did not match the published checksum.')
+        }
+        return
       } catch (error) {
-        if (signal.aborted) throw error
-        lastStatus = 0
-        if (attempt < 3) await wait(400 * attempt, signal)
-        continue
+        await rm(dest, { force: true })
+        if (parent.aborted) throw error instanceof Error ? error : new Error('The download was canceled.')
+        lastError = error instanceof Error ? error : new Error('The download did not start.')
+        const status = /GitHub returned (\d+)/.exec(lastError.message)
+        const retryable =
+          lastError.message.includes('stalled') ||
+          lastError.message.includes('did not start') ||
+          (status != null && RETRYABLE_STATUS.has(Number(status[1])))
+        if (!retryable) break
+        if (attemptNo < 2) await wait(400 * attemptNo, parent)
+      } finally {
+        clearTimeout(started)
+        unlink()
       }
-      if (response.ok && response.body) return response
-      lastStatus = response.status
-      await response.body?.cancel().catch(() => undefined)
-      if (!RETRYABLE_STATUS.has(response.status) || attempt === 3) break
-      await wait(400 * attempt, signal)
     }
   }
-  throw new Error(lastStatus ? `GitHub returned ${lastStatus}.` : 'The download did not start.')
+  throw lastError ?? new Error('The download did not start.')
 }
 
 async function downloadUpdate(): Promise<void> {
@@ -115,36 +203,10 @@ async function downloadUpdate(): Promise<void> {
   await mkdir(dir, { recursive: true })
   const dest = join(dir, update.asset.name)
   await rm(dest, { force: true })
-  setDownloadProgress(0)
+  setDownloadProgress(-1)
   let retry = false
   try {
-    const response = await openInstaller(update.asset, controller.signal)
-    const hash = createHash('sha256')
-    let received = 0
-    const total = update.asset.size
-    let lastPercent = 0
-    const counter = new Transform({
-      transform(chunk: Buffer, _encoding, callback) {
-        hash.update(chunk)
-        received += chunk.length
-        if (total > 0) {
-          const percent = Math.min(100, Math.round((received / total) * 100))
-          if (percent !== lastPercent) {
-            lastPercent = percent
-            setDownloadProgress(percent)
-          }
-        }
-        callback(null, chunk)
-      }
-    })
-    await pipeline(Readable.fromWeb(response.body as import('stream/web').ReadableStream), counter, createWriteStream(dest))
-    const digest = update.asset.digest?.replace(/^sha256:/, '')
-    if (digest && hash.digest('hex') !== digest.toLowerCase()) {
-      throw new Error('The downloaded file did not match the published checksum.')
-    }
-    if (total > 0 && received !== total) {
-      throw new Error('The downloaded file is incomplete.')
-    }
+    await downloadInstaller(update.asset, dest, controller.signal)
     downloadedPath = dest
     setDownloadProgress(null)
     await promptReady(update.version)

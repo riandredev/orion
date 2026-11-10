@@ -120,7 +120,7 @@ import {
   sendToProjection
 } from './lib/projection'
 import type { PresentationUiState } from '../../shared/presentation-ui-state'
-import type { OrionStackLayerContent } from '../../shared/projection-stack'
+import { orderImageAnimations, type OrionStackLayerContent } from '../../shared/projection-stack'
 import {
   loadLastWebUrl,
   normalizeWebUrl,
@@ -147,6 +147,8 @@ import {
 } from './components/ProjectorPanel'
 import { ShortcutSheet } from './components/ShortcutSheet'
 import { TopBar } from './components/TopBar'
+import { LibraryUpdateToast } from './components/LibraryUpdateToast'
+import { loadLibrarySettings } from './lib/library-settings'
 import { SettingsDialog } from './components/SettingsDialog'
 import { SequencePanel } from './components/SequencePanel'
 import {
@@ -241,13 +243,11 @@ function stackBibleFromContent(
   }
 }
 
-const previewMotionNames = ['crossfade', 'fade', 'cut', 'wipe', 'push', 'cover', 'uncover', 'split'] as const
-
 function outputPreviewMotion(
   animation: string | undefined,
   durationMs: number | undefined
 ): OutputPreviewMotion {
-  const named = previewMotionNames.find((name) => name === animation) ?? 'cut'
+  const named = orderImageAnimations.find((name) => name === animation) ?? 'cut'
   const ms =
     typeof durationMs === 'number' && Number.isFinite(durationMs)
       ? Math.min(5000, Math.max(0, Math.round(durationMs)))
@@ -499,6 +499,10 @@ function TabWorkspace({
           thumbSize={thumbSize}
           showImageNames={showImageNames}
           onNewFolder={onNewFolder}
+          onImportImages={async (folderName) => {
+            const result = await window.orion.importOrderImages(folderName)
+            if (result.ok && result.added > 0) await reloadOrderLibrary(folderName)
+          }}
         />
       )}
       {keep('bible', <BibleWorkspace onProjectToOutputs={onProjectToOutputs} />)}
@@ -522,6 +526,10 @@ export default function App(): ReactElement {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [libraryUpdates, setLibraryUpdates] = useState(0)
+  const [libraryAutoProgress, setLibraryAutoProgress] = useState<number | null>(null)
+  const [libraryAutoFailed, setLibraryAutoFailed] = useState(false)
+  const [libraryAutoUpdate, setLibraryAutoUpdate] = useState(() => loadLibrarySettings().autoUpdate)
+  const libraryAutoStarted = useRef(false)
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('displays')
   const [sequenceOpen, setSequenceOpen] = useState(true)
   const [projectorOpen, setProjectorOpen] = useState(true)
@@ -818,20 +826,55 @@ export default function App(): ReactElement {
   }, [reloadOrderLibrary])
 
   useEffect(() => {
+    const apply = (list: { updates: number }): void => setLibraryUpdates(list.updates)
     const load = (): void => {
-      void window.orion
-        .listLibraries()
-        .then((list) => setLibraryUpdates(list.updates))
-        .catch(() => undefined)
+      void window.orion.listLibraries().then(apply).catch(() => undefined)
     }
     const onLibraries = (): void => {
       load()
       void reloadOrderLibrary()
     }
+    const onLibrarySettings = (): void => setLibraryAutoUpdate(loadLibrarySettings().autoUpdate)
+    const stopList = window.orion.onLibrariesList(apply)
     load()
     window.addEventListener('orion-libraries-changed', onLibraries)
-    return () => window.removeEventListener('orion-libraries-changed', onLibraries)
+    window.addEventListener('orion-library-settings', onLibrarySettings)
+    window.addEventListener('orion-profile-applied', onLibrarySettings)
+    return () => {
+      stopList()
+      window.removeEventListener('orion-libraries-changed', onLibraries)
+      window.removeEventListener('orion-library-settings', onLibrarySettings)
+      window.removeEventListener('orion-profile-applied', onLibrarySettings)
+    }
   }, [reloadOrderLibrary])
+
+  useEffect(() => {
+    if (!libraryAutoUpdate || libraryUpdates <= 0 || libraryAutoStarted.current) return
+    libraryAutoStarted.current = true
+    let stopped = false
+    const stopProgress = window.orion.onLibraryProgress((progress) => {
+      if (!stopped) setLibraryAutoProgress(progress.percent)
+    })
+    void (async () => {
+      try {
+        const list = await window.orion.listLibraries()
+        const pending = list.libraries.filter((row) => row.status === 'update')
+        for (const row of pending) {
+          setLibraryAutoProgress(0)
+          const result = await window.orion.installLibrary(row.id)
+          if (!result.ok) {
+            setLibraryAutoFailed(true)
+            break
+          }
+        }
+      } finally {
+        stopped = true
+        stopProgress()
+        setLibraryAutoProgress(null)
+        window.dispatchEvent(new CustomEvent('orion-libraries-changed'))
+      }
+    })()
+  }, [libraryAutoUpdate, libraryUpdates])
 
   useEffect(() => {
     void fetchPresentationDecks().then((list) => {
@@ -2314,7 +2357,6 @@ export default function App(): ReactElement {
         onTabChange={setTab}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShortcuts={() => setShortcutsOpen(true)}
-        libraryUpdates={libraryUpdates}
         orderBlock={tab === 'order' ? orderBlock : undefined}
         webBlock={tab === 'web' ? webBlock : undefined}
         bibleBlock={tab === 'bible' ? bibleBlock : undefined}
@@ -2477,6 +2519,14 @@ export default function App(): ReactElement {
           }
         />
       </div>
+      <LibraryUpdateToast
+        count={settingsOpen || (libraryAutoUpdate && !libraryAutoFailed) ? 0 : libraryUpdates}
+        progress={libraryAutoProgress == null ? null : { percent: libraryAutoProgress }}
+        onOpen={() => {
+          setSettingsSection('libraries')
+          setSettingsOpen(true)
+        }}
+      />
       <ShortcutSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <SettingsDialog
         open={settingsOpen}

@@ -460,9 +460,22 @@ a {
 
 .adw-select__value {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.adw-select__label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.adw-select__icon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--adw-fg-muted);
 }
 
 .adw-select__chevron {
@@ -501,6 +514,9 @@ a {
 }
 
 .adw-select__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   border: none;
   border-radius: var(--adw-radius-xs);
@@ -510,6 +526,10 @@ a {
   padding: 6px 10px;
   font-size: 13px;
   cursor: pointer;
+}
+
+.adw-select__option--active .adw-select__icon {
+  color: var(--adw-fg);
 }
 
 .adw-select__option:hover {

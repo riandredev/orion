@@ -24,5 +24,9 @@ export const slideAnimationOptions: { value: SlideAnimation; label: string }[] =
   { value: 'push', label: 'Push' },
   { value: 'cover', label: 'Cover' },
   { value: 'uncover', label: 'Uncover' },
-  { value: 'split', label: 'Split' }
+  { value: 'split', label: 'Split' },
+  { value: 'zoom', label: 'Zoom' },
+  { value: 'iris', label: 'Iris' },
+  { value: 'bars', label: 'Bars' },
+  { value: 'pixels', label: 'Pixels' }
 ]

@@ -12,10 +12,18 @@ export const orderImageAnimations = [
   'push',
   'cover',
   'uncover',
-  'split'
+  'split',
+  'zoom',
+  'iris',
+  'bars',
+  'pixels'
 ] as const
 
 export type OrderImageAnimation = (typeof orderImageAnimations)[number]
+
+export function isOrderImageAnimation(value: unknown): value is OrderImageAnimation {
+  return typeof value === 'string' && (orderImageAnimations as readonly string[]).includes(value)
+}
 
 export type OrionStackState = {
   base: OrionStackSource | null

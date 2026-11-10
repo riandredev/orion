@@ -64,7 +64,7 @@ describe('selectUpdate', () => {
     expect(selectUpdate(releases, 'win32', '0.1.0')).toBeNull()
   })
 
-  it('asks GitHub for the asset directly before the public download link', () => {
+  it('uses the public download link before the GitHub API asset', () => {
     expect(
       installerRequestUrls({
         name: 'Orion-Panorama-1.0.5-windows-setup.exe',
@@ -73,8 +73,8 @@ describe('selectUpdate', () => {
         size: 10
       })
     ).toEqual([
-      'https://api.github.com/repos/riandredev/orion/releases/assets/1',
-      'https://github.com/riandredev/orion/releases/download/v1.0.5-panorama/Orion-Panorama-1.0.5-windows-setup.exe'
+      'https://github.com/riandredev/orion/releases/download/v1.0.5-panorama/Orion-Panorama-1.0.5-windows-setup.exe',
+      'https://api.github.com/repos/riandredev/orion/releases/assets/1'
     ])
   })
 

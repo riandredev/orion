@@ -1,11 +1,10 @@
-import { execFile } from 'child_process'
 import { createHash } from 'crypto'
 import { createReadStream } from 'fs'
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'fs/promises'
 import { dirname, join, relative, sep } from 'path'
 import { pipeline } from 'stream/promises'
-import { promisify } from 'util'
 import { app } from 'electron'
+import JSZip from 'jszip'
 import {
   libraryRows,
   parseLibraryCatalog,
@@ -22,7 +21,6 @@ import { isPathUnderRoot } from './projection-paths'
 import { getMainAppWindow } from './projection'
 import { invalidateHymnalCache } from './hymnals'
 
-const execFileAsync = promisify(execFile)
 const CATALOG_URL = 'https://raw.githubusercontent.com/riandredev/orion/main/bundles/catalog.json'
 const KINDS = ['order-images', 'hymnals', 'bibles', 'images', 'media'] as const
 type LibraryKind = (typeof KINDS)[number]
@@ -239,6 +237,23 @@ async function applyTree(root: string, manifest: LibraryManifest, onProgress: (d
   invalidateHymnalCache()
 }
 
+/** GNU tar on Linux cannot unpack a zip. macOS and Windows tar can, which is why only Linux failed. */
+async function extractZip(zipPath: string, dest: string): Promise<void> {
+  const zip = await JSZip.loadAsync(await readFile(zipPath))
+  for (const entry of Object.values(zip.files)) {
+    const rel = entry.name.replace(/\\/g, '/').replace(/^\/+/, '')
+    if (!rel || rel.split('/').includes('..')) continue
+    const target = join(dest, ...rel.split('/').filter(Boolean))
+    if (!isPathUnderRoot(target, dest)) continue
+    if (entry.dir) {
+      await mkdir(target, { recursive: true })
+      continue
+    }
+    await mkdir(dirname(target), { recursive: true })
+    await writeFile(target, await entry.async('nodebuffer'))
+  }
+}
+
 async function downloadZip(url: string, dest: string, id: string): Promise<void> {
   const response = await fetch(url, {
     headers: { 'User-Agent': 'Orion', Accept: 'application/octet-stream' },
@@ -284,7 +299,7 @@ export async function installLibrary(id: string): Promise<{ ok: true } | { ok: f
     emit({ id, phase: 'downloading', percent: 0, message: 'Downloading…' })
     await downloadZip(entry.downloadUrl, zipPath, id)
     emit({ id, phase: 'installing', percent: 0, message: 'Unpacking…' })
-    await execFileAsync('tar', ['-xf', zipPath, '-C', temp])
+    await extractZip(zipPath, temp)
     const manifest = parseLibraryManifest(await readJson(join(temp, 'manifest.json')))
     if (!manifest || manifest.id !== id) {
       return { ok: false, message: 'This download is not an Orion library.' }

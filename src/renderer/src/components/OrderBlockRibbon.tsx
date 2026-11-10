@@ -10,6 +10,7 @@ import { AppIcon } from './AppIcon'
 import { AppIcons } from './icons'
 import { AdwAlertDialog } from './AdwAlertDialog'
 import { AdwSelect } from './AdwSelect'
+import { withTransitionIcons } from './TransitionIcon'
 import { AdwTooltip } from './AdwTooltip'
 import { Kbd, KbdIcon } from './Kbd'
 
@@ -319,7 +320,7 @@ export function OrderBlockRibbon({
             <span className="adw-section-label">Animation</span>
             <AdwSelect
               value={settings.animation}
-              options={slideAnimationOptions}
+              options={withTransitionIcons(slideAnimationOptions)}
               disabled={!activeFolderName}
               aria-label="Slide animation"
               onChange={(animation) => onUpdateSettings({ animation })}

@@ -1,8 +1,9 @@
-import type {
-  OrderImageAnimation,
-  OrionStackLayerContent,
-  OrionStackSource,
-  OrionStackState
+import {
+  isOrderImageAnimation,
+  type OrderImageAnimation,
+  type OrionStackLayerContent,
+  type OrionStackSource,
+  type OrionStackState
 } from './projection-stack'
 import { buildPresentationUiState, type PresentationUiState } from './presentation-ui-state'
 
@@ -206,17 +207,9 @@ export function createStackWire(
   toMediaUrl: (filePath: string) => string
 ): ProjectionWirePayload {
   if (content.type === 'image') {
-    const animation: OrderImageAnimation =
-      content.animation === 'crossfade' ||
-      content.animation === 'fade' ||
-      content.animation === 'cut' ||
-      content.animation === 'wipe' ||
-      content.animation === 'push' ||
-      content.animation === 'cover' ||
-      content.animation === 'uncover' ||
-      content.animation === 'split'
-        ? content.animation
-        : 'cut'
+    const animation: OrderImageAnimation = isOrderImageAnimation(content.animation)
+      ? content.animation
+      : 'cut'
     const durationMs =
       typeof content.durationMs === 'number' && Number.isFinite(content.durationMs)
         ? Math.min(5000, Math.max(0, Math.round(content.durationMs)))

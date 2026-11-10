@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactElement, type PointerEvent as ReactPointerEvent } from 'react'
 import { cssDimOverlay } from '../../../shared/dim-overlay'
+import type { OrderImageAnimation } from '../../../shared/projection-stack'
 import type { LiveFrame } from '../lib/live-deck'
 import {
   WEB_BROWSER_USER_AGENT,
@@ -20,7 +21,7 @@ import {
 } from '../lib/projector-panel-width'
 
 export type OutputPreviewMotion = {
-  animation: 'crossfade' | 'fade' | 'cut' | 'wipe' | 'push' | 'cover' | 'uncover' | 'split'
+  animation: OrderImageAnimation
   durationMs: number
 }
 
@@ -498,6 +499,10 @@ function motionClass(animation: OutputPreviewMotion['animation'], role: 'in' | '
   if (animation === 'uncover') return role === 'out' ? 'preview-motion__push-out' : ''
   if (animation === 'wipe') return role === 'in' ? 'preview-motion__wipe' : ''
   if (animation === 'split') return role === 'in' ? 'preview-motion__split' : ''
+  if (animation === 'zoom') return role === 'in' ? 'preview-motion__zoom' : ''
+  if (animation === 'iris') return role === 'in' ? 'preview-motion__iris' : ''
+  if (animation === 'bars') return role === 'in' ? 'preview-motion__bars' : ''
+  if (animation === 'pixels') return role === 'in' ? 'preview-motion__pixels' : ''
   return ''
 }
 

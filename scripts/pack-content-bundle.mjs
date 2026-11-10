@@ -1,6 +1,6 @@
-import { execFileSync } from 'child_process'
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs'
 import { join } from 'path'
+import JSZip from 'jszip'
 
 const id = process.argv[2] ?? 'panorama'
 const manifestPath = join('bundles', id, 'manifest.json')
@@ -37,5 +37,17 @@ for (const entry of include) {
 }
 
 mkdirSync(join('dist', 'bundles'), { recursive: true })
-execFileSync('tar', ['-a', '-cf', out, '-C', stage, '.'], { stdio: 'inherit' })
+
+function addTree(zip, dir, prefix) {
+  for (const name of readdirSync(dir)) {
+    const abs = join(dir, name)
+    const rel = prefix ? `${prefix}/${name}` : name
+    if (statSync(abs).isDirectory()) addTree(zip, abs, rel)
+    else zip.file(rel, readFileSync(abs))
+  }
+}
+
+const zip = new JSZip()
+addTree(zip, stage, '')
+writeFileSync(out, await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }))
 console.log(out)

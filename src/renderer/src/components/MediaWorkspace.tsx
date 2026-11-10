@@ -310,17 +310,21 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
   const soundOnThisPc =
     !live || !displays.some((display) => display.primary && projectionDisplayIds(displays).includes(display.id))
 
-  const importMedia = useCallback(() => {
-    if (!folderName) return
+  const importMediaInto = useCallback((targetFolder: string) => {
     setError(null)
-    void window.orion.importMedia(folderName).then(async (result) => {
+    void window.orion.importMedia(targetFolder).then(async (result) => {
       if (!Array.isArray(result)) {
         setError(result.message)
         return
       }
-      await refreshFolders(folderName)
+      await refreshFolders(targetFolder)
     })
-  }, [folderName, refreshFolders])
+  }, [refreshFolders])
+
+  const importMedia = useCallback(() => {
+    if (!folderName) return
+    importMediaInto(folderName)
+  }, [folderName, importMediaInto])
 
   const createFolder = useCallback(() => {
     setFolderBusy(true)
@@ -715,7 +719,17 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
                   </button>
                 </div>
                 {files.length === 0 ? (
-                  <p className="kanban-column__empty adw-caption">No media in this folder</p>
+                  <div className="kanban-column__empty-state">
+                    <AppIcon name="video" size={24} />
+                    <p className="adw-caption">No media in this folder</p>
+                    <button
+                      type="button"
+                      className="adw-button adw-button--suggested adw-button--small"
+                      onClick={() => importMediaInto(folder.name)}
+                    >
+                      Add media
+                    </button>
+                  </div>
                 ) : (
                   <ul className={`kanban-column__grid kanban-column__grid--${thumbSize}`}>
                     {files.map((item) => (
@@ -728,6 +742,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
           })}
           {!loading && folders.length === 0 ? (
             <div className="kanban-empty adw-card">
+              <AppIcon name="video" size={32} />
               <p className="adw-title-2">No folders</p>
               <p className="adw-caption">Create a folder, then add video or audio.</p>
               <button type="button" className="adw-button adw-button--suggested" onClick={() => setFolderDialog(true)}>
@@ -771,7 +786,18 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
             {!folderName ? (
               <p className="adw-caption order-browser__status">Select a folder</p>
             ) : items.length === 0 ? (
-              <p className="adw-caption order-browser__status">No media in this folder</p>
+              <div className="order-browser__status-page">
+                <AppIcon name="video" size={32} />
+                <p className="order-browser__status-title">No media</p>
+                <p className="adw-caption">This folder is empty.</p>
+                <button
+                  type="button"
+                  className="adw-button adw-button--suggested"
+                  onClick={() => importMedia()}
+                >
+                  Add media
+                </button>
+              </div>
             ) : view === 'grid' ? (
               <ul className={`order-image-grid order-image-grid--${thumbSize}`}>
                 {sortedItems.map((item) => (

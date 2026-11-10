@@ -49,6 +49,7 @@ type OrderKanbanBoardProps = {
   thumbSize: OrderThumbSize
   showImageNames: boolean
   onNewFolder: () => void
+  onImportImages: (folderName: string) => Promise<void>
 }
 
 function dragOrderImage(event: DragEvent<HTMLButtonElement>, folder: string, image: OrderFolderImage): void {
@@ -74,6 +75,7 @@ function OrderBrowser({
   thumbSize,
   showImageNames,
   onNewFolder,
+  onImportImages,
   folderRefs,
   onReorderPointerDown,
   shouldIgnoreFolderClick,
@@ -89,12 +91,24 @@ function OrderBrowser({
   thumbSize: OrderThumbSize
   showImageNames: boolean
   onNewFolder: () => void
+  onImportImages: (folderName: string) => Promise<void>
   folderRefs: Map<string, HTMLElement>
   onReorderPointerDown: (event: ReactPointerEvent<HTMLButtonElement>, name: string) => void
   shouldIgnoreFolderClick: () => boolean
   onImageMenu: (event: ReactMouseEvent, folderName: string, image: OrderFolderImage) => void
 }): ReactElement {
   const active = folderData.find(({ folder }) => folder.name === activeFolderName) ?? null
+  const [importing, setImporting] = useState(false)
+
+  async function importImages(): Promise<void> {
+    if (!activeFolderName || importing) return
+    setImporting(true)
+    try {
+      await onImportImages(activeFolderName)
+    } finally {
+      setImporting(false)
+    }
+  }
 
   return (
     <div className="order-browser">
@@ -147,6 +161,14 @@ function OrderBrowser({
             <Icon icon={AppIcons.images} width={32} height={32} />
             <p className="order-browser__status-title">No images</p>
             <p className="adw-caption">This folder is empty.</p>
+            <button
+              type="button"
+              className="adw-button adw-button--suggested"
+              disabled={importing}
+              onClick={() => void importImages()}
+            >
+              Import images
+            </button>
           </div>
         ) : view === 'grid' ? (
           <ul className={`order-image-grid order-image-grid--${thumbSize}`}>
@@ -209,7 +231,8 @@ export function OrderKanbanBoard({
   view,
   thumbSize,
   showImageNames,
-  onNewFolder
+  onNewFolder,
+  onImportImages
 }: OrderKanbanBoardProps): ReactElement {
   const [folderData, setFolderData] = useState<FolderWithImages[]>([])
   const [loading, setLoading] = useState(true)
@@ -481,7 +504,17 @@ export function OrderKanbanBoard({
                   </button>
                 </div>
                 {images.length === 0 ? (
-                  <p className="kanban-column__empty adw-caption">No images in this folder</p>
+                  <div className="kanban-column__empty-state">
+                    <Icon icon={AppIcons.images} width={24} height={24} />
+                    <p className="adw-caption">No images in this folder</p>
+                    <button
+                      type="button"
+                      className="adw-button adw-button--suggested adw-button--small"
+                      onClick={() => void onImportImages(folder.name)}
+                    >
+                      Import images
+                    </button>
+                  </div>
                 ) : (
                   <ul className={`kanban-column__grid kanban-column__grid--${thumbSize}`}>
                     {images.map((image) => {
@@ -539,6 +572,7 @@ export function OrderKanbanBoard({
           thumbSize={thumbSize}
           showImageNames={showImageNames}
           onNewFolder={onNewFolder}
+          onImportImages={onImportImages}
           folderRefs={columnRefs.current}
           onReorderPointerDown={startFolderRowDrag}
           shouldIgnoreFolderClick={() => {

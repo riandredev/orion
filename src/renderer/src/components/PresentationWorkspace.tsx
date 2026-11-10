@@ -347,6 +347,7 @@ export function PresentationWorkspace({
           ) : !deck ? (
             <div className="presentation-stage-empty">
               <div className="presentation-stage-empty__inner">
+                <AppIcon name="presentation" size={32} />
                 <p className="adw-caption presentation-workspace__placeholder">
                   Choose a deck or import a presentation to show slides here.
                 </p>

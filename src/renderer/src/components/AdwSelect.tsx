@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type ReactElement,
+  type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -15,6 +16,7 @@ import { AppIcon } from './AppIcon'
 export type AdwSelectOption<T extends string = string> = {
   value: T
   label: string
+  icon?: ReactNode
 }
 
 type AdwSelectProps<T extends string> = {
@@ -118,7 +120,10 @@ export function AdwSelect<T extends string>({
         onClick={() => setOpen((current) => !current)}
         onKeyDown={onTriggerKeyDown}
       >
-        <span className="adw-select__value">{selected?.label ?? '—'}</span>
+        <span className="adw-select__value">
+          {selected?.icon ? <span className="adw-select__icon">{selected.icon}</span> : null}
+          <span className="adw-select__label">{selected?.label ?? '—'}</span>
+        </span>
         <span className="adw-select__chevron" aria-hidden="true">
           <AppIcon name="caretRight" size={14} />
         </span>
@@ -150,7 +155,8 @@ export function AdwSelect<T extends string>({
                         setOpen(false)
                       }}
                     >
-                      {opt.label}
+                      {opt.icon ? <span className="adw-select__icon">{opt.icon}</span> : null}
+                      <span className="adw-select__label">{opt.label}</span>
                     </button>
                   </li>
                 )

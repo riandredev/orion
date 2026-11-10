@@ -185,7 +185,9 @@ export function SettingsDialog({
               >
                 <span>{item.label}</span>
                 {item.id === 'libraries' && libraryUpdates > 0 ? (
-                  <span className="settings-nav-item__dot" aria-label="Library update available" />
+                  <span className="settings-nav-item__badge" aria-label={`${libraryUpdates} library updates`}>
+                    {libraryUpdates}
+                  </span>
                 ) : null}
               </button>
             ))}

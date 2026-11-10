@@ -7,7 +7,9 @@ import {
   type LibraryProgress,
   type LibraryRow
 } from '../../../shared/content-bundles'
+import { loadLibrarySettings, saveLibrarySettings } from '../lib/library-settings'
 import { AdwActionRow } from './AdwActionRow'
+import { AdwSwitch } from './AdwSwitch'
 
 const libraryIcons = import.meta.glob('../../../../bundles/*/icon.png', {
   eager: true,
@@ -36,6 +38,17 @@ export function LibrariesSettingsPanel(): ReactElement {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [progress, setProgress] = useState<LibraryProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [autoUpdate, setAutoUpdate] = useState(() => loadLibrarySettings().autoUpdate)
+
+  useEffect(() => {
+    const sync = (): void => setAutoUpdate(loadLibrarySettings().autoUpdate)
+    window.addEventListener('orion-library-settings', sync)
+    window.addEventListener('orion-profile-applied', sync)
+    return () => {
+      window.removeEventListener('orion-library-settings', sync)
+      window.removeEventListener('orion-profile-applied', sync)
+    }
+  }, [])
 
   const applyList = useCallback((next: LibraryList) => {
     setList(next)
@@ -80,6 +93,22 @@ export function LibrariesSettingsPanel(): ReactElement {
         Download church content packs into this Orion install. A pack stays up to date here when its
         folders, hymns, or Bibles change. Files you have edited are left in place.
       </p>
+      <div className="adw-card settings-libraries__auto">
+        <AdwActionRow
+          title="Update libraries automatically"
+          subtitle="Download library updates when Orion opens."
+          suffix={
+            <AdwSwitch
+              checked={autoUpdate}
+              aria-label="Update libraries automatically"
+              onChange={(enabled) => {
+                setAutoUpdate(enabled)
+                saveLibrarySettings({ autoUpdate: enabled })
+              }}
+            />
+          }
+        />
+      </div>
       {list?.catalogError ? <p className="order-new-folder__error adw-caption">{list.catalogError}</p> : null}
       {error ? <p className="order-new-folder__error adw-caption">{error}</p> : null}
       <div className="adw-card settings-libraries">

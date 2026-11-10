@@ -6,7 +6,7 @@ import { clampBibleBlockLayout } from '../shared/bible-block-layout'
 import { clampPlacedBlocks, DICTIONARY_BLOCK_IDS, HYMN_BLOCK_IDS } from '../shared/placed-blocks'
 import { bibleLocationFromReference } from '../shared/bible-projection-display'
 import type { HymnSlideKind } from '../shared/hymnal-projection-sequence'
-import type { OrionStackLayerContent } from '../shared/projection-stack'
+import { isOrderImageAnimation, type OrionStackLayerContent } from '../shared/projection-stack'
 import { imagesRoot, mediaRoot, orderImagesRoot, presentationsRoot } from './paths'
 
 function sanitizeDimColor(value: unknown): string {
@@ -123,17 +123,7 @@ export function sanitizeStackContent(content: OrionStackLayerContent): OrionStac
     }
   }
   if (content.type === 'image') {
-    const animation =
-      content.animation === 'crossfade' ||
-      content.animation === 'fade' ||
-      content.animation === 'cut' ||
-      content.animation === 'wipe' ||
-      content.animation === 'push' ||
-      content.animation === 'cover' ||
-      content.animation === 'uncover' ||
-      content.animation === 'split'
-        ? content.animation
-        : 'cut'
+    const animation = isOrderImageAnimation(content.animation) ? content.animation : 'cut'
     const durationMs =
       typeof content.durationMs === 'number' && Number.isFinite(content.durationMs)
         ? Math.min(5000, Math.max(0, Math.round(content.durationMs)))

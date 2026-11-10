@@ -20,6 +20,7 @@ export const ORION_PROFILE_SETTINGS_KEYS = [
   'orion-dictionary-block-layout-v1',
   'orion-bible-book-backgrounds-v1',
   'orion-playback-v1',
+  'orion-library-settings-v1',
   'orion-order-folder-playback-v1',
   'orion-service-sequence',
   'orion-recent-colors-v1',

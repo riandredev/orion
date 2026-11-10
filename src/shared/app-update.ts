@@ -9,7 +9,7 @@ export type AppUpdateStatus =
 export type ReleaseAsset = {
   name: string
   browser_download_url: string
-  /** API asset URL. The public download link can time out before the file starts. */
+  /** API asset URL. Used when the public download does not start. */
   url?: string
   size: number
   digest?: string | null
@@ -60,7 +60,7 @@ export function installerAssetName(version: string, platform: NodeJS.Platform): 
 }
 
 export function installerRequestUrls(asset: ReleaseAsset): string[] {
-  const urls = [asset.url, asset.browser_download_url].filter((url): url is string => Boolean(url))
+  const urls = [asset.browser_download_url, asset.url].filter((url): url is string => Boolean(url))
   return [...new Set(urls)]
 }
 

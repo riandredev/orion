@@ -4,6 +4,7 @@ import { updateBibleMotion, useBibleMotion } from '../lib/bible-motion'
 import { lyricAnimationOptions } from '../lib/lyric-motion'
 import { AppIcon } from './AppIcon'
 import { AdwSelect } from './AdwSelect'
+import { withTransitionIcons } from './TransitionIcon'
 import { AdwTooltip } from './AdwTooltip'
 import { Kbd, KbdIcon } from './Kbd'
 import type { AppIconName } from './icons'
@@ -107,7 +108,7 @@ export function BibleTabRibbon({
             <span className="adw-section-label">Animation</span>
             <AdwSelect
               value={motion.animation}
-              options={lyricAnimationOptions}
+              options={withTransitionIcons(lyricAnimationOptions)}
               aria-label="Verse animation"
               onChange={(animation) => updateBibleMotion({ animation })}
             />

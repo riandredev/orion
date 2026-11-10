@@ -363,6 +363,40 @@ function clearSlideMotion(node) {
   node.style.transform = ''
   node.style.clipPath = ''
   node.style.zIndex = ''
+  clearRevealMask(node)
+}
+
+/**
+ * @param {HTMLElement} node
+ * @param {'bars' | 'pixels'} kind
+ */
+function applyRevealMask(node, kind) {
+  const mask =
+    kind === 'bars'
+      ? 'repeating-linear-gradient(to right, #000 0 var(--blind), transparent var(--blind) 8.333%)'
+      : 'repeating-linear-gradient(to right, #000 0 var(--pix), transparent var(--pix) 14px), repeating-linear-gradient(to bottom, #000 0 var(--pix), transparent var(--pix) 14px)'
+  node.style.maskImage = mask
+  node.style.webkitMaskImage = mask
+  node.style.maskRepeat = 'no-repeat'
+  node.style.webkitMaskRepeat = 'no-repeat'
+  node.style.maskSize = '100% 100%'
+  node.style.webkitMaskSize = '100% 100%'
+  if (kind === 'pixels') {
+    node.style.maskComposite = 'intersect'
+    node.style.webkitMaskComposite = 'source-in'
+  }
+}
+
+/** @param {HTMLElement} node */
+function clearRevealMask(node) {
+  node.style.maskImage = ''
+  node.style.webkitMaskImage = ''
+  node.style.maskRepeat = ''
+  node.style.webkitMaskRepeat = ''
+  node.style.maskSize = ''
+  node.style.webkitMaskSize = ''
+  node.style.maskComposite = ''
+  node.style.webkitMaskComposite = ''
 }
 
 /**
@@ -431,6 +465,16 @@ function animateHymnSwap(previous, incoming, animation, durationMs) {
     incoming.style.animation = `orion-order-push-in ${durationMs}ms ease forwards`
   } else if (animation === 'uncover') {
     previous.style.animation = `orion-order-push-out ${durationMs}ms ease forwards`
+  } else if (animation === 'zoom') {
+    incoming.style.animation = `orion-order-zoom ${durationMs}ms ease forwards`
+  } else if (animation === 'iris') {
+    incoming.style.animation = `orion-order-iris ${durationMs}ms ease forwards`
+  } else if (animation === 'bars') {
+    incoming.style.animation = `orion-order-bars ${durationMs}ms linear forwards`
+    applyRevealMask(incoming, 'bars')
+  } else if (animation === 'pixels') {
+    incoming.style.animation = `orion-order-pixels ${durationMs}ms linear forwards`
+    applyRevealMask(incoming, 'pixels')
   }
   finish(durationMs)
 }
@@ -737,7 +781,7 @@ function renderOrderImage(target, data) {
   const showing = slides[slides.length - 1]
   if (showing && showing.getAttribute('src') === mediaUrl) return
 
-  const named = ['crossfade', 'fade', 'wipe', 'push', 'cover', 'uncover', 'split']
+  const named = ['crossfade', 'fade', 'wipe', 'push', 'cover', 'uncover', 'split', 'zoom', 'iris', 'bars', 'pixels']
   const animation = window.__orionStillCapture
     ? 'cut'
     : named.includes(data.animation)
@@ -758,6 +802,7 @@ function renderOrderImage(target, data) {
     node.style.opacity = ''
     node.style.transform = ''
     node.style.clipPath = ''
+    clearRevealMask(node)
   }
 
   if (!previous || durationMs <= 0 || animation === 'cut') {
@@ -816,6 +861,16 @@ function renderOrderImage(target, data) {
     img.style.animation = `orion-order-push-in ${durationMs}ms ease forwards`
   } else if (animation === 'uncover') {
     previous.style.animation = `orion-order-push-out ${durationMs}ms ease forwards`
+  } else if (animation === 'zoom') {
+    img.style.animation = `orion-order-zoom ${durationMs}ms ease forwards`
+  } else if (animation === 'iris') {
+    img.style.animation = `orion-order-iris ${durationMs}ms ease forwards`
+  } else if (animation === 'bars') {
+    img.style.animation = `orion-order-bars ${durationMs}ms linear forwards`
+    applyRevealMask(img, 'bars')
+  } else if (animation === 'pixels') {
+    img.style.animation = `orion-order-pixels ${durationMs}ms linear forwards`
+    applyRevealMask(img, 'pixels')
   }
   settleAfter(durationMs)
 }
