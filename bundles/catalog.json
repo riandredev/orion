@@ -4,8 +4,8 @@
       "id": "panorama",
       "name": "SDA Panorama Church",
       "summary": "Service order folders, Adventist hymnals, Afrikaans and English Bibles, and the matching backgrounds.",
-      "version": "6",
-      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-6.zip",
+      "version": "7",
+      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-7.zip",
       "preview": [
         {
           "label": "Service order",
@@ -236,11 +236,6 @@
             {
               "folder": "Kinderstorie",
               "src": "preview/order/Kinderstorie/image1.jpg",
-              "alt": "Kinderstorie slide"
-            },
-            {
-              "folder": "Kinderstorie",
-              "src": "preview/order/Kinderstorie/image.jpg",
               "alt": "Kinderstorie slide"
             },
             {
