@@ -72,7 +72,7 @@ function parsePreviewImages(value: unknown): LibraryPreviewImage[] | undefined {
     const folder = typeof raw.folder === 'string' ? raw.folder.trim() : ''
     images.push(folder ? { src, alt, folder } : { src, alt })
   }
-  return images.length > 0 ? images.slice(0, 40) : undefined
+  return images.length > 0 ? images.slice(0, 400) : undefined
 }
 
 function parsePreview(value: unknown): LibraryPreviewGroup[] | undefined {
@@ -86,7 +86,7 @@ function parsePreview(value: unknown): LibraryPreviewGroup[] | undefined {
       ? raw.items
           .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
           .map((entry) => entry.trim())
-          .slice(0, 40)
+          .slice(0, 400)
       : []
     const images = parsePreviewImages(raw.images)
     if (!label || (items.length === 0 && !images)) continue

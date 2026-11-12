@@ -73,6 +73,27 @@ describe('content bundles', () => {
     expect(catalog?.[0]?.preview).toEqual([{ label: 'Bibles', items: ['King James Version'] }])
   })
 
+  it('keeps every slide thumbnail in a library preview', () => {
+    const images = Array.from({ length: 41 }, (_, index) => ({
+      folder: 'Welkom',
+      src: `preview/order/Welkom/image${index + 1}.jpg`,
+      alt: 'Welkom slide'
+    }))
+    const catalog = parseLibraryCatalog({
+      bundles: [
+        {
+          id: 'panorama',
+          name: 'Panorama',
+          summary: 'Church library',
+          version: '5',
+          downloadUrl: 'https://example.test/panorama.zip',
+          preview: [{ label: 'Service order', items: ['Welkom'], images }]
+        }
+      ]
+    })
+    expect(catalog?.[0]?.preview?.[0]?.images).toHaveLength(41)
+  })
+
   it('keeps bundled preview images when the remote catalog omits them', () => {
     const shipped = parseLibraryCatalog({
       bundles: [

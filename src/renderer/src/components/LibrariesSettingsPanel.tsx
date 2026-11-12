@@ -50,33 +50,77 @@ function withShippedPreview(list: LibraryList): LibraryList {
   }
 }
 
+const previewOrigin = 'https://raw.githubusercontent.com/riandredev/orion/main/bundles'
+
 function bundledPreview(id: string, src: string): string | undefined {
   const suffix = `/bundles/${id}/${src}`.replaceAll('\\', '/')
   const match = Object.entries(previewImages).find(([path]) => path.replaceAll('\\', '/').endsWith(suffix))
   return match?.[1]
 }
 
-function PreviewThumbs({ id, images }: { id: string; images: LibraryPreviewImage[] }): ReactElement | null {
-  const thumbs = images.flatMap((image) => {
-    const src = bundledPreview(id, image.src)
-    return src ? [{ src, alt: image.alt }] : []
-  })
-  if (thumbs.length === 0) return null
+function remotePreview(id: string, src: string, version: string): string {
+  const path = src.split('/').map((part) => encodeURIComponent(part)).join('/')
+  return `${previewOrigin}/${encodeURIComponent(id)}/${path}?v=${encodeURIComponent(version)}`
+}
+
+function PreviewThumb({
+  id,
+  version,
+  image
+}: {
+  id: string
+  version: string
+  image: LibraryPreviewImage
+}): ReactElement | null {
+  const local = bundledPreview(id, image.src)
+  const remote = remotePreview(id, image.src, version)
+  const [src, setSrc] = useState(remote || local || '')
+  if (!src) return null
+  return (
+    <img
+      src={src}
+      alt={image.alt}
+      onError={() => {
+        if (local && src !== local) setSrc(local)
+        else setSrc('')
+      }}
+    />
+  )
+}
+
+function PreviewThumbs({
+  id,
+  version,
+  images
+}: {
+  id: string
+  version: string
+  images: LibraryPreviewImage[]
+}): ReactElement | null {
+  if (images.length === 0) return null
   return (
     <div className="library-detail__thumbs">
-      {thumbs.map((image) => (
-        <img key={image.src} src={image.src} alt={image.alt} />
+      {images.map((image) => (
+        <PreviewThumb key={`${image.folder ?? ''}/${image.src}`} id={id} version={version} image={image} />
       ))}
     </div>
   )
 }
 
-function PreviewGroup({ id, group }: { id: string; group: LibraryPreviewGroup }): ReactElement {
+function PreviewGroup({
+  id,
+  version,
+  group
+}: {
+  id: string
+  version: string
+  group: LibraryPreviewGroup
+}): ReactElement {
   const images = group.images ?? []
   const folders = images.some((image) => image.folder)
   if (!folders) {
     return images.length > 0 ? (
-      <PreviewThumbs id={id} images={images} />
+      <PreviewThumbs id={id} version={version} images={images} />
     ) : (
       <ul>
         {group.items.map((item) => (
@@ -94,7 +138,7 @@ function PreviewGroup({ id, group }: { id: string; group: LibraryPreviewGroup })
       {names.map((name) => (
         <div key={name} className="library-detail__folder">
           <h4>{name}</h4>
-          <PreviewThumbs id={id} images={images.filter((image) => image.folder === name)} />
+          <PreviewThumbs id={id} version={version} images={images.filter((image) => image.folder === name)} />
         </div>
       ))}
     </div>
@@ -177,7 +221,7 @@ function LibraryDetail({
       {row.preview?.map((group) => (
         <section key={group.label} className="library-detail__group">
           <h3>{group.label}</h3>
-          <PreviewGroup id={row.id} group={group} />
+          <PreviewGroup id={row.id} version={row.availableVersion} group={group} />
         </section>
       ))}
     </div>
