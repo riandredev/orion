@@ -16,7 +16,7 @@
     "dist:win": "electron-vite build && electron-builder --win --config electron-builder.config.cjs",
     "dist:linux": "electron-vite build && node scripts/ensure-linux-canvas.cjs && electron-builder --linux AppImage --config electron-builder.config.cjs",
     "dist:mac": "electron-vite build && node scripts/ensure-mac-canvas.cjs && electron-builder --mac dmg --universal --publish never --config electron-builder.config.cjs",
-    "pack:library": "node scripts/pack-content-bundle.mjs",
+    "pack:library": "node scripts/sync-library-preview.mjs && node scripts/pack-content-bundle.mjs",
     "bundle:kjv": "npx tsx scripts/bundle-kjv.ts",
     "bundle:adventist-hymnals": "npx tsx scripts/bundle-adventist-hymnals.ts"
   },

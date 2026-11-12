@@ -365,6 +365,19 @@ async function applyTree(root: string, manifest: LibraryManifest, onProgress: (d
     if (await fileIsPresent(file.rel)) state.seen.add(file.rel)
     next[file.rel] = bundleSha
   }
+  for (const [rel, sha] of Object.entries(previous)) {
+    if (next[rel] != null || state.removed.has(rel)) continue
+    const target = destinationFor(rel)
+    if (!target) continue
+    try {
+      if (!(await stat(target.dest)).isFile()) continue
+      if ((await sha256File(target.dest)) !== sha) continue
+      await rm(target.dest)
+      await removeEmptyParents(target.dest, target.root)
+    } catch {
+      /* a changed or locked file stays on disk */
+    }
+  }
   await writeFileState(manifest.id, state)
   await mkdir(bundlesDir(), { recursive: true })
   await writeFile(indexPath(manifest.id), JSON.stringify(next), 'utf8')

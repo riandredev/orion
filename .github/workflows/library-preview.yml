@@ -1,0 +1,29 @@
+name: Library preview
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "order-images/**"
+      - "images/bible-image.*"
+      - "images/hymn-image.*"
+      - "bundles/**"
+      - "scripts/sync-library-preview.mjs"
+  pull_request:
+    paths:
+      - "order-images/**"
+      - "images/bible-image.*"
+      - "images/hymn-image.*"
+      - "bundles/**"
+      - "scripts/sync-library-preview.mjs"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: The website preview must match the library files
+        run: node scripts/sync-library-preview.mjs --check
