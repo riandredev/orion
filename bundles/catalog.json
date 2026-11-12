@@ -4,8 +4,8 @@
       "id": "panorama",
       "name": "SDA Panorama Church",
       "summary": "Service order folders, Adventist hymnals, Afrikaans and English Bibles, and the matching backgrounds.",
-      "version": "5",
-      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-5.zip",
+      "version": "6",
+      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-6.zip",
       "preview": [
         {
           "label": "Service order",
@@ -17,11 +17,22 @@
             "Lesstudie",
             "Klingeloffergawe",
             "Kinderstorie",
+            "Inseening",
             "Gebed",
             "Doop",
             "Boodskap"
           ],
           "images": [
+            {
+              "folder": "Welkom",
+              "src": "preview/order/Welkom/image14.jpg",
+              "alt": "Welkom slide"
+            },
+            {
+              "folder": "Welkom",
+              "src": "preview/order/Welkom/image13.jpg",
+              "alt": "Welkom slide"
+            },
             {
               "folder": "Welkom",
               "src": "preview/order/Welkom/image12.jpg",
@@ -108,6 +119,36 @@
               "alt": "Offergawe slide"
             },
             {
+              "folder": "Nagmaal",
+              "src": "preview/order/Nagmaal/image5.jpg",
+              "alt": "Nagmaal slide"
+            },
+            {
+              "folder": "Nagmaal",
+              "src": "preview/order/Nagmaal/image4.jpg",
+              "alt": "Nagmaal slide"
+            },
+            {
+              "folder": "Nagmaal",
+              "src": "preview/order/Nagmaal/image3.jpg",
+              "alt": "Nagmaal slide"
+            },
+            {
+              "folder": "Nagmaal",
+              "src": "preview/order/Nagmaal/image2.jpg",
+              "alt": "Nagmaal slide"
+            },
+            {
+              "folder": "Nagmaal",
+              "src": "preview/order/Nagmaal/image1.jpg",
+              "alt": "Nagmaal slide"
+            },
+            {
+              "folder": "Lesstudie",
+              "src": "preview/order/Lesstudie/image11.jpg",
+              "alt": "Lesstudie slide"
+            },
+            {
               "folder": "Lesstudie",
               "src": "preview/order/Lesstudie/image10.jpg",
               "alt": "Lesstudie slide"
@@ -159,13 +200,68 @@
             },
             {
               "folder": "Klingeloffergawe",
+              "src": "preview/order/Klingeloffergawe/image4.jpg",
+              "alt": "Klingeloffergawe slide"
+            },
+            {
+              "folder": "Klingeloffergawe",
+              "src": "preview/order/Klingeloffergawe/image3.jpg",
+              "alt": "Klingeloffergawe slide"
+            },
+            {
+              "folder": "Klingeloffergawe",
+              "src": "preview/order/Klingeloffergawe/image2.jpg",
+              "alt": "Klingeloffergawe slide"
+            },
+            {
+              "folder": "Klingeloffergawe",
               "src": "preview/order/Klingeloffergawe/image1.jpg",
               "alt": "Klingeloffergawe slide"
             },
             {
               "folder": "Kinderstorie",
+              "src": "preview/order/Kinderstorie/image4.jpg",
+              "alt": "Kinderstorie slide"
+            },
+            {
+              "folder": "Kinderstorie",
+              "src": "preview/order/Kinderstorie/image3.jpg",
+              "alt": "Kinderstorie slide"
+            },
+            {
+              "folder": "Kinderstorie",
+              "src": "preview/order/Kinderstorie/image2.jpg",
+              "alt": "Kinderstorie slide"
+            },
+            {
+              "folder": "Kinderstorie",
               "src": "preview/order/Kinderstorie/image1.jpg",
               "alt": "Kinderstorie slide"
+            },
+            {
+              "folder": "Kinderstorie",
+              "src": "preview/order/Kinderstorie/image.jpg",
+              "alt": "Kinderstorie slide"
+            },
+            {
+              "folder": "Inseening",
+              "src": "preview/order/Inseening/image4.jpg",
+              "alt": "Inseening slide"
+            },
+            {
+              "folder": "Inseening",
+              "src": "preview/order/Inseening/image3.jpg",
+              "alt": "Inseening slide"
+            },
+            {
+              "folder": "Inseening",
+              "src": "preview/order/Inseening/image2.jpg",
+              "alt": "Inseening slide"
+            },
+            {
+              "folder": "Inseening",
+              "src": "preview/order/Inseening/image1.jpg",
+              "alt": "Inseening slide"
             },
             {
               "folder": "Gebed",
@@ -211,6 +307,36 @@
               "folder": "Doop",
               "src": "preview/order/Doop/image1.jpg",
               "alt": "Doop slide"
+            },
+            {
+              "folder": "Boodskap",
+              "src": "preview/order/Boodskap/image6.jpg",
+              "alt": "Boodskap slide"
+            },
+            {
+              "folder": "Boodskap",
+              "src": "preview/order/Boodskap/image5.jpg",
+              "alt": "Boodskap slide"
+            },
+            {
+              "folder": "Boodskap",
+              "src": "preview/order/Boodskap/image4.jpg",
+              "alt": "Boodskap slide"
+            },
+            {
+              "folder": "Boodskap",
+              "src": "preview/order/Boodskap/image3.jpg",
+              "alt": "Boodskap slide"
+            },
+            {
+              "folder": "Boodskap",
+              "src": "preview/order/Boodskap/image2.jpg",
+              "alt": "Boodskap slide"
+            },
+            {
+              "folder": "Boodskap",
+              "src": "preview/order/Boodskap/image1.jpg",
+              "alt": "Boodskap slide"
             }
           ]
         },
