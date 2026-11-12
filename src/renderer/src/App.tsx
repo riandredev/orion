@@ -53,9 +53,9 @@ import {
 } from './lib/hymns-ribbon-sync'
 import { formatStrongsDisplay, buildDictionaryProjectionInfoBar } from '../../shared/dictionary-lexicon'
 import { hymnProjectionCornerLabel } from '../../shared/hymn-projection-display'
-import { bibleMotionForProjection } from './lib/bible-motion'
+import { bibleMotionForProjection, getBibleMotion } from './lib/bible-motion'
 import { loadOrderFolderPlayback, saveOrderFolderPlayback } from './lib/order-folder-playback'
-import { hymnMotionForProjection } from './lib/hymn-motion'
+import { getHymnMotion, hymnMotionForProjection } from './lib/hymn-motion'
 import {
   resolveCategoryBackground,
   setBackgroundImagesRoot,
@@ -2278,17 +2278,20 @@ export default function App(): ReactElement {
       const libraryWire =
         stageOverlay?.type === 'media' ? stageOverlay : stageBase?.type === 'media' ? stageBase : null
       const imageWire = stageBase?.type === 'image' ? stageBase : null
-      const hymnMotion = hymnMotionForProjection()
-      const bibleMotion = bibleMotionForProjection()
+      const hymnSettings = getHymnMotion()
+      const bibleSettings = getBibleMotion()
       const bibleStage = stageOverlay?.type === 'bible' ? stageOverlay : stageBase?.type === 'bible' ? stageBase : null
       const deckWire =
         stageOverlay?.type === 'deck-slide' ? stageOverlay : stageBase?.type === 'deck-slide' ? stageBase : null
       const previewMotion = hymnsLive
-        ? outputPreviewMotion(hymnWire?.animation ?? hymnMotion.animation, hymnWire?.durationMs ?? hymnMotion.durationMs)
+        ? outputPreviewMotion(
+            hymnWire?.animation ?? (hymnSettings.animation === 'random' ? undefined : hymnSettings.animation),
+            hymnWire?.durationMs ?? hymnSettings.transitionMs
+          )
         : bibleLive
           ? outputPreviewMotion(
-              bibleStage?.animation ?? bibleMotion.animation,
-              bibleStage?.durationMs ?? bibleMotion.durationMs
+              bibleStage?.animation ?? (bibleSettings.animation === 'random' ? undefined : bibleSettings.animation),
+              bibleStage?.durationMs ?? bibleSettings.transitionMs
             )
           : dictionaryLive
             ? outputPreviewMotion('crossfade', 420)

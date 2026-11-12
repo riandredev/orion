@@ -491,6 +491,86 @@ function WebOutputPreview({ url }: { url: string }): ReactElement {
   )
 }
 
+function pixelHash(x: number, y: number, seed: number): number {
+  let h = Math.imul(x + 1, 0x27d4eb2d) ^ Math.imul(y + 1, 0x165667b1) ^ Math.imul(seed + 1, 0x2c1b3c6d)
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b)
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35)
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
+}
+
+function pixelGrid(width: number, height: number): { cols: number; rows: number } {
+  const cell = Math.max(4, Math.round(Math.min(width, height) / 68))
+  return {
+    cols: Math.max(2, Math.ceil(width / cell)),
+    rows: Math.max(2, Math.ceil(height / cell))
+  }
+}
+
+function pixelRevealPath(cols: number, rows: number, progress: number, seed: number): string {
+  let d = ''
+  const w = 1 / cols + 0.001
+  const h = 1 / rows + 0.001
+  for (let row = 0; row < rows; row += 1) {
+    const y = row / rows
+    for (let col = 0; col < cols; col += 1) {
+      if (progress < pixelHash(col, row, seed)) continue
+      d += `M${col / cols} ${y}h${w}v${h}h${-w}z`
+    }
+  }
+  return d
+}
+
+let pixelClipSerial = 0
+
+function PixelReveal({
+  durationMs,
+  clipId,
+  onDone
+}: {
+  durationMs: number
+  clipId: string
+  onDone: () => void
+}): ReactElement {
+  const pathRef = useRef<SVGPathElement>(null)
+  const doneRef = useRef(onDone)
+  doneRef.current = onDone
+
+  useEffect(() => {
+    const path = pathRef.current
+    const parent = path?.ownerSVGElement?.parentElement
+    if (!path || !parent) return
+    const rect = parent.getBoundingClientRect()
+    const { cols, rows } = pixelGrid(Math.max(1, rect.width), Math.max(1, rect.height))
+    const seed = Math.floor(Math.random() * 65536)
+    const start = performance.now()
+    let raf = 0
+    let stopped = false
+    const tick = (now: number): void => {
+      if (stopped) return
+      const progress = Math.min(1, (now - start) / Math.max(1, durationMs))
+      path.setAttribute('d', pixelRevealPath(cols, rows, progress, seed))
+      if (progress < 1) {
+        raf = requestAnimationFrame(tick)
+        return
+      }
+      doneRef.current()
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      stopped = true
+      cancelAnimationFrame(raf)
+    }
+  }, [durationMs])
+
+  return (
+    <svg width="0" height="0" className="preview-pixel-clip" aria-hidden="true">
+      <clipPath id={clipId} clipPathUnits="objectBoundingBox">
+        <path ref={pathRef} />
+      </clipPath>
+    </svg>
+  )
+}
+
 function motionClass(animation: OutputPreviewMotion['animation'], role: 'in' | 'out'): string {
   if (animation === 'fade') return role === 'in' ? 'preview-motion__fade-in' : 'preview-motion__fade-out'
   if (animation === 'crossfade') return role === 'in' ? 'preview-motion__fade-in' : 'preview-motion__fade-out'
@@ -502,7 +582,6 @@ function motionClass(animation: OutputPreviewMotion['animation'], role: 'in' | '
   if (animation === 'zoom') return role === 'in' ? 'preview-motion__zoom' : ''
   if (animation === 'iris') return role === 'in' ? 'preview-motion__iris' : ''
   if (animation === 'bars') return role === 'in' ? 'preview-motion__bars' : ''
-  if (animation === 'pixels') return role === 'in' ? 'preview-motion__pixels' : ''
   return ''
 }
 
@@ -521,6 +600,8 @@ function MotionPreview({
   const [previous, setPrevious] = useState<string | null>(null)
   const [phase, setPhase] = useState<'idle' | 'run' | 'out' | 'in'>('idle')
   const currentRef = useRef(src)
+  const pixelClipId = useRef('')
+  if (!pixelClipId.current) pixelClipId.current = `preview-pixel-${++pixelClipSerial}`
   const shownKey = useRef(slideKey)
   const animatingRef = useRef(false)
   const lockUntil = useRef(0)
@@ -554,6 +635,28 @@ function MotionPreview({
   }, [slideKey, src, animation, durationMs, sequential])
 
   const ms = sequential && (phase === 'out' || phase === 'in') ? half : durationMs
+  if (animation === 'pixels' && previous && phase === 'run') {
+    return (
+      <div className="preview-fade">
+        <img className="projector-preview__img preview-fade__layer" src={previous} alt="" />
+        <img
+          className="projector-preview__img preview-fade__layer"
+          src={current}
+          alt=""
+          style={{ clipPath: `url(#${pixelClipId.current})` }}
+        />
+        <PixelReveal
+          durationMs={durationMs}
+          clipId={pixelClipId.current}
+          onDone={() => {
+            animatingRef.current = false
+            setPrevious(null)
+            setPhase('idle')
+          }}
+        />
+      </div>
+    )
+  }
   const incomingMotion = phase === 'in' || phase === 'run' ? motionClass(animation, 'in') : ''
   const outgoingMotion = phase === 'out' || phase === 'run' ? motionClass(animation, 'out') : ''
 

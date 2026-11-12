@@ -89,6 +89,15 @@ export function TransitionIcon({ name }: { name: string }): ReactElement | null 
           <rect x="11.8" y="3" width="2.2" height="10" rx="0.4" fill="currentColor" />
         </Icon>
       )
+    case 'random':
+      return (
+        <Icon>
+          <rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="5.5" cy="5.5" r="1" fill="currentColor" />
+          <circle cx="8" cy="8" r="1" fill="currentColor" />
+          <circle cx="10.5" cy="10.5" r="1" fill="currentColor" />
+        </Icon>
+      )
     case 'pixels':
       return (
         <Icon>

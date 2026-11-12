@@ -1560,14 +1560,10 @@ body.projector-shell--resizing {
   mask-size: 100% 100%;
 }
 
-.preview-motion__pixels {
-  animation: preview-pixels var(--fade-ms, 500ms) linear forwards;
-  mask-image:
-    repeating-linear-gradient(to right, #000 0 var(--pix), transparent var(--pix) 14px),
-    repeating-linear-gradient(to bottom, #000 0 var(--pix), transparent var(--pix) 14px);
-  mask-composite: intersect;
-  mask-repeat: no-repeat;
-  mask-size: 100% 100%;
+.preview-pixel-clip {
+  position: absolute;
+  width: 0;
+  height: 0;
 }
 
 @keyframes preview-push-in {
@@ -1601,20 +1597,9 @@ body.projector-shell--resizing {
   initial-value: 0%;
 }
 
-@property --pix {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
-
 @keyframes preview-bars {
   from { --blind: 0%; }
   to { --blind: 8.333%; }
-}
-
-@keyframes preview-pixels {
-  from { --pix: 0px; }
-  to { --pix: 14px; }
 }
 
 @keyframes preview-zoom {

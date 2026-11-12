@@ -1,6 +1,5 @@
 import type { OrionProjectionPayload } from '../../../shared/projection'
 import type {
-  OrderImageAnimation,
   OrionProjectionCommand,
   OrionStackLayerContent,
   OrionStackSource
@@ -15,6 +14,7 @@ import type { OrionDisplayInfo } from '../../../shared/displays'
 import { fileUrlToLocalPath } from '../../../shared/file-url'
 import { projectionDisplayIds } from './display-projection'
 import { loadPlaybackSettings } from './playback-settings'
+import { resolveOrderAnimation, type SlideAnimation } from '../types/image-block'
 
 export { liveFlagsFromStack, normalizeStackState }
 export type { PresentationUiState }
@@ -241,7 +241,7 @@ export async function presentPresentationImage(
 export async function presentOrderLayer(
   filePath: string,
   displays: OrionDisplayInfo[],
-  motion?: { animation: OrderImageAnimation; durationMs: number }
+  motion?: { animation: SlideAnimation; durationMs: number }
 ): Promise<PresentationUiState> {
   return runPresentationCommand(
     {
@@ -250,7 +250,7 @@ export async function presentOrderLayer(
       content: {
         type: 'image',
         filePath,
-        animation: motion?.animation ?? 'cut',
+        animation: resolveOrderAnimation(motion?.animation ?? 'cut'),
         durationMs: motion?.durationMs ?? 0
       }
     },

@@ -1,6 +1,12 @@
 import { useSyncExternalStore } from 'react'
 import { touchProfileSettings } from './profile-autosave'
-import { coerceLyricAnimation, lyricAnimationOptions, type LyricSlideAnimation } from './lyric-motion'
+import {
+  coerceLyricAnimation,
+  lyricAnimationOptions,
+  resolveLyricAnimation,
+  type LyricSlideAnimation,
+  type PlayableLyricAnimation
+} from './lyric-motion'
 
 export const HYMN_MOTION_KEY = 'orion-hymn-motion-v1'
 
@@ -75,11 +81,12 @@ export function useHymnMotion(): HymnMotionSettings {
 }
 
 export function hymnMotionForProjection(settings: HymnMotionSettings = getHymnMotion()): {
-  animation: HymnSlideAnimation
+  animation: PlayableLyricAnimation
   durationMs: number
 } {
-  if (settings.animation === 'cut') {
+  const animation = resolveLyricAnimation(settings.animation, 'hymn')
+  if (animation === 'cut') {
     return { animation: 'cut', durationMs: 0 }
   }
-  return { animation: settings.animation, durationMs: settings.transitionMs }
+  return { animation, durationMs: settings.transitionMs }
 }

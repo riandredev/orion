@@ -415,6 +415,11 @@ function placeOnDisplayFullscreen(win: BrowserWindow, display: Display): void {
   const apply = (): void => {
     if (win.isDestroyed() || fullscreenEpoch.get(win) !== epoch) return
     win.setBounds(display.bounds)
+    try {
+      win.setOpacity(1)
+    } catch {
+      /* opacity is unavailable on this window */
+    }
     if (!win.isVisible()) win.showInactive()
     if (!win.isFullScreen()) win.setFullScreen(true)
     keepMainAppFocused()
@@ -785,8 +790,38 @@ function cancelAllRenderWaits(): void {
   renderWaiters.clear()
 }
 
+const OUTPUT_FADE_MS = 420
+const fadingOutputs = new WeakSet<BrowserWindow>()
+
+function fadeOutputWindow(win: BrowserWindow): Promise<void> {
+  return new Promise((resolve) => {
+    const started = Date.now()
+    const step = (): void => {
+      if (win.isDestroyed()) {
+        resolve()
+        return
+      }
+      const t = Math.min(1, (Date.now() - started) / OUTPUT_FADE_MS)
+      const opacity = (1 - t) * (1 - t)
+      try {
+        win.setOpacity(opacity)
+      } catch {
+        resolve()
+        return
+      }
+      if (t >= 1) {
+        resolve()
+        return
+      }
+      setTimeout(step, 16)
+    }
+    step()
+  })
+}
+
 function forceDestroyWindow(win: BrowserWindow): void {
-  if (win.isDestroyed()) return
+  if (win.isDestroyed() || fadingOutputs.has(win)) return
+  fadingOutputs.add(win)
   bumpFullscreenEpoch(win)
   const finish = (): void => {
     if (win.isDestroyed()) return
@@ -808,31 +843,45 @@ function forceDestroyWindow(win: BrowserWindow): void {
       }
     }
   }
-  let fullscreen = false
-  try {
-    fullscreen = win.isFullScreen()
-  } catch {
-    fullscreen = false
+  const leaveFullscreenAndClose = (): void => {
+    if (win.isDestroyed()) return
+    let fullscreen = false
+    try {
+      fullscreen = win.isFullScreen()
+    } catch {
+      fullscreen = false
+    }
+    if (!fullscreen) {
+      finish()
+      return
+    }
+    // Windows ignores destroy while a fullscreen transition is in progress, and a
+    // pending fullscreen retry would show the presentation again.
+    win.once('leave-full-screen', finish)
+    try {
+      win.setOpacity(0)
+    } catch {
+      /* ignore */
+    }
+    try {
+      win.setFullScreen(false)
+    } catch {
+      finish()
+      return
+    }
+    setTimeout(finish, 280)
   }
-  if (!fullscreen) {
-    finish()
+  let visible = false
+  try {
+    visible = win.isVisible()
+  } catch {
+    visible = false
+  }
+  if (!visible) {
+    leaveFullscreenAndClose()
     return
   }
-  // Windows ignores destroy while a fullscreen transition is in progress, and a
-  // pending fullscreen retry would show the presentation again.
-  win.once('leave-full-screen', finish)
-  try {
-    win.setOpacity(0)
-  } catch {
-    /* ignore */
-  }
-  try {
-    win.setFullScreen(false)
-  } catch {
-    finish()
-    return
-  }
-  setTimeout(finish, 280)
+  void fadeOutputWindow(win).then(leaveFullscreenAndClose)
 }
 
 function bumpApplyGeneration(): void {

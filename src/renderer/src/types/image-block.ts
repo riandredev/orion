@@ -1,6 +1,6 @@
-import type { OrderImageAnimation } from '../../../shared/projection-stack'
+import { orderImageAnimations, type OrderImageAnimation } from '../../../shared/projection-stack'
 
-export type SlideAnimation = OrderImageAnimation
+export type SlideAnimation = OrderImageAnimation | 'random'
 
 export type FolderPlaybackSettings = {
   autoScrollSec: number
@@ -28,5 +28,19 @@ export const slideAnimationOptions: { value: SlideAnimation; label: string }[] =
   { value: 'zoom', label: 'Zoom' },
   { value: 'iris', label: 'Iris' },
   { value: 'bars', label: 'Bars' },
-  { value: 'pixels', label: 'Pixels' }
+  { value: 'pixels', label: 'Pixels' },
+  { value: 'random', label: 'Random' }
 ]
+
+let lastOrderAnimation: OrderImageAnimation | null = null
+
+/** Picks a different service-order animation each time Random is the saved choice. */
+export function resolveOrderAnimation(value: SlideAnimation): OrderImageAnimation {
+  if (value !== 'random') return value
+  const pool = lastOrderAnimation
+    ? orderImageAnimations.filter((name) => name !== lastOrderAnimation)
+    : orderImageAnimations
+  const next = pool[Math.floor(Math.random() * pool.length)] ?? 'crossfade'
+  lastOrderAnimation = next
+  return next
+}

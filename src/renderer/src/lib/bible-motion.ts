@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { touchProfileSettings } from './profile-autosave'
-import { coerceLyricAnimation, type LyricSlideAnimation } from './lyric-motion'
+import { coerceLyricAnimation, resolveLyricAnimation, type LyricSlideAnimation, type PlayableLyricAnimation } from './lyric-motion'
 
 export const BIBLE_MOTION_KEY = 'orion-bible-motion-v1'
 
@@ -71,9 +71,10 @@ export function useBibleMotion(): BibleMotionSettings {
 }
 
 export function bibleMotionForProjection(settings: BibleMotionSettings = getBibleMotion()): {
-  animation: LyricSlideAnimation
+  animation: PlayableLyricAnimation
   durationMs: number
 } {
-  if (settings.animation === 'cut') return { animation: 'cut', durationMs: 0 }
-  return { animation: settings.animation, durationMs: settings.transitionMs }
+  const animation = resolveLyricAnimation(settings.animation, 'bible')
+  if (animation === 'cut') return { animation: 'cut', durationMs: 0 }
+  return { animation, durationMs: settings.transitionMs }
 }

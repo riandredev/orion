@@ -1,14 +1,15 @@
-import { orderImageAnimations, type OrderImageAnimation } from '../../../shared/projection-stack'
+import { orderImageAnimations } from '../../../shared/projection-stack'
 import {
   defaultFolderPlayback,
-  type FolderPlaybackSettings
+  type FolderPlaybackSettings,
+  type SlideAnimation
 } from '../types/image-block'
 import { touchProfileSettings } from './profile-autosave'
 
 export const ORDER_FOLDER_PLAYBACK_KEY = 'orion-order-folder-playback-v1'
 
-function isAnimation(value: string): value is OrderImageAnimation {
-  return (orderImageAnimations as readonly string[]).includes(value)
+function isAnimation(value: string): value is SlideAnimation {
+  return value === 'random' || (orderImageAnimations as readonly string[]).includes(value)
 }
 
 function sanitizeFolder(raw: Partial<FolderPlaybackSettings> | null | undefined): FolderPlaybackSettings {

@@ -357,6 +357,105 @@ function hymnMotionOf(data) {
   return { animation, durationMs }
 }
 
+function pixelHash(x, y, seed) {
+  let h = Math.imul(x + 1, 0x27d4eb2d) ^ Math.imul(y + 1, 0x165667b1) ^ Math.imul(seed + 1, 0x2c1b3c6d)
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b)
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35)
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
+}
+
+function pixelGrid(width, height) {
+  const cell = Math.max(8, Math.round(Math.min(width, height) / 68))
+  return {
+    cols: Math.max(2, Math.ceil(width / cell)),
+    rows: Math.max(2, Math.ceil(height / cell))
+  }
+}
+
+/** Blocks of the next slide, in the 0–1 box of that slide. */
+function pixelRevealPath(cols, rows, progress, seed) {
+  let d = ''
+  const w = 1 / cols + 0.001
+  const h = 1 / rows + 0.001
+  for (let row = 0; row < rows; row += 1) {
+    const y = row / rows
+    for (let col = 0; col < cols; col += 1) {
+      if (progress < pixelHash(col, row, seed)) continue
+      d += `M${col / cols} ${y}h${w}v${h}h${-w}z`
+    }
+  }
+  return d
+}
+
+const pixelRuns = new WeakMap()
+
+function stopPixelRun(host) {
+  const stop = host ? pixelRuns.get(host) : null
+  if (stop) stop()
+}
+
+/**
+ * @param {HTMLElement | null} host
+ * @param {HTMLElement} previous
+ * @param {HTMLElement} incoming
+ * @param {number} durationMs
+ * @param {() => void} done
+ */
+function runPixelCover(host, previous, incoming, durationMs, done) {
+  if (!host) {
+    done()
+    return
+  }
+  stopPixelRun(host)
+  const svgNS = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(svgNS, 'svg')
+  svg.setAttribute('width', '0')
+  svg.setAttribute('height', '0')
+  svg.style.position = 'absolute'
+  const clip = document.createElementNS(svgNS, 'clipPath')
+  const clipId = `orion-pix-${Math.random().toString(36).slice(2)}`
+  clip.id = clipId
+  clip.setAttribute('clipPathUnits', 'objectBoundingBox')
+  const path = document.createElementNS(svgNS, 'path')
+  clip.appendChild(path)
+  svg.appendChild(clip)
+  host.appendChild(svg)
+  incoming.style.zIndex = '2'
+  previous.style.zIndex = '1'
+  incoming.style.clipPath = `url(#${clipId})`
+  const seed = Math.floor(Math.random() * 65536)
+  const start = performance.now()
+  let raf = 0
+  let stopped = false
+  const stop = () => {
+    if (stopped) return
+    stopped = true
+    if (raf) cancelAnimationFrame(raf)
+    incoming.style.clipPath = ''
+    svg.remove()
+    pixelRuns.delete(host)
+  }
+  pixelRuns.set(host, stop)
+  const tick = (now) => {
+    if (stopped) return
+    const rect = incoming.getBoundingClientRect()
+    const width = Math.max(1, rect.width)
+    const height = Math.max(1, rect.height)
+    const { cols, rows } = pixelGrid(width, height)
+    const progress = Math.min(1, (now - start) / Math.max(1, durationMs))
+    path.setAttribute('d', pixelRevealPath(cols, rows, progress, seed))
+    if (progress < 1) {
+      raf = requestAnimationFrame(tick)
+      return
+    }
+    stop()
+    if (previous.isConnected) previous.remove()
+    incoming.style.zIndex = ''
+    done()
+  }
+  raf = requestAnimationFrame(tick)
+}
+
 function clearSlideMotion(node) {
   node.style.animation = ''
   node.style.opacity = ''
@@ -374,17 +473,13 @@ function applyRevealMask(node, kind) {
   const mask =
     kind === 'bars'
       ? 'repeating-linear-gradient(to right, #000 0 var(--blind), transparent var(--blind) 8.333%)'
-      : 'repeating-linear-gradient(to right, #000 0 var(--pix), transparent var(--pix) 14px), repeating-linear-gradient(to bottom, #000 0 var(--pix), transparent var(--pix) 14px)'
+      : 'none'
   node.style.maskImage = mask
   node.style.webkitMaskImage = mask
   node.style.maskRepeat = 'no-repeat'
   node.style.webkitMaskRepeat = 'no-repeat'
   node.style.maskSize = '100% 100%'
   node.style.webkitMaskSize = '100% 100%'
-  if (kind === 'pixels') {
-    node.style.maskComposite = 'intersect'
-    node.style.webkitMaskComposite = 'source-in'
-  }
 }
 
 /** @param {HTMLElement} node */
@@ -406,10 +501,11 @@ function clearRevealMask(node) {
  * @param {number} durationMs
  */
 function animateHymnSwap(previous, incoming, animation, durationMs) {
-  const pending = imageMotionTimers.get(previous.parentElement || previous)
-  if (pending) window.clearTimeout(pending)
-  pendingSettleMs = Math.max(pendingSettleMs, durationMs)
   const host = previous.parentElement
+  const pending = imageMotionTimers.get(host || previous)
+  if (pending) window.clearTimeout(pending)
+  stopPixelRun(host)
+  pendingSettleMs = Math.max(pendingSettleMs, durationMs)
 
   const finish = (ms) => {
     const timer = window.setTimeout(() => {
@@ -473,8 +569,11 @@ function animateHymnSwap(previous, incoming, animation, durationMs) {
     incoming.style.animation = `orion-order-bars ${durationMs}ms linear forwards`
     applyRevealMask(incoming, 'bars')
   } else if (animation === 'pixels') {
-    incoming.style.animation = `orion-order-pixels ${durationMs}ms linear forwards`
-    applyRevealMask(incoming, 'pixels')
+    runPixelCover(host, previous, incoming, durationMs, () => {
+      clearSlideMotion(incoming)
+      schedulePreviewSettle(0)
+    })
+    return
   }
   finish(durationMs)
 }
@@ -799,6 +898,7 @@ function renderOrderImage(target, data) {
   const previous = showing && showing.getAttribute('src') !== mediaUrl ? showing : null
   const pending = imageMotionTimers.get(target)
   if (pending) window.clearTimeout(pending)
+  stopPixelRun(target)
 
   const clearMotion = (node) => {
     node.style.animation = ''
@@ -872,8 +972,11 @@ function renderOrderImage(target, data) {
     img.style.animation = `orion-order-bars ${durationMs}ms linear forwards`
     applyRevealMask(img, 'bars')
   } else if (animation === 'pixels') {
-    img.style.animation = `orion-order-pixels ${durationMs}ms linear forwards`
-    applyRevealMask(img, 'pixels')
+    runPixelCover(target, previous, img, durationMs, () => {
+      clearMotion(img)
+      schedulePreviewSettle(0)
+    })
+    return
   }
   settleAfter(durationMs)
 }
