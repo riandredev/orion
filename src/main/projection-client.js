@@ -1377,6 +1377,7 @@ function renderStage(state) {
     } else if (fadeOut) {
       overlayLeaving = true
       for (const slide of baseLayer.querySelectorAll('img.orion-order-slide')) {
+        slide.style.animation = ''
         slide.style.opacity = '1'
         slide.style.visibility = 'visible'
       }

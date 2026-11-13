@@ -1670,12 +1670,13 @@ export default function App(): ReactElement {
   const lastPushedPresentationPathRef = useRef<string | null>(null)
 
   useEffect(() => {
+    if (sequenceDriveRef.current) return
     if (!outputLive) {
       lastPushedOrderPathRef.current = null
       return
     }
     if (!activeImage?.path) return
-    if (sequenceDriveRef.current || lastPushedOrderPathRef.current === null) {
+    if (lastPushedOrderPathRef.current === null) {
       lastPushedOrderPathRef.current = activeImage.path
       return
     }
@@ -1733,6 +1734,30 @@ export default function App(): ReactElement {
     [applyProgram]
   )
 
+  const peelScriptureAfterFront = useCallback(
+    async (ui: PresentationUiState) => {
+      const stage = ui.stage
+      const front =
+        stage?.overlay?.type === 'media' ||
+        stage?.overlay?.type === 'deck-slide' ||
+        stage?.overlay?.type === 'image' ||
+        stage?.base?.type === 'media' ||
+        stage?.base?.type === 'deck-slide'
+      if (!front) return
+      const orderUnder =
+        stage?.base?.type === 'image' || ui.stack.base === 'order' || ui.stack.overlay === 'order'
+      const scriptureUnder =
+        stage?.base?.type === 'hymn' ||
+        stage?.base?.type === 'bible' ||
+        stage?.base?.type === 'dictionary' ||
+        ui.stack.base === 'bible' ||
+        ui.stack.overlay === 'bible'
+      if (!orderUnder && !scriptureUnder) return
+      await clearLayerIfLive('bible')
+    },
+    [clearLayerIfLive]
+  )
+
   const showSequenceAt = useCallback(
     async (cursor: SequenceCursor, project: boolean) => {
       const item = sequenceItems[cursor.itemIndex]
@@ -1749,26 +1774,35 @@ export default function App(): ReactElement {
         setBrowseFolderName(item.folder)
         setActiveFolderName(item.folder)
         const images = folderImagesMap[item.folder] ?? []
-        const index = images.findIndex((image) => image.path === item.path)
+        const named = images.find((image) => image.name === item.name)
+        const path = images.some((image) => image.path === item.path)
+          ? item.path
+          : (named?.path ?? item.path)
+        const index = images.findIndex((image) => image.path === path)
         setActiveImageIndex(index >= 0 ? index : 0)
         setPlaying(false)
-        lastPushedOrderPathRef.current = item.path
+        lastPushedOrderPathRef.current = path
         if (!project) return
-        const stage = programRef.current.stage
-        const alreadyShowing =
-          stage?.base?.type === 'image' && stage.base.filePath === item.path && !stage.overlay
-        if (alreadyShowing) return
-        const imageUnder =
-          stage?.base?.type === 'image' && stage.base.filePath === item.path
-        if (!imageUnder) {
-          const motion = settingsForFolder(folderSettings, item.folder)
-          const ui = await presentOrderLayer(item.path, displays, {
-            animation: motion.animation,
-            durationMs: motion.transitionMs
-          })
-          programRef.current = ui
-          applyProgram(ui)
-        }
+        const stageNow = programRef.current.stage
+        const scriptureUp =
+          stageNow?.base?.type === 'hymn' ||
+          stageNow?.base?.type === 'bible' ||
+          stageNow?.base?.type === 'dictionary' ||
+          stageNow?.overlay?.type === 'hymn' ||
+          stageNow?.overlay?.type === 'bible' ||
+          stageNow?.overlay?.type === 'dictionary'
+        const motion = settingsForFolder(folderSettings, item.folder)
+        const ui = await presentOrderLayer(
+          path,
+          displays,
+          scriptureUp
+            ? { animation: 'cut', durationMs: 0 }
+            : { animation: motion.animation, durationMs: motion.transitionMs }
+        )
+        programRef.current = ui
+        applyProgram(ui)
+        const imageOnStage = ui.stage?.base?.type === 'image' || ui.stage?.overlay?.type === 'image'
+        if (!imageOnStage) return
         await clearLayerIfLive('bible')
         await clearLayerIfLive('presentation')
         return
@@ -1872,11 +1906,6 @@ export default function App(): ReactElement {
         requestMediaSequenceCue({ folder: item.folder, path: item.path })
         setTab('media')
         if (!project) return
-        const orderUnder =
-          programRef.current.orderActive ||
-          programRef.current.stack.base === 'order' ||
-          programRef.current.stack.overlay === 'order'
-        if (orderUnder) await clearLayerIfLive('bible')
         const ui = await presentMediaFile(
           { path: item.path, name: item.name, kind: item.mediaKind },
           displays,
@@ -1884,6 +1913,7 @@ export default function App(): ReactElement {
         )
         programRef.current = ui
         applyProgram(ui)
+        await peelScriptureAfterFront(ui)
         return
       }
       const slide = Math.min(cursor.stepIndex, Math.max(0, item.slideCount - 1))
@@ -1910,41 +1940,29 @@ export default function App(): ReactElement {
         rememberSession(item.deckId, session)
         const frame = projectedFrame(item.deckId, slide, 0)
         if (!stillCurrent() || !frame) return
-        if (
-          programRef.current.orderActive ||
-          programRef.current.stack.base === 'order' ||
-          programRef.current.stack.overlay === 'order'
-        ) {
-          await clearLayerIfLive('bible')
-        }
-        if (!stillCurrent()) return
         const ui = await presentDeckSlide(frame, connectedDisplaysRef.current)
+        if (!stillCurrent()) return
         sequenceProjectPendingRef.current = null
         lastPushedPresentationPathRef.current = `${item.deckId}:${slide}:0`
         programRef.current = ui
         applyProgram(ui)
+        await peelScriptureAfterFront(ui)
         return
       }
       const path = detail.slides[slide]?.path
       if (!path) return
-      if (
-        programRef.current.orderActive ||
-        programRef.current.stack.base === 'order' ||
-        programRef.current.stack.overlay === 'order'
-      ) {
-        await clearLayerIfLive('bible')
-      }
-      if (!stillCurrent()) return
       const ui = await presentPresentationImage(path, connectedDisplaysRef.current)
+      if (!stillCurrent()) return
       sequenceProjectPendingRef.current = null
       lastPushedPresentationPathRef.current = path
       programRef.current = ui
       applyProgram(ui)
+      await peelScriptureAfterFront(ui)
       } finally {
         sequenceDriveRef.current = false
       }
     },
-    [sequenceItems, folderImagesMap, folderSettings, applyProgram, clearLayerIfLive]
+    [sequenceItems, folderImagesMap, folderSettings, applyProgram, clearLayerIfLive, peelScriptureAfterFront]
   )
 
   followOutputRef.current = (wire) => {
