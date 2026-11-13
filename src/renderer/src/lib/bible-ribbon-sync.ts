@@ -22,7 +22,26 @@ export function setBibleActivePassage(ref: string): void {
   listeners.forEach((l) => l())
 }
 
+function sameBibleLiveContent(a: BibleLiveContent | null, b: BibleLiveContent | null): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  if (
+    a.reference !== b.reference ||
+    a.locationLabel !== b.locationLabel ||
+    a.translationLabel !== b.translationLabel ||
+    a.highlightVerse !== b.highlightVerse ||
+    a.bookId !== b.bookId ||
+    a.verses.length !== b.verses.length
+  ) {
+    return false
+  }
+  return a.verses.every(
+    (verse, index) => verse.number === b.verses[index]?.number && verse.text === b.verses[index]?.text
+  )
+}
+
 export function setBibleLiveContent(content: BibleLiveContent | null): void {
+  if (sameBibleLiveContent(liveContent, content)) return
   liveContent = content
   contentListeners.forEach((l) => l())
 }

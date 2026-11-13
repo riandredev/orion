@@ -3,6 +3,7 @@ import type { OrionDisplayInfo } from '../../../shared/displays'
 import type { PresentationUiState } from '../../../shared/presentation-ui-state'
 import { projectionDisplayIds } from '../lib/display-projection'
 import { publishLibraryMedia } from '../lib/library-media-sync'
+import { OUTPUT_MEDIA_VOLUME } from '../../../shared/output-audio'
 import { loadPlaybackSettings } from '../lib/playback-settings'
 import { touchProfileSettings } from '../lib/profile-autosave'
 import { blurShortcutTarget } from '../lib/focus'
@@ -373,10 +374,10 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
 
   const togglePlay = useCallback(() => {
     const el = playerRef.current
-    if (!el || !soundOnThisPc) return
+    if (!el) return
     if (el.paused) void el.play().catch(() => setError('Could not play that file.'))
     else el.pause()
-  }, [soundOnThisPc])
+  }, [])
 
   useEffect(() => {
     setMediaRibbon({
@@ -450,7 +451,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     const el = playerRef.current
     if (!el) return
     el.muted = !soundOnThisPc
-    el.volume = soundOnThisPc ? 1 : 0
+    el.volume = soundOnThisPc ? (live ? OUTPUT_MEDIA_VOLUME : 1) : 0
   }, [live, preview?.path, soundOnThisPc])
 
   useEffect(() => {
@@ -458,25 +459,40 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     if (!el || !live) return
     const epoch = ++libraryEpoch.current
     let timer = 0
+    let holdUntil = 0
     const send = (action: 'play' | 'pause' | 'seek'): void => {
       publishLibraryMedia(action, el.currentTime || 0, epoch)
     }
+    const beat = (): void => {
+      if (el.seeking || el.paused || Date.now() < holdUntil) return
+      send('play')
+    }
     const start = (): void => {
       window.clearInterval(timer)
+      if (el.seeking) return
       send('play')
-      timer = window.setInterval(() => {
-        if (!el.paused) send('play')
-      }, 160)
+      timer = window.setInterval(beat, 160)
     }
     const stop = (): void => {
       window.clearInterval(timer)
-      send('pause')
+      timer = 0
+      if (!el.seeking) send('pause')
+    }
+    const onSeeking = (): void => {
+      window.clearInterval(timer)
+      timer = 0
     }
     const onSeeked = (): void => {
+      holdUntil = Date.now() + 450
       send(el.paused ? 'pause' : 'seek')
+      if (!el.paused) {
+        window.clearInterval(timer)
+        timer = window.setInterval(beat, 160)
+      }
     }
     el.addEventListener('playing', start)
     el.addEventListener('pause', stop)
+    el.addEventListener('seeking', onSeeking)
     el.addEventListener('seeked', onSeeked)
     if (el.paused && startOnPresent.current) {
       startOnPresent.current = false
@@ -487,6 +503,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
       window.clearInterval(timer)
       el.removeEventListener('playing', start)
       el.removeEventListener('pause', stop)
+      el.removeEventListener('seeking', onSeeking)
       el.removeEventListener('seeked', onSeeked)
     }
   }, [live, preview?.path])
@@ -551,8 +568,15 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (document.querySelector('.media-workspace')?.closest('.tab-keep--hidden')) return
-      if (sequenceFollowsKeys()) return
       if (document.querySelector('dialog[open]')) return
+      if (sequenceFollowsKeys()) {
+        if (event.key === ' ' && preview && !event.repeat) {
+          event.preventDefault()
+          blurShortcutTarget(event.target)
+          navRef.current.togglePlay()
+        }
+        return
+      }
       const target = event.target
       if (
         target instanceof HTMLElement &&

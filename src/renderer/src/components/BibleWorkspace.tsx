@@ -20,6 +20,7 @@ import { useInstalledBibles } from '../lib/use-installed-bibles'
 import { clearBibleRibbonActions, setBibleRibbonActions } from '../lib/bible-ribbon-actions'
 import { setBibleActivePassage, setBibleLiveContent } from '../lib/bible-ribbon-sync'
 import { sequenceFollowsKeys, useBibleSequenceCue } from '../lib/sequence-cues'
+import { touchProfileSettings } from '../lib/profile-autosave'
 import { writeSequenceDrag } from '../lib/sequence-drag'
 import { pushSequenceDraft } from '../lib/sequence-inbox'
 import { currentBibleSequenceDraft, publishBibleSequenceDraft } from '../lib/sequence-sources'
@@ -81,6 +82,7 @@ function saveHistoryHeight(height: number): void {
   } catch {
     /* ignore */
   }
+  touchProfileSettings()
 }
 
 function loadShowCrossRefs(): boolean {
@@ -178,7 +180,11 @@ export function BibleWorkspace({
   )
 
   useEffect(() => {
-    const onProfile = (): void => setTranslation(loadBibleTranslation(translation))
+    const onProfile = (): void => {
+      setTranslation(loadBibleTranslation(translation))
+      setHistoryHeight(loadHistoryHeight())
+      setShowCrossRefs(loadShowCrossRefs())
+    }
     window.addEventListener('orion-profile-applied', onProfile)
     return () => window.removeEventListener('orion-profile-applied', onProfile)
   }, [translation])
@@ -223,6 +229,9 @@ export function BibleWorkspace({
   const chapterLoad = useRef(0)
   const versesFromLoad = useRef(0)
   const navHold = useRef<{ bookId: string; chapter: number; verse: number } | null>(null)
+  const projectPending = useRef<{ bookId: string; chapter: number; verse: number } | null>(null)
+  const projectRef = useRef(onProjectToOutputs)
+  projectRef.current = onProjectToOutputs
 
   useEffect(() => {
     if (!showCrossRefs) return
@@ -340,6 +349,17 @@ export function BibleWorkspace({
       bookId,
       verses: [{ number: selected.number, text: selected.text }]
     })
+    const pending = projectPending.current
+    if (
+      pending &&
+      versesFromLoad.current === chapterLoad.current &&
+      pending.bookId === bookId &&
+      pending.chapter === chapter &&
+      pending.verse === selected.number
+    ) {
+      projectPending.current = null
+      projectRef.current()
+    }
   }, [passageRef, locationLabel, translationLabel, verse, verses, bookId, chapter])
 
   function onTranslationChange(id: BibleTranslationId): void {
@@ -427,6 +447,21 @@ export function BibleWorkspace({
     setVerse(target.verse)
   }
 
+  function projectSearchedPassage(target: { bookId: string; chapter: number; verse: number }): void {
+    const alreadyShowing =
+      target.bookId === bookId &&
+      target.chapter === chapter &&
+      target.verse === verse &&
+      versesFromLoad.current === chapterLoad.current &&
+      verses.some((line) => line.number === target.verse)
+    if (alreadyShowing) {
+      projectPending.current = null
+      onProjectToOutputs()
+      return
+    }
+    projectPending.current = target
+  }
+
   function toggleCrossRefs(): void {
     setShowCrossRefs((prev) => {
       const next = !prev
@@ -435,6 +470,7 @@ export function BibleWorkspace({
       } catch {
         /* the choice still applies for this session */
       }
+      touchProfileSettings()
       return next
     })
     setXrefMenu(null)
@@ -604,6 +640,7 @@ export function BibleWorkspace({
             autoSearch={autoSearch}
             onAutoSearchChange={setAutoSearch}
             onNavigate={navigateToPassage}
+            onProjectPassage={projectSearchedPassage}
           />
           <div className="bible-search-bar__translation-group">
             <label className="order-ribbon__field order-ribbon__field--select bible-search-bar__translation">

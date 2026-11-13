@@ -583,6 +583,68 @@
   border-radius: var(--adw-radius-xs);
 }
 
+.sequence-row__thumb {
+  width: 48px;
+  height: 27px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #000;
+  overflow: hidden;
+}
+
+.sequence-row__thumb .presentation-thumb {
+  width: 48px;
+  height: 27px;
+  aspect-ratio: auto;
+}
+
+.sequence-hover-preview {
+  position: fixed;
+  z-index: 240;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--adw-window-bg);
+  border: 1px solid var(--adw-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+.sequence-hover-preview .presentation-thumb,
+.sequence-hover-preview img,
+.sequence-hover-preview video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: #000;
+}
+
+.sequence-hover-preview__caption {
+  margin: 0;
+  padding: 6px 8px 8px;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sequence-hover-preview__text {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow: hidden;
+}
+
+.sequence-hover-preview__text p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .sequence-row__main--order-image .sequence-row__icon {
   color: #e5a50a;
   background: rgba(229, 165, 10, 0.18);

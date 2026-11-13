@@ -382,7 +382,8 @@ export function OrderBlockRibbon({
       <p className="order-ribbon__hints adw-caption">
         <KbdIcon name="caretLeft" /> <KbdIcon name="caretRight" /> previous / next image ·{' '}
         <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> folders · <Kbd>Space</Kbd> play / pause ·{' '}
-        <Kbd>Enter</Kbd> send to outputs · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> project or stop
+        <Kbd>Enter</Kbd> send to outputs · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> project or stop ·{' '}
+        <Kbd>Esc</Kbd> stop output
       </p>
     </div>
   )

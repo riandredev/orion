@@ -152,7 +152,7 @@ export function WebTabRibbon({
       </div>
       <p className="order-ribbon__hints adw-caption">
         <Kbd>Alt</Kbd> <KbdIcon name="caretLeft" /> <KbdIcon name="caretRight" /> back / forward ·{' '}
-        <Kbd>F5</Kbd> reload · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> send to outputs
+        <Kbd>F5</Kbd> reload · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> send to outputs · <Kbd>Esc</Kbd> stop output
       </p>
     </div>
   )

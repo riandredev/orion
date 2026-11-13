@@ -151,11 +151,11 @@ let settleDue = 0
 
 function schedulePreviewSettle(ms) {
   if (window.__orionStillCapture) {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.orionProjection?.notifySettled?.()
-      })
-    })
+    // A throttled offscreen window can make the next animation frame wait
+    // about a second. A short timer still lets the new pixels land.
+    window.setTimeout(() => {
+      window.orionProjection?.notifySettled?.()
+    }, 32)
     return
   }
   const wait = ms > 0 ? ms + 80 : 48
@@ -175,13 +175,15 @@ function schedulePreviewSettle(ms) {
 }
 
 let deckAudio = false
+/** Keep in sync with OUTPUT_MEDIA_VOLUME in src/shared/output-audio.ts */
+const OUTPUT_MEDIA_VOLUME = 0.4
 
 function applyDeckAudioFlag() {
   for (const el of document.querySelectorAll('[data-orion-media], [data-orion-library-media]')) {
     const shouldMute = !deckAudio
     if (el.muted !== shouldMute) el.muted = shouldMute
     if (shouldMute && el.volume !== 0) el.volume = 0
-    if (!shouldMute && el.volume === 0) el.volume = 1
+    if (!shouldMute && el.volume === 0) el.volume = OUTPUT_MEDIA_VOLUME
   }
 }
 
@@ -212,6 +214,19 @@ let libraryMediaEpoch = -1
  */
 function nudgeOutputMedia(el, command) {
   const time = Number(command.time)
+  if (command.action === 'seek' || command.action === 'pause') {
+    if (Number.isFinite(time) && Math.abs(time - (el.currentTime || 0)) > 0.05) {
+      try {
+        el.currentTime = time
+      } catch {
+        /* not seekable yet */
+      }
+    }
+    el.playbackRate = 1
+    if (command.action === 'pause') el.pause()
+    else if (el.paused) void el.play().catch(() => {})
+    return
+  }
   const drift = time - (el.currentTime || 0)
   if (Number.isFinite(drift)) {
     if (Math.abs(drift) > 0.3) {
@@ -1035,7 +1050,7 @@ function renderPayload(target, payload) {
     el.controls = false
     el.playsInline = true
     el.muted = !deckAudio
-    el.volume = deckAudio ? 1 : 0
+    el.volume = deckAudio ? OUTPUT_MEDIA_VOLUME : 0
     el.addEventListener('canplay', () => applyDeckAudioFlag())
     el.addEventListener('volumechange', () => {
       const shouldMute = !deckAudio
@@ -1141,6 +1156,7 @@ function renderPayload(target, payload) {
       el.controls = false
       el.playsInline = true
       el.muted = !deckAudio
+      el.volume = deckAudio ? OUTPUT_MEDIA_VOLUME : 0
       const slot = mediaIndex
       mediaIndex += 1
       const start = () => {
@@ -1360,6 +1376,10 @@ function renderStage(state) {
       /* A second stage push arrives while the overlay is fading off. Leave it alone. */
     } else if (fadeOut) {
       overlayLeaving = true
+      for (const slide of baseLayer.querySelectorAll('img.orion-order-slide')) {
+        slide.style.opacity = '1'
+        slide.style.visibility = 'visible'
+      }
       overlayLayer.classList.remove('overlay-visible')
       pendingSettleMs = Math.max(pendingSettleMs, 420)
       if (overlayClearTimer !== null) clearTimeout(overlayClearTimer)

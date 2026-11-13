@@ -15,7 +15,10 @@ type ShortcutGroup = {
 const groups: ShortcutGroup[] = [
   {
     title: 'General',
-    rows: [{ label: 'Keyboard shortcuts', keys: <Kbd>?</Kbd> }]
+    rows: [
+      { label: 'Keyboard shortcuts', keys: <Kbd>?</Kbd> },
+      { label: 'Stop the front output', keys: <Kbd>Esc</Kbd> }
+    ]
   },
   {
     title: 'Service order',
@@ -176,7 +179,7 @@ const groups: ShortcutGroup[] = [
           </>
         )
       },
-      { label: 'Back to the library', keys: <Kbd>Esc</Kbd> }
+      { label: 'Back to the library and stop output', keys: <Kbd>Esc</Kbd> }
     ]
   },
   {

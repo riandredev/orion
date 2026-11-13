@@ -273,6 +273,12 @@ function wireFromStackContent(content: OrionStackLayerContent) {
   return createStackWire(safe, imagePathToMediaUrl)
 }
 
+function outputAlreadyShowing(win: BrowserWindow, displayId: number): boolean {
+  const display = getElectronDisplay(displayId)
+  if (!display) return false
+  return coversDisplay(win, display)
+}
+
 async function commitStageToOutputs(displayIds: number[]): Promise<void> {
   if (!mixer.hasActiveLayers()) {
     closeAllProjectionWindows()
@@ -281,13 +287,16 @@ async function commitStageToOutputs(displayIds: number[]): Promise<void> {
 
   const targetIds = resolveTargetDisplayIds(displayIds)
   for (const displayId of targetIds) {
-    const win = await ensureShellWindow(displayId)
+    const existing = projectionWindows.get(displayId)
+    const keepPlacement =
+      existing !== undefined && !existing.isDestroyed() && outputAlreadyShowing(existing, displayId)
+    const win = keepPlacement ? existing : await ensureShellWindow(displayId)
     if (!win || win.isDestroyed()) continue
     const renderWait = waitForRendered(displayId, 1200)
     pushStageState(win)
     enqueueStillCapture(displayId)
     await renderWait
-    revealOutputWindow(displayId)
+    if (!keepPlacement) revealOutputWindow(displayId)
   }
   pushDeckAudioOwners()
 }
@@ -409,23 +418,102 @@ function bumpFullscreenEpoch(win: BrowserWindow): number {
   return next
 }
 
+function boundsMatchDisplay(win: BrowserWindow, display: Display): boolean {
+  try {
+    const bounds = win.getBounds()
+    const target = display.bounds
+    return (
+      Math.abs(bounds.x - target.x) <= 4 &&
+      Math.abs(bounds.y - target.y) <= 4 &&
+      Math.abs(bounds.width - target.width) <= 4 &&
+      Math.abs(bounds.height - target.height) <= 4
+    )
+  } catch {
+    return false
+  }
+}
+
+function isNativeFullscreen(win: BrowserWindow): boolean {
+  try {
+    return win.isFullScreen()
+  } catch {
+    return false
+  }
+}
+
+function isMacSimpleFullscreen(win: BrowserWindow): boolean {
+  if (process.platform !== 'darwin') return false
+  try {
+    return win.isSimpleFullScreen()
+  } catch {
+    return false
+  }
+}
+
+function coversDisplay(win: BrowserWindow, display: Display): boolean {
+  if (win.isDestroyed() || !win.isVisible()) return false
+  if (isMacSimpleFullscreen(win) || isNativeFullscreen(win)) return true
+  // Windows can report a covering output as not fullscreen. Calling setBounds
+  // again then drops it out of fullscreen and leaves a blank window behind.
+  // Linux and macOS must not use that shortcut: a window can already sit on
+  // the display rectangle and still not be fullscreen.
+  if (process.platform !== 'win32') return false
+  return boundsMatchDisplay(win, display)
+}
+
+function showOutputOpaque(win: BrowserWindow): void {
+  try {
+    win.setOpacity(1)
+  } catch {
+    /* opacity is unavailable on this window */
+  }
+  if (!win.isVisible()) win.showInactive()
+}
+
 function placeOnDisplayFullscreen(win: BrowserWindow, display: Display): void {
   if (win.isDestroyed()) return
   const epoch = bumpFullscreenEpoch(win)
   const apply = (): void => {
     if (win.isDestroyed() || fullscreenEpoch.get(win) !== epoch) return
-    win.setBounds(display.bounds)
-    try {
-      win.setOpacity(1)
-    } catch {
-      /* opacity is unavailable on this window */
+    if (coversDisplay(win, display)) {
+      showOutputOpaque(win)
+      keepMainAppFocused()
+      return
     }
-    if (!win.isVisible()) win.showInactive()
-    if (!win.isFullScreen()) win.setFullScreen(true)
+    if (process.platform === 'darwin') {
+      // Native fullscreen moves Orion into another Space. Simple fullscreen
+      // covers the display the window is already on and leaves the operator
+      // window where it is.
+      if (!boundsMatchDisplay(win, display)) win.setBounds(display.bounds)
+      showOutputOpaque(win)
+      try {
+        win.setSimpleFullScreen(true)
+      } catch {
+        if (!isNativeFullscreen(win)) win.setFullScreen(true)
+      }
+      keepMainAppFocused()
+      return
+    }
+    if (process.platform === 'linux') {
+      // setBounds while a fullscreen transition is running is what the
+      // compositor uses to drop the window back out.
+      if (!boundsMatchDisplay(win, display)) win.setBounds(display.bounds)
+      showOutputOpaque(win)
+      try {
+        win.setFullScreen(true)
+      } catch {
+        /* the window manager rejected fullscreen */
+      }
+      keepMainAppFocused()
+      return
+    }
+    win.setBounds(display.bounds)
+    showOutputOpaque(win)
+    if (!isNativeFullscreen(win)) win.setFullScreen(true)
     keepMainAppFocused()
   }
   apply()
-  if (process.platform === 'linux') {
+  if (process.platform === 'linux' || process.platform === 'darwin') {
     win.once('enter-full-screen', () => {
       if (fullscreenEpoch.get(win) !== epoch) return
       apply()
@@ -434,15 +522,7 @@ function placeOnDisplayFullscreen(win: BrowserWindow, display: Display): void {
   // Replacing a fullscreen shell window drops the new window out of fullscreen
   // unless the fullscreen request is repeated after the old one has closed.
   for (const delay of [120, 400]) {
-    setTimeout(() => {
-      if (win.isDestroyed() || fullscreenEpoch.get(win) !== epoch) return
-      if (!win.isFullScreen()) {
-        win.setBounds(display.bounds)
-        win.showInactive()
-        win.setFullScreen(true)
-      }
-      keepMainAppFocused()
-    }, delay)
+    setTimeout(apply, delay)
   }
 }
 
@@ -516,15 +596,6 @@ function wakeStillCapturePainting(win: BrowserWindow): void {
     if (!win.webContents.isPainting()) win.webContents.startPainting()
   } catch {
     /* painting is best-effort until the page is ready */
-  }
-}
-
-function idleStillCapturePainting(win: BrowserWindow): void {
-  if (!linuxOffscreenCapture || win.isDestroyed() || stillQueueDepth > 1) return
-  try {
-    win.webContents.setFrameRate(1)
-  } catch {
-    /* window closing */
   }
 }
 
@@ -727,18 +798,21 @@ async function captureOutputPreview(win: BrowserWindow, displayId: number): Prom
   previewBusy.add(displayId)
   const still = linuxOffscreenCapture && win === stillCaptureWindow
   try {
+    let image: NativeImage | null = null
     if (still) {
+      // capturePage reads the full compositor buffer and is the slow part on
+      // Linux. The offscreen paint is already the preview-sized bitmap.
+      wakeStillCapturePainting(win)
+      const paintedPromise = waitForStillPaint(140)
       try {
         win.webContents.invalidate()
       } catch {
-        /* capturePage still runs */
+        /* the paint listener still runs if a frame is in flight */
       }
+      const painted = await paintedPromise
+      image = painted && !painted.isEmpty() ? painted : null
     }
-    let image = await win.webContents.capturePage()
-    if (image.isEmpty() && still && !win.isDestroyed()) {
-      const painted = await waitForStillPaint(250)
-      image = painted && !painted.isEmpty() ? painted : await win.webContents.capturePage()
-    }
+    if (!image) image = await win.webContents.capturePage()
     if (win.isDestroyed() || image.isEmpty()) return
     if (previewEpoch.get(displayId) !== epoch) return
     const size = image.getSize()
@@ -753,8 +827,6 @@ async function captureOutputPreview(win: BrowserWindow, displayId: number): Prom
     const again = previewAgain.delete(displayId) && !win.isDestroyed()
     if (again) {
       void captureOutputPreview(win, displayId)
-    } else if (still && !win.isDestroyed()) {
-      idleStillCapturePainting(win)
     }
   }
 }
@@ -850,6 +922,30 @@ function forceDestroyWindow(win: BrowserWindow): void {
       fullscreen = win.isFullScreen()
     } catch {
       fullscreen = false
+    }
+    if (process.platform === 'darwin') {
+      let simple = false
+      try {
+        simple = win.isSimpleFullScreen()
+      } catch {
+        simple = false
+      }
+      if (simple) {
+        win.once('leave-full-screen', finish)
+        try {
+          win.setOpacity(0)
+        } catch {
+          /* ignore */
+        }
+        try {
+          win.setSimpleFullScreen(false)
+        } catch {
+          finish()
+          return
+        }
+        setTimeout(finish, 280)
+        return
+      }
     }
     if (!fullscreen) {
       finish()

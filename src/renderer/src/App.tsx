@@ -175,6 +175,55 @@ function filePathToUrl(filePath: string): string {
   return `file:///${normalized.replace(/^\//, '')}`
 }
 
+function sequenceCursorForOutput(
+  wire: {
+    type?: string
+    filePath?: string
+    number?: number
+    title?: string
+    lines?: string[]
+    reference?: string
+    strongs?: string
+  } | null
+  | undefined,
+  items: ServiceSequenceItem[],
+  fromIndex: number
+): SequenceCursor | null {
+  if (!wire?.type) return null
+  const at = (index: number): SequenceCursor | null => {
+    const item = items[index]
+    if (!item) return null
+    if (wire.type === 'image' && item.kind === 'order-image' && item.path === wire.filePath) {
+      return { itemIndex: index, stepIndex: 0 }
+    }
+    if (wire.type === 'hymn' && item.kind === 'hymn' && item.number === wire.number && item.title === wire.title) {
+      const lines = (wire.lines ?? []).join('\n')
+      const stepIndex = item.steps.findIndex((step) => step.lines.join('\n') === lines)
+      return { itemIndex: index, stepIndex: stepIndex >= 0 ? stepIndex : 0 }
+    }
+    if (wire.type === 'bible' && item.kind === 'bible' && item.reference === wire.reference) {
+      return { itemIndex: index, stepIndex: 0 }
+    }
+    if (wire.type === 'dictionary' && item.kind === 'dictionary' && item.strongs === wire.strongs) {
+      return { itemIndex: index, stepIndex: 0 }
+    }
+    if (wire.type === 'media' && item.kind === 'media' && item.path === wire.filePath) {
+      return { itemIndex: index, stepIndex: 0 }
+    }
+    return null
+  }
+  const start = Math.min(Math.max(fromIndex, 0), Math.max(0, items.length - 1))
+  for (let index = start; index >= 0; index -= 1) {
+    const cursor = at(index)
+    if (cursor) return cursor
+  }
+  for (let index = start + 1; index < items.length; index += 1) {
+    const cursor = at(index)
+    if (cursor) return cursor
+  }
+  return null
+}
+
 function trimDefinitionForProjection(text: string, maxLen = 520): string {
   const trimmed = text.trim()
   if (trimmed.length <= maxLen) return trimmed
@@ -569,6 +618,8 @@ export default function App(): ReactElement {
   const goOrderLiveRef = useRef<() => void>(() => {})
   const sequenceCursorRef = useRef(sequenceCursor)
   sequenceCursorRef.current = sequenceCursor
+  const sequenceDriveRef = useRef(false)
+  const followOutputRef = useRef<(wire: Parameters<typeof sequenceCursorForOutput>[0]) => void>(() => {})
   const skipSequenceWrite = useRef(false)
   const [outputCaptureFrames, setOutputCaptureFrames] = useState<Record<string, string>>({})
 
@@ -1173,6 +1224,52 @@ export default function App(): ReactElement {
     }
   }, [applyProgram])
 
+  const releaseFrontOutput = useCallback(async () => {
+    const stage = program.stage
+    const overlay = stage?.overlay
+    const base = stage?.base
+    if (!overlay || !base) {
+      await stopAllProjection()
+      return
+    }
+    const source =
+      overlay.type === 'bible' || overlay.type === 'dictionary' || overlay.type === 'hymn'
+        ? 'bible'
+        : 'presentation'
+    const ui = await clearPresentationLayer(source)
+    applyProgram(ui)
+    followOutputRef.current(ui.stage?.base ?? null)
+  }, [applyProgram, program.stage, stopAllProjection])
+
+  const outputOpenRef = useRef(false)
+  outputOpenRef.current =
+    program.outputsOpen ||
+    webLive ||
+    outputLive ||
+    bibleLive ||
+    hymnsLive ||
+    dictionaryLive ||
+    presentationOutputLive ||
+    mediaOnStage
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.repeat || event.defaultPrevented) return
+      if (
+        document.querySelector(
+          'dialog[open], .adw-select__menu, .adw-context-menu, .adw-color-picker__popover, .bible-xref-menu'
+        )
+      ) {
+        return
+      }
+      if (!outputOpenRef.current) return
+      event.preventDefault()
+      void releaseFrontOutput()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [releaseFrontOutput])
+
   const toggleOrderOutput = useCallback(async () => {
     if (outputLive) {
       await stopOrderProjection()
@@ -1578,7 +1675,7 @@ export default function App(): ReactElement {
       return
     }
     if (!activeImage?.path) return
-    if (lastPushedOrderPathRef.current === null) {
+    if (sequenceDriveRef.current || lastPushedOrderPathRef.current === null) {
       lastPushedOrderPathRef.current = activeImage.path
       return
     }
@@ -1602,7 +1699,7 @@ export default function App(): ReactElement {
         ? `${presentationDeckId}:${presentationSlideIndex}:${presentationBuildStep}`
         : presentationSlidePath
     if (!token) return
-    if (lastPushedPresentationPathRef.current === null) {
+    if (sequenceDriveRef.current || lastPushedPresentationPathRef.current === null) {
       lastPushedPresentationPathRef.current = token
       return
     }
@@ -1615,10 +1712,33 @@ export default function App(): ReactElement {
 
   const sequenceProjectPendingRef = useRef<{ deckId: string; slide: number } | null>(null)
 
+  const programRef = useRef(program)
+  programRef.current = program
+
+  const clearLayerIfLive = useCallback(
+    async (source: 'order' | 'bible' | 'presentation') => {
+      const ui = programRef.current
+      const onStack = ui.stack.base === source || ui.stack.overlay === source
+      const flagged =
+        source === 'order'
+          ? ui.orderActive
+          : source === 'bible'
+            ? ui.bibleActive
+            : ui.presentationActive
+      if (!onStack && !flagged) return
+      const next = await clearPresentationLayer(source)
+      programRef.current = next
+      applyProgram(next)
+    },
+    [applyProgram]
+  )
+
   const showSequenceAt = useCallback(
     async (cursor: SequenceCursor, project: boolean) => {
       const item = sequenceItems[cursor.itemIndex]
       if (!item) return
+      sequenceDriveRef.current = true
+      try {
       const displays = connectedDisplaysRef.current
       if (project && item.kind !== 'web') {
         setWebLive(false)
@@ -1634,14 +1754,23 @@ export default function App(): ReactElement {
         setPlaying(false)
         lastPushedOrderPathRef.current = item.path
         if (!project) return
-        await clearPresentationLayer('bible')
-        await clearPresentationLayer('presentation')
-        const motion = settingsForFolder(folderSettings, item.folder)
-        const ui = await presentOrderLayer(item.path, displays, {
-          animation: motion.animation,
-          durationMs: motion.transitionMs
-        })
-        applyProgram(ui)
+        const stage = programRef.current.stage
+        const alreadyShowing =
+          stage?.base?.type === 'image' && stage.base.filePath === item.path && !stage.overlay
+        if (alreadyShowing) return
+        const imageUnder =
+          stage?.base?.type === 'image' && stage.base.filePath === item.path
+        if (!imageUnder) {
+          const motion = settingsForFolder(folderSettings, item.folder)
+          const ui = await presentOrderLayer(item.path, displays, {
+            animation: motion.animation,
+            durationMs: motion.transitionMs
+          })
+          programRef.current = ui
+          applyProgram(ui)
+        }
+        await clearLayerIfLive('bible')
+        await clearLayerIfLive('presentation')
         return
       }
       if (item.kind === 'hymn') {
@@ -1679,9 +1808,10 @@ export default function App(): ReactElement {
         setTab('hymns')
         if (!project || !hymnContent) return
         const hymnLayer = stackHymnFromContent(hymnContent)
-        await clearPresentationLayer('presentation')
+        await clearLayerIfLive('presentation')
         if (hymnLayer.type !== 'hymn') return
         const ui = await presentHymnLayer(hymnLayer, displays)
+        programRef.current = ui
         applyProgram(ui)
         return
       }
@@ -1700,9 +1830,10 @@ export default function App(): ReactElement {
         setTab('bible')
         if (!project) return
         const bibleLayer = stackBibleFromContent(bibleContent)
-        await clearPresentationLayer('presentation')
+        await clearLayerIfLive('presentation')
         if (bibleLayer.type !== 'bible') return
         const ui = await presentBibleLayer(bibleLayer, displays)
+        programRef.current = ui
         applyProgram(ui)
         return
       }
@@ -1713,9 +1844,10 @@ export default function App(): ReactElement {
         setTab('dictionary')
         if (!project) return
         const dictionaryLayer = stackDictionaryFromContent(content)
-        await clearPresentationLayer('presentation')
+        await clearLayerIfLive('presentation')
         if (dictionaryLayer.type !== 'dictionary') return
         const ui = await presentDictionaryLayer(dictionaryLayer, displays)
+        programRef.current = ui
         applyProgram(ui)
         return
       }
@@ -1740,12 +1872,17 @@ export default function App(): ReactElement {
         requestMediaSequenceCue({ folder: item.folder, path: item.path })
         setTab('media')
         if (!project) return
-        await clearPresentationLayer('bible')
+        const orderUnder =
+          programRef.current.orderActive ||
+          programRef.current.stack.base === 'order' ||
+          programRef.current.stack.overlay === 'order'
+        if (orderUnder) await clearLayerIfLive('bible')
         const ui = await presentMediaFile(
           { path: item.path, name: item.name, kind: item.mediaKind },
           displays,
           loadPlaybackSettings().autoplayLibraryMedia
         )
+        programRef.current = ui
         applyProgram(ui)
         return
       }
@@ -1773,25 +1910,96 @@ export default function App(): ReactElement {
         rememberSession(item.deckId, session)
         const frame = projectedFrame(item.deckId, slide, 0)
         if (!stillCurrent() || !frame) return
-        await clearPresentationLayer('bible')
+        if (
+          programRef.current.orderActive ||
+          programRef.current.stack.base === 'order' ||
+          programRef.current.stack.overlay === 'order'
+        ) {
+          await clearLayerIfLive('bible')
+        }
         if (!stillCurrent()) return
         const ui = await presentDeckSlide(frame, connectedDisplaysRef.current)
         sequenceProjectPendingRef.current = null
         lastPushedPresentationPathRef.current = `${item.deckId}:${slide}:0`
+        programRef.current = ui
         applyProgram(ui)
         return
       }
       const path = detail.slides[slide]?.path
       if (!path) return
-      await clearPresentationLayer('bible')
+      if (
+        programRef.current.orderActive ||
+        programRef.current.stack.base === 'order' ||
+        programRef.current.stack.overlay === 'order'
+      ) {
+        await clearLayerIfLive('bible')
+      }
       if (!stillCurrent()) return
       const ui = await presentPresentationImage(path, connectedDisplaysRef.current)
       sequenceProjectPendingRef.current = null
       lastPushedPresentationPathRef.current = path
+      programRef.current = ui
       applyProgram(ui)
+      } finally {
+        sequenceDriveRef.current = false
+      }
     },
-    [sequenceItems, folderImagesMap, folderSettings, applyProgram]
+    [sequenceItems, folderImagesMap, folderSettings, applyProgram, clearLayerIfLive]
   )
+
+  followOutputRef.current = (wire) => {
+    if (!sequenceFollow) return
+    const cursor = sequenceCursorForOutput(wire, sequenceItems, sequenceCursor.itemIndex)
+    if (!cursor) return
+    const item = sequenceItems[cursor.itemIndex]
+    if (!item) return
+    sequenceCursorRef.current = cursor
+    setSequenceCursor(cursor)
+    if (item.kind === 'order-image') {
+      setTab('order')
+      setBrowseFolderName(item.folder)
+      setActiveFolderName(item.folder)
+      const images = folderImagesMap[item.folder] ?? []
+      const index = images.findIndex((image) => image.path === item.path)
+      setActiveImageIndex(index >= 0 ? index : 0)
+      return
+    }
+    if (item.kind === 'hymn') {
+      setTab('hymns')
+      requestHymnSequenceCue({
+        hymnalId: item.hymnalId,
+        hymnId: item.hymnId,
+        stepIndex: cursor.stepIndex,
+        disabledVerseNumbers: item.disabledVerseNumbers,
+        includeRefrain: item.includeRefrain,
+        includeTitle: item.includeTitle !== false,
+        includeEnd: item.includeEnd !== false
+      })
+      return
+    }
+    if (item.kind === 'bible') {
+      setTab('bible')
+      requestBibleSequenceCue({ bookId: item.bookId, chapter: item.chapter, verse: item.verse })
+      return
+    }
+    if (item.kind === 'dictionary') {
+      setTab('dictionary')
+      patchDictionaryWorkspaceSession({ selectedId: item.strongs })
+      return
+    }
+    if (item.kind === 'media') {
+      setTab('media')
+      requestMediaSequenceCue({ folder: item.folder, path: item.path })
+      return
+    }
+    if (item.kind === 'web') {
+      setTab('web')
+      return
+    }
+    setTab('presentation')
+    setPresentationDeckId(item.deckId)
+    setPresentationSlideIndex(Math.min(cursor.stepIndex, Math.max(0, item.slideCount - 1)))
+  }
 
   useEffect(() => {
     if (skipSequenceWrite.current) {
@@ -1857,7 +2065,7 @@ export default function App(): ReactElement {
       return
     }
     if (!bibleLiveContent || bibleLiveContent.verses.length === 0 || !bibleContentKey) return
-    if (lastPushedBibleKeyRef.current === null) {
+    if (sequenceDriveRef.current || lastPushedBibleKeyRef.current === null) {
       lastPushedBibleKeyRef.current = bibleContentKey
       return
     }
@@ -1883,7 +2091,7 @@ export default function App(): ReactElement {
       return
     }
     if (!dictionaryLiveContent || !dictionaryContentKey) return
-    if (lastPushedDictionaryKeyRef.current === null) {
+    if (sequenceDriveRef.current || lastPushedDictionaryKeyRef.current === null) {
       lastPushedDictionaryKeyRef.current = dictionaryContentKey
       return
     }
@@ -1910,7 +2118,7 @@ export default function App(): ReactElement {
     }
     if (!isHymnSlideProjectable(hymnLiveContent) || !hymnContentKey) return
     const liveHymn = hymnLiveContent
-    if (lastPushedHymnKeyRef.current === null) {
+    if (sequenceDriveRef.current || lastPushedHymnKeyRef.current === null) {
       lastPushedHymnKeyRef.current = hymnContentKey
       return
     }

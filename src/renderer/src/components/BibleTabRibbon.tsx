@@ -133,7 +133,7 @@ export function BibleTabRibbon({
       <p className="order-ribbon__hints adw-caption">
         <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> books ·{' '}
         <KbdIcon name="caretLeft" /> <KbdIcon name="caretRight" /> verses · <Kbd>Enter</Kbd>{' '}
-        send to outputs
+        send to outputs · <Kbd>Esc</Kbd> stop output
       </p>
     </div>
   )

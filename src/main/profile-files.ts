@@ -1,11 +1,31 @@
 import { app, dialog } from 'electron'
 import { spawn } from 'child_process'
 import { existsSync } from 'fs'
-import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'fs/promises'
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { basename, dirname, join } from 'path'
 import { path7za } from '7zip-bin'
 import { biblesRoot, imagesRoot, mediaRoot, orderImagesRoot, presentationsRoot } from './paths'
+
+function bundlesDir(): string {
+  return join(app.getPath('userData'), 'bundles')
+}
+
+/** Library install records. The downloaded zip files stay out; the content itself is packed separately. */
+async function stageLibraryRecords(stage: string): Promise<void> {
+  const dir = bundlesDir()
+  if (!existsSync(dir)) return
+  const dest = join(stage, 'bundles')
+  const names = await readdir(dir)
+  for (const name of names) {
+    if (!name.endsWith('.json') || name.includes('..')) continue
+    const src = join(dir, name)
+    const info = await stat(src)
+    if (!info.isFile()) continue
+    await mkdir(dest, { recursive: true })
+    await cp(src, join(dest, name))
+  }
+}
 
 function contentDirectories(): { name: string; dir: string }[] {
   return [
@@ -38,8 +58,12 @@ async function writeContentPack(json: string, dest: string): Promise<void> {
   const stage = await mkdtemp(join(tmpdir(), 'orion-profile-'))
   try {
     await writeFile(join(stage, 'profile.orionprofile'), json, 'utf8')
+    await stageLibraryRecords(stage)
     if (existsSync(dest)) await rm(dest, { force: true })
     await run7za(['a', '-tzip', '-mx=0', '-y', dest, 'profile.orionprofile'], stage)
+    if (existsSync(join(stage, 'bundles'))) {
+      await run7za(['a', '-tzip', '-mx=0', '-y', dest, 'bundles'], stage)
+    }
     for (const entry of contentDirectories()) {
       if (!existsSync(entry.dir)) continue
       await run7za(['a', '-tzip', '-mx=0', '-y', dest, basename(entry.dir)], dirname(entry.dir))
@@ -71,7 +95,8 @@ async function installContentPack(bytes: Buffer): Promise<string | null> {
     const profilePath = join(extracted, 'profile.orionprofile')
     if (!existsSync(profilePath)) return null
     const json = await readFile(profilePath, 'utf8')
-    for (const entry of contentDirectories()) {
+    const packedRoots = [...contentDirectories(), { name: 'bundles', dir: bundlesDir() }]
+    for (const entry of packedRoots) {
       const packed = join(extracted, entry.name)
       if (!existsSync(packed)) continue
       await copyDirectoryInto(packed, entry.dir)

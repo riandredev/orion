@@ -16,10 +16,14 @@ describe('orion-profile', () => {
   it('keeps service sequence and library preferences and drops unknown keys', () => {
     const meta = createEmptyProfileMeta('a', 'Main')
     meta.settings['orion-service-sequence'] = '[]'
+    meta.settings['orion-bible-cross-refs'] = '0'
+    meta.settings['orion-bible-history-height'] = '180'
     meta.settings['orion-order-view'] = 'list'
     meta.settings['orion-not-a-setting'] = 'nope'
     const parsed = parseOrionProfileFile(buildOrionProfileFile(meta))
     expect(parsed?.profile.settings['orion-service-sequence']).toBe('[]')
+    expect(parsed?.profile.settings['orion-bible-cross-refs']).toBe('0')
+    expect(parsed?.profile.settings['orion-bible-history-height']).toBe('180')
     expect(parsed?.profile.settings['orion-order-view']).toBe('list')
     expect(parsed?.profile.settings['orion-not-a-setting']).toBeUndefined()
   })

@@ -303,6 +303,17 @@ export function parseBibleReference(query: string): ParsedBibleReference | null 
   return null
 }
 
+/** Book, chapter, and verse were all typed. Chapter-only and book-only queries are not included. */
+export function bibleReferenceHasExplicitVerse(query: string): boolean {
+  const trimmed = query.trim()
+  if (!trimmed || !parseBibleReference(trimmed)) return false
+  return (
+    /^(.+?):(\d+):(\d+)(?:\s*-\s*\d+)?\s*$/i.test(trimmed) ||
+    /^(.+?)\s+(\d+)\s*:\s*(\d+)(?:\s*-\s*\d+)?\s*$/i.test(trimmed) ||
+    /^(.+?)\s+(\d+)\s+(\d+)\s*$/i.test(trimmed)
+  )
+}
+
 export function inferBibleSearchMode(query: string): BibleSearchMode {
   const q = query.trim()
   if (!q) return 'reference'

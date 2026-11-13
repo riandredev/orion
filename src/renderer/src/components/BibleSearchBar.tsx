@@ -12,6 +12,7 @@ import {
   buildBibleSearchSuggestions,
   hitsToSuggestions,
   inferBibleSearchMode,
+  bibleReferenceHasExplicitVerse,
   parseBibleReference,
   type BibleSearchMode,
   type BibleSearchScope,
@@ -31,6 +32,7 @@ type BibleSearchBarProps = {
   autoSearch: boolean
   onAutoSearchChange: (value: boolean) => void
   onNavigate: (target: { bookId: string; chapter: number; verse: number }) => void
+  onProjectPassage: (target: { bookId: string; chapter: number; verse: number }) => void
 }
 
 const TEXT_SEARCH_DEBOUNCE_MS = 320
@@ -44,7 +46,8 @@ export function BibleSearchBar({
   mode,
   autoSearch,
   onAutoSearchChange,
-  onNavigate
+  onNavigate,
+  onProjectPassage
 }: BibleSearchBarProps): ReactElement {
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<BibleSearchSuggestion[]>([])
@@ -103,24 +106,25 @@ export function BibleSearchBar({
   )
 
   const applyReferenceQuery = useCallback(
-    (raw: string): boolean => {
+    (raw: string, project = false): boolean => {
       const parsed = parseBibleReference(raw)
       if (!parsed) return false
       emitNavigate(parsed)
+      if (project && bibleReferenceHasExplicitVerse(raw)) onProjectPassage(parsed)
       setQuery(
         `${getBookDisplayName(parsed.bookId, afrikaansBookNames)} ${parsed.chapter}:${parsed.verse}`
       )
       setOpen(false)
       return true
     },
-    [afrikaansBookNames, emitNavigate]
+    [afrikaansBookNames, emitNavigate, onProjectPassage]
   )
 
   const runSearch = useCallback((): void => {
     const q = query.trim()
     if (!q) return
-    if (effectiveMode === 'reference') {
-      if (applyReferenceQuery(q)) return
+    if (effectiveMode === 'reference' || bibleReferenceHasExplicitVerse(q)) {
+      if (applyReferenceQuery(q, true)) return
       if (suggestions[activeIndex]) {
         applySuggestion(suggestions[activeIndex])
         return

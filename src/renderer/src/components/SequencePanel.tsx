@@ -1,4 +1,5 @@
-import { useState, type DragEvent, type ReactElement } from 'react'
+import { useEffect, useState, type DragEvent, type ReactElement } from 'react'
+import { createPortal } from 'react-dom'
 import { AdwAlertDialog } from './AdwAlertDialog'
 import {
   sequenceItemKindLabel,
@@ -10,7 +11,13 @@ import {
 import { readSequenceDrag, writeSequenceDrag, type SequenceDropBody } from '../lib/sequence-drag'
 import { AppIcon } from './AppIcon'
 import { AdwTooltip } from './AdwTooltip'
+import { SlideThumb } from './SlideThumb'
 import type { AppIconName } from './icons'
+
+function filePathToUrl(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
+  return `file:///${normalized.replace(/^\//, '')}`
+}
 
 const kindIcon: Record<ServiceSequenceItem['kind'], AppIconName> = {
   'order-image': 'images',
@@ -41,6 +48,76 @@ function Chevron({ direction }: { direction: 'left' | 'right' }): ReactElement {
   return <AppIcon name={direction === 'left' ? 'caretLeft' : 'caretRight'} />
 }
 
+function previewLines(item: ServiceSequenceItem, stepIndex: number): string[] {
+  if (item.kind === 'bible') return [item.reference, item.text]
+  if (item.kind === 'dictionary') {
+    const lines = [item.lemma || item.strongs]
+    if (item.gloss) lines.push(item.gloss)
+    if (item.definition) lines.push(item.definition)
+    return lines
+  }
+  if (item.kind === 'web') return [item.title || item.url, item.url]
+  if (item.kind === 'media') return [item.name, item.folder]
+  if (item.kind === 'presentation') return [item.title, `Slide ${stepIndex + 1} of ${item.slideCount}`]
+  if (item.kind === 'order-image') return [item.name, item.folder]
+  return []
+}
+
+function SequenceHoverPreview({
+  item,
+  stepIndex,
+  rect,
+  imageUrl,
+  slideDeck
+}: {
+  item: ServiceSequenceItem
+  stepIndex: number
+  rect: DOMRect
+  imageUrl: string | null
+  slideDeck: { deckId: string; ext: string } | null
+}): ReactElement {
+  const width = 248
+  let left = rect.right + 8
+  let top = Math.max(8, rect.top)
+  if (left + width > window.innerWidth - 8) left = Math.max(8, rect.left - width - 8)
+  const lines = previewLines(item, stepIndex)
+  const video = item.kind === 'media' && item.mediaKind === 'video'
+  const hasPicture = Boolean(imageUrl || video || slideDeck)
+  const estimated = hasPicture ? 210 : 120
+  if (top + estimated > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - estimated)
+
+  return createPortal(
+    <div className="sequence-hover-preview" style={{ left, top, width }} role="tooltip">
+      {imageUrl ? <img src={imageUrl} alt="" /> : null}
+      {slideDeck ? (
+        <SlideThumb deckId={slideDeck.deckId} ext={slideDeck.ext} slideIndex={stepIndex} />
+      ) : null}
+      {video ? (
+        <video
+          src={`${filePathToUrl(item.path)}#t=0.1`}
+          muted
+          playsInline
+          preload="auto"
+          onLoadedData={(event) => {
+            const el = event.currentTarget
+            if (el.currentTime < 0.05) el.currentTime = 0.1
+          }}
+        />
+      ) : null}
+      {!hasPicture ? (
+        <div className="sequence-hover-preview__text">
+          {lines.map((line, index) => (
+            <p key={index}>{line}</p>
+          ))}
+        </div>
+      ) : (
+        <p className="sequence-hover-preview__caption">{lines[0]}</p>
+      )}
+    </div>,
+    document.body
+  )
+}
+
 export function SequencePanel({
   open,
   onToggle,
@@ -57,6 +134,48 @@ export function SequencePanel({
 }: SequencePanelProps): ReactElement {
   const [dropOver, setDropOver] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [deckMeta, setDeckMeta] = useState<Record<string, { sourceExt: string; coverPath?: string }>>({})
+  const [slidePaths, setSlidePaths] = useState<Record<string, string[]>>({})
+  const [brokenThumbs, setBrokenThumbs] = useState<Record<string, true>>({})
+  const [hover, setHover] = useState<{ id: string; rect: DOMRect } | null>(null)
+
+  const presentationKey = items
+    .filter((item) => item.kind === 'presentation')
+    .map((item) => item.deckId)
+    .join('\0')
+
+  useEffect(() => {
+    if (!presentationKey) return
+    let cancelled = false
+    void window.orion.listPresentationDecks().then((rows) => {
+      if (cancelled) return
+      const next: Record<string, { sourceExt: string; coverPath?: string }> = {}
+      for (const row of rows) {
+        next[row.id] = { sourceExt: row.sourceExt, ...(row.coverPath ? { coverPath: row.coverPath } : {}) }
+      }
+      setDeckMeta(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [presentationKey])
+
+  useEffect(() => {
+    if (!hover) return
+    const item = items.find((entry) => entry.id === hover.id)
+    if (!item || item.kind !== 'presentation' || slidePaths[item.deckId]) return
+    let cancelled = false
+    void window.orion.getPresentationDeck(item.deckId).then((detail) => {
+      if (cancelled) return
+      setSlidePaths((prev) => ({
+        ...prev,
+        [item.deckId]: detail ? detail.slides.map((slide) => slide.path) : []
+      }))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [hover, items, slidePaths])
 
   function acceptDrop(event: DragEvent<HTMLElement>): void {
     if (!event.dataTransfer.types.includes('application/x-orion-sequence')) return
@@ -151,11 +270,19 @@ export function SequencePanel({
             </div>
           </div>
         ) : (
-          <ol className="sequence-panel__list">
+          <ol className="sequence-panel__list" onScroll={() => setHover(null)}>
             {items.map((item, index) => {
               const selected = index === cursor.itemIndex
               const subtitle = sequenceItemSubtitle(item, selected ? cursor.stepIndex : null)
               const title = sequenceItemTitle(item)
+              const thumbPath =
+                item.kind === 'order-image'
+                  ? item.path
+                  : item.kind === 'presentation'
+                    ? deckMeta[item.deckId]?.coverPath
+                    : undefined
+              const thumbUrl = thumbPath && !brokenThumbs[thumbPath] ? filePathToUrl(thumbPath) : null
+              const liveDeck = item.kind === 'presentation' && !thumbUrl ? deckMeta[item.deckId] : undefined
               return (
                 <li
                   key={item.id}
@@ -165,17 +292,38 @@ export function SequencePanel({
                     event.stopPropagation()
                     dropAt(event, index)
                   }}
+                  onMouseEnter={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    setHover({ id: item.id, rect })
+                  }}
+                  onMouseLeave={() => setHover((current) => (current?.id === item.id ? null : current))}
                 >
                   <button
                     type="button"
                     className={`sequence-row__main sequence-row__main--${item.kind}`}
                     draggable
-                    onDragStart={(event) => writeSequenceDrag(event.dataTransfer, { op: 'move', id: item.id })}
+                    onDragStart={(event) => {
+                      setHover(null)
+                      writeSequenceDrag(event.dataTransfer, { op: 'move', id: item.id })
+                    }}
                     onClick={() => onSelect(index)}
                   >
-                    <span className="sequence-row__icon" aria-hidden="true">
-                      <AppIcon name={kindIcon[item.kind]} size={16} />
-                    </span>
+                    {thumbUrl ? (
+                      <img
+                        className="sequence-row__thumb"
+                        src={thumbUrl}
+                        alt=""
+                        onError={() => setBrokenThumbs((prev) => ({ ...prev, [thumbPath!]: true }))}
+                      />
+                    ) : item.kind === 'presentation' && liveDeck ? (
+                      <span className="sequence-row__thumb">
+                        <SlideThumb deckId={item.deckId} ext={liveDeck.sourceExt} slideIndex={0} />
+                      </span>
+                    ) : (
+                      <span className="sequence-row__icon" aria-hidden="true">
+                        <AppIcon name={kindIcon[item.kind]} size={16} />
+                      </span>
+                    )}
                     <span className="sequence-row__text">
                       <span className="sequence-row__title">{title}</span>
                       <span className="sequence-row__subtitle">
@@ -210,6 +358,33 @@ export function SequencePanel({
         }}
         body={<p>Remove every item from the sequence.</p>}
       />
+      {open && hover
+        ? (() => {
+            const item = items.find((entry) => entry.id === hover.id)
+            if (!item || item.kind === 'hymn') return null
+            const stepIndex = cursor.itemIndex < items.length && items[cursor.itemIndex]?.id === item.id ? cursor.stepIndex : 0
+            let imageUrl: string | null = null
+            let slideDeck: { deckId: string; ext: string } | null = null
+            if (item.kind === 'order-image') imageUrl = filePathToUrl(item.path)
+            if (item.kind === 'presentation') {
+              const path = [slidePaths[item.deckId]?.[stepIndex], slidePaths[item.deckId]?.[0], deckMeta[item.deckId]?.coverPath].find(
+                (entry) => entry && !brokenThumbs[entry]
+              )
+              const ext = deckMeta[item.deckId]?.sourceExt
+              if (path) imageUrl = filePathToUrl(path)
+              else if (ext) slideDeck = { deckId: item.deckId, ext }
+            }
+            return (
+              <SequenceHoverPreview
+                item={item}
+                stepIndex={stepIndex}
+                rect={hover.rect}
+                imageUrl={imageUrl}
+                slideDeck={slideDeck}
+              />
+            )
+          })()
+        : null}
       <button
         type="button"
         className="sequence-panel__toggle"

@@ -12,6 +12,7 @@ import {
   type LiveSession
 } from '../lib/live-deck'
 import { loadPlaybackSettings } from '../lib/playback-settings'
+import { OUTPUT_MEDIA_VOLUME } from '../../../shared/output-audio'
 
 export type DeckSourceLoader = (
   deckId: string
@@ -41,6 +42,19 @@ let mediaEpochCounter = 0
 
 /** Move a follower clip onto the preview clock without a hard seek on every tick. */
 export function nudgeMediaElement(el: HTMLMediaElement, command: DeckMediaCommand): void {
+  if (command.action === 'seek' || command.action === 'pause') {
+    if (Number.isFinite(command.time) && Math.abs(command.time - (el.currentTime || 0)) > 0.05) {
+      try {
+        el.currentTime = command.time
+      } catch {
+        /* not seekable yet */
+      }
+    }
+    el.playbackRate = 1
+    if (command.action === 'pause') el.pause()
+    else if (el.paused) void el.play().catch(() => {})
+    return
+  }
   const drift = command.time - (el.currentTime || 0)
   if (Number.isFinite(drift)) {
     if (Math.abs(drift) > 0.3) {
@@ -170,7 +184,7 @@ function DeckMedia({
     }
     const unmute = (): void => {
       el.muted = false
-      el.volume = 1
+      if (el.volume === 0 || el.volume === 1) el.volume = OUTPUT_MEDIA_VOLUME
       setAudible(true)
     }
     el.muted = true

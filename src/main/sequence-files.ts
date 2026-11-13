@@ -1,14 +1,31 @@
-import { dialog } from 'electron'
+import { app, dialog } from 'electron'
 import { existsSync } from 'fs'
 import { mkdir, readdir, readFile, writeFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import JSZip from 'jszip'
 import { isPathUnderRoot } from './projection-paths'
-import { mediaRoot, orderImagesRoot, presentationsRoot } from './paths'
+import { hymnalsRoot, mediaRoot, orderImagesRoot, presentationsRoot } from './paths'
 
 function safeSegment(value: string): string {
   const cleaned = value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ').replace(/\.+$/g, '').trim()
   return cleaned.slice(0, 80) || 'item'
+}
+
+function userHymnalsRoot(): string {
+  return join(app.getPath('userData'), 'hymnals')
+}
+
+function hymnalIdOk(id: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9-]{0,80}$/.test(id)
+}
+
+function findHymnalDir(id: string): string | null {
+  if (!hymnalIdOk(id)) return null
+  const user = join(userHymnalsRoot(), id)
+  if (existsSync(user) && isPathUnderRoot(user, userHymnalsRoot())) return user
+  const builtin = join(hymnalsRoot(), id)
+  if (existsSync(builtin) && isPathUnderRoot(builtin, hymnalsRoot())) return builtin
+  return null
 }
 
 async function addDirectory(zip: JSZip, dir: string, zipPath: string): Promise<void> {
@@ -25,7 +42,15 @@ async function bundleSequence(json: string): Promise<Buffer> {
   const parsed = JSON.parse(json) as { version?: number; items?: Record<string, unknown>[] }
   const items = Array.isArray(parsed.items) ? parsed.items : []
   const zip = new JSZip()
+  const packedHymnals = new Set<string>()
   for (const item of items) {
+    if (item.kind === 'hymn' && typeof item.hymnalId === 'string' && !packedHymnals.has(item.hymnalId)) {
+      const dir = findHymnalDir(item.hymnalId)
+      if (dir) {
+        packedHymnals.add(item.hymnalId)
+        await addDirectory(zip, dir, `hymnals/${item.hymnalId}`)
+      }
+    }
     if (item.kind === 'order-image' && typeof item.path === 'string' && typeof item.folder === 'string') {
       const source = item.path
       if (!existsSync(source) || !isPathUnderRoot(source, orderImagesRoot())) continue
@@ -87,6 +112,24 @@ async function installBundledSequence(buffer: Buffer): Promise<string | null> {
       if (!existsSync(dest)) await writeFile(dest, await packed.async('nodebuffer'))
       item.folder = folder
       item.path = dest
+    }
+    if (item.kind === 'hymn' && typeof item.hymnalId === 'string' && hymnalIdOk(item.hymnalId)) {
+      if (findHymnalDir(item.hymnalId)) continue
+      const prefix = `hymnals/${item.hymnalId}/`
+      const destRoot = join(userHymnalsRoot(), item.hymnalId)
+      if (!isPathUnderRoot(destRoot, userHymnalsRoot())) continue
+      let wrote = false
+      for (const entry of Object.values(zip.files)) {
+        if (entry.dir || !entry.name.startsWith(prefix)) continue
+        const rel = entry.name.slice(prefix.length)
+        if (!rel || rel.includes('..')) continue
+        const dest = join(destRoot, rel)
+        if (!isPathUnderRoot(dest, destRoot)) continue
+        await mkdir(dirname(dest), { recursive: true })
+        await writeFile(dest, await entry.async('nodebuffer'))
+        wrote = true
+      }
+      if (wrote) continue
     }
     if (item.kind === 'presentation' && typeof item.deckId === 'string' && /^[a-zA-Z0-9-]{8,80}$/.test(item.deckId)) {
       if (installedDecks.has(item.deckId)) continue

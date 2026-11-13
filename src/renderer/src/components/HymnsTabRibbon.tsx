@@ -132,7 +132,7 @@ export function HymnsTabRibbon({
       <p className="order-ribbon__hints adw-caption">
         Search by number or title · <KbdIcon name="caretLeft" /> <KbdIcon name="caretRight" />{' '}
         <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> slides · <Kbd>Enter</Kbd> send to
-        outputs · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> project or stop
+        outputs · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> project or stop · <Kbd>Esc</Kbd> stop output
       </p>
     </div>
   )

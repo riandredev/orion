@@ -168,7 +168,7 @@ export function MediaTabRibbon(): ReactElement {
       <p className="order-ribbon__hints adw-caption">
         <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> folders · <KbdIcon name="caretLeft" />{' '}
         <KbdIcon name="caretRight" /> files · <Kbd>Space</Kbd> play / pause ·         <Kbd>Enter</Kbd> send to outputs · <Kbd>Ctrl</Kbd> <Kbd>Enter</Kbd> send or stop ·{' '}
-        <Kbd>Esc</Kbd> back
+        <Kbd>Esc</Kbd> {media.previewing ? 'back and stop' : 'stop output'}
         {media.previewing ? ' · Sound plays on this PC when the main display is not an output.' : ''}
       </p>
     </div>

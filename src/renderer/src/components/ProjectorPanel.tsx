@@ -604,30 +604,26 @@ function MotionPreview({
   if (!pixelClipId.current) pixelClipId.current = `preview-pixel-${++pixelClipSerial}`
   const shownKey = useRef(slideKey)
   const animatingRef = useRef(false)
-  const lockUntil = useRef(0)
   const half = Math.max(1, Math.round(durationMs / 2))
   const sequential = animation === 'fade'
 
   useEffect(() => {
-    if (slideKey !== shownKey.current) {
-      shownKey.current = slideKey
-      lockUntil.current = 0
-    }
     if (src === currentRef.current) return
     const outgoing = currentRef.current
-    const now = Date.now()
     currentRef.current = src
-    if (animatingRef.current || now < lockUntil.current) {
+    // A slide is photographed more than once while it settles. Only the first
+    // picture of that slide plays the transition; the rest replace the pixels.
+    if (shownKey.current === slideKey && outgoing) {
       setCurrent(src)
       return
     }
+    shownKey.current = slideKey
     if (!outgoing || durationMs <= 0 || animation === 'cut') {
       setCurrent(src)
       setPrevious(null)
       setPhase('idle')
       return
     }
-    lockUntil.current = now + durationMs + 160
     animatingRef.current = true
     setPrevious(outgoing)
     setCurrent(src)
@@ -679,7 +675,7 @@ function MotionPreview({
         />
       ) : null}
       <img
-        key={`${current}-${phase}`}
+        key={`${slideKey}-${phase}`}
         className={`projector-preview__img preview-fade__layer ${incomingMotion}${
           phase === 'out' ? ' preview-fade__layer--hold' : ''
         }`.trim()}

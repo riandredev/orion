@@ -176,6 +176,26 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
       .map((item) => item.row)
   }, [hymnalId, indexRows, pins, pinsOnly, query])
 
+  const projectPending = useRef<string | null>(null)
+  const projectRef = useRef(onProjectStanza)
+  projectRef.current = onProjectStanza
+
+  const projectSearchedHymn = useCallback((): void => {
+    const q = query.trim()
+    if (!q) return
+    const exact = /^\d+$/.test(q) ? listEntries.find((hymn) => hymn.number === Number(q)) : undefined
+    const match = exact ?? listEntries[0]
+    if (!match) return
+    if (entry?.id === match.id && selectedId === match.id) {
+      projectPending.current = null
+      onProjectStanza?.()
+      return
+    }
+    setProjectionStepIndexState(0)
+    projectPending.current = match.id
+    setSelectedId(match.id)
+  }, [entry?.id, listEntries, onProjectStanza, query, selectedId, setSelectedId])
+
   const projectionSteps = useMemo(
     () =>
       entry
@@ -480,6 +500,12 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
     })
   }, [entry, hymnalId, activeProjectionStep, tagStyle, hymnAuthor])
 
+  useEffect(() => {
+    if (!entry || projectPending.current !== entry.id || projectionStepIndex !== 0 || !activeProjectionStep) return
+    projectPending.current = null
+    projectRef.current?.()
+  }, [activeProjectionStep, entry, projectionStepIndex])
+
   const detailCounts = useMemo(() => (entry ? countHymnStanzas(entry.stanzas) : null), [entry])
 
   const rememberPinSettings = useCallback(
@@ -750,6 +776,11 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
                 placeholder="Number or title — e.g. 100, grace"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return
+                  event.preventDefault()
+                  projectSearchedHymn()
+                }}
                 aria-label="Hymn search"
               />
             </div>

@@ -80,4 +80,38 @@ describe('service sequence cursor', () => {
     expect(file?.items[2]).toMatchObject({ kind: 'web', title: 'Lesson' })
     expect(file?.items[3]).toMatchObject({ kind: 'media', mediaKind: 'video', name: 'clip.mp4' })
   })
+
+  it('keeps hymn options, a verse, and a dictionary entry', () => {
+    const saved: ServiceSequenceItem[] = [
+      { ...hymn, includeTitle: false, includeEnd: true },
+      {
+        id: 'b',
+        kind: 'bible',
+        bookId: 'john',
+        chapter: 1,
+        verse: 1,
+        text: 'In the beginning',
+        reference: 'John 1:1',
+        locationLabel: 'John 1:1',
+        translationLabel: 'KJV'
+      },
+      {
+        id: 'dict',
+        kind: 'dictionary',
+        strongs: 'G26',
+        lemma: 'ἀγάπη',
+        transliteration: 'agapē',
+        gloss: 'love',
+        partOfSpeech: 'noun',
+        definition: 'Love.',
+        language: 'greek',
+        infoBar: ['noun', 'love'],
+        infoBarActive: 0
+      }
+    ]
+    const file = parseServiceSequence(JSON.stringify({ version: 1, items: saved }))
+    expect(file?.items[0]).toMatchObject({ includeTitle: false, includeEnd: true, steps: hymn.steps })
+    expect(file?.items[1]).toMatchObject({ kind: 'bible', bookId: 'john', translationLabel: 'KJV' })
+    expect(file?.items[2]).toMatchObject({ kind: 'dictionary', strongs: 'G26', language: 'greek', infoBarActive: 0 })
+  })
 })

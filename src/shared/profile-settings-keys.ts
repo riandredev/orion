@@ -8,6 +8,8 @@ export const ORION_PROFILE_SETTINGS_KEYS = [
   'orion-display-layout-positions',
   'orion-projector-panel-width-v1',
   'orion-bible-translation',
+  'orion-bible-cross-refs',
+  'orion-bible-history-height',
   'orion-selected-hymnal',
   'orion-hymnal-stanza-tags',
   'orion-sequence-bundle-content',

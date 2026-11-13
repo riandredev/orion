@@ -101,7 +101,7 @@ export function DictionaryTabRibbon({
       <p className="order-ribbon__hints adw-caption">
         <KbdIcon name="caretUp" /> <KbdIcon name="caretDown" /> <KbdIcon name="caretLeft" />{' '}
         <KbdIcon name="caretRight" /> entries · <Kbd>Enter</Kbd> send to outputs · <Kbd>Ctrl</Kbd>{' '}
-        <Kbd>Enter</Kbd> send or stop · Strong&apos;s numbers like H1 or G3056
+        <Kbd>Enter</Kbd> send or stop · <Kbd>Esc</Kbd> stop output · Strong&apos;s numbers like H1 or G3056
       </p>
     </div>
   )

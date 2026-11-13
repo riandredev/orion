@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bibleReferenceHasExplicitVerse,
   buildBibleSearchSuggestions,
   inferBibleSearchMode,
   parseBibleReference,
@@ -34,6 +35,10 @@ describe('parseBibleReference', () => {
       chapter: 1,
       verse: 1
     })
+    expect(bibleReferenceHasExplicitVerse('Johannes 1:1')).toBe(true)
+    expect(bibleReferenceHasExplicitVerse('John 3 16')).toBe(true)
+    expect(bibleReferenceHasExplicitVerse('mat 1')).toBe(false)
+    expect(bibleReferenceHasExplicitVerse('Genesis')).toBe(false)
     expect(parseBibleReference('jhn:3:16')).toEqual({
       bookId: 'jhn',
       chapter: 3,
