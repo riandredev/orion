@@ -4,8 +4,8 @@
       "id": "panorama",
       "name": "SDA Panorama Church",
       "summary": "Service order folders, Adventist hymnals, Afrikaans and English Bibles, and the matching backgrounds.",
-      "version": "8",
-      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-8.zip",
+      "version": "9",
+      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-9.zip",
       "preview": [
         {
           "label": "Service order",
@@ -23,6 +23,16 @@
             "Boodskap"
           ],
           "images": [
+            {
+              "folder": "Welkom",
+              "src": "preview/order/Welkom/image16.jpg",
+              "alt": "Welkom slide"
+            },
+            {
+              "folder": "Welkom",
+              "src": "preview/order/Welkom/image15.jpg",
+              "alt": "Welkom slide"
+            },
             {
               "folder": "Welkom",
               "src": "preview/order/Welkom/image14.jpg",
