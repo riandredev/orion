@@ -323,7 +323,7 @@ async function commitStageToOutputs(displayIds: number[]): Promise<void> {
           topmost: !isOperatorDisplay(display)
         }]
       })
-      if (presentNativeStage(displays, state)) {
+      if (await presentNativeStage(displays, state, projectionTypography)) {
         releaseChromiumOutputs()
         return
       }

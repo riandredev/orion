@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use fontdue::Font;
@@ -6,62 +7,58 @@ use image::{imageops, Rgba, RgbaImage};
 use crate::protocol::{parse_color, SlideSpec};
 
 pub struct Fonts {
-    hymn: Font,
-    bible: Font,
-    plain: Font,
+    faces: HashMap<String, Font>,
+    fallback: String,
 }
 
 impl Fonts {
     pub fn load() -> Option<Self> {
-        let plain = load_file_font(&[
-            r"C:\Windows\Fonts\segoeui.ttf",
-            r"C:\Windows\Fonts\arial.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        ]);
-        let hymn = load_file_font(&[
-            r"C:\Windows\Fonts\ARIALN.TTF",
-            r"C:\Windows\Fonts\arialn.ttf",
-            r"C:\Windows\Fonts\ARIALNB.TTF",
-            r"C:\Windows\Fonts\segoeui.ttf",
-            r"C:\Windows\Fonts\arial.ttf",
-        ]);
-        let bible = load_garamond().or_else(|| {
-            load_file_font(&[
-                r"C:\Windows\Fonts\georgia.ttf",
-                r"C:\Windows\Fonts\times.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
-            ])
-        });
-        match (hymn, bible, plain) {
-            (Some(hymn), Some(bible), Some(plain)) => Some(Self { hymn, bible, plain }),
-            _ => {
-                eprintln!("orion-output: no text font found");
-                None
+        let mut faces = HashMap::new();
+        let files: &[(&str, &[&str])] = &[
+            ("arial-narrow", &[r"C:\Windows\Fonts\ARIALN.TTF", r"C:\Windows\Fonts\arialn.ttf", r"C:\Windows\Fonts\arial.ttf"]),
+            ("arial", &[r"C:\Windows\Fonts\arial.ttf", r"C:\Windows\Fonts\Arial.ttf"]),
+            ("calibri", &[r"C:\Windows\Fonts\calibri.ttf", r"C:\Windows\Fonts\arial.ttf"]),
+            ("cambria", &[r"C:\Windows\Fonts\cambria.ttf", r"C:\Windows\Fonts\georgia.ttf"]),
+            ("georgia", &[r"C:\Windows\Fonts\georgia.ttf", r"C:\Windows\Fonts\times.ttf"]),
+            ("segoe", &[r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\arial.ttf"]),
+            ("tahoma", &[r"C:\Windows\Fonts\tahoma.ttf", r"C:\Windows\Fonts\arial.ttf"]),
+            ("times", &[r"C:\Windows\Fonts\times.ttf", r"C:\Windows\Fonts\georgia.ttf"]),
+            ("verdana", &[r"C:\Windows\Fonts\verdana.ttf", r"C:\Windows\Fonts\arial.ttf"]),
+            ("palatino", &[r"C:\Windows\Fonts\pala.ttf", r"C:\Windows\Fonts\PALA.TTF", r"C:\Windows\Fonts\georgia.ttf"]),
+        ];
+        for (id, paths) in files {
+            if let Some(font) = load_file_font(paths) {
+                faces.insert((*id).to_string(), font);
             }
         }
+        if let Some(font) = load_bytes(include_bytes!("../fonts/EBGaramond-Regular.ttf")) {
+            faces.insert("garamond".into(), font);
+        }
+        if let Some(font) = load_bytes(include_bytes!("../fonts/Cantarell-Regular.ttf")) {
+            faces.insert("cantarell".into(), font);
+        }
+        let fallback = ["segoe", "arial", "garamond", "cantarell"]
+            .into_iter()
+            .find(|id| faces.contains_key(*id))
+            .map(str::to_string)
+            .or_else(|| faces.keys().next().cloned())?;
+        eprintln!("orion-output: loaded {} text fonts", faces.len());
+        Some(Self { faces, fallback })
     }
 
-    fn face<'a>(&'a self, kind: &str) -> &'a Font {
-        match kind {
-            "hymn" => &self.hymn,
-            "bible" => &self.bible,
-            _ => &self.plain,
-        }
+    fn face<'a>(&'a self, id: &str) -> &'a Font {
+        self.faces.get(id).or_else(|| self.faces.get(&self.fallback)).unwrap()
     }
 }
 
-fn load_garamond() -> Option<Font> {
-    let bytes = include_bytes!("../fonts/EBGaramond-Regular.ttf");
-    let font = Font::from_bytes(bytes.as_slice(), fontdue::FontSettings::default()).ok()?;
-    eprintln!("orion-output: text font EB Garamond");
-    Some(font)
+fn load_bytes(bytes: &[u8]) -> Option<Font> {
+    Font::from_bytes(bytes, fontdue::FontSettings::default()).ok()
 }
 
 fn load_file_font(paths: &[&str]) -> Option<Font> {
     for path in paths {
         let Ok(bytes) = std::fs::read(path) else { continue };
         if let Ok(font) = Font::from_bytes(bytes, fontdue::FontSettings::default()) {
-            eprintln!("orion-output: text font {path}");
             return Some(font);
         }
     }
@@ -184,35 +181,42 @@ fn blit_image(canvas: &mut RgbaImage, path: &Path, fit: &str, dim: f32) {
 
 fn draw_text(canvas: &mut RgbaImage, fonts: &Fonts, spec: &SlideSpec) {
     let (width, height) = canvas.dimensions();
-    let font = fonts.face(&spec.kind);
-    let title_px = (height as f32 * if spec.kind == "bible" { 0.05 } else { 0.045 }).clamp(18.0, 72.0);
-    let footer_px = (height as f32 * 0.032).clamp(16.0, 42.0);
-    let max_px = if spec.kind == "bible" { height as f32 * 0.16 } else { height as f32 * 0.1 };
-    let body_px = fit_body_px(font, &spec.lines, width, height, max_px);
+    let body_font = fonts.face(if spec.body_font.is_empty() { "arial-narrow" } else { &spec.body_font });
+    let title_font = fonts.face(if spec.title_font.is_empty() { &spec.body_font } else { &spec.title_font });
+    let footer_font = fonts.face(if spec.footer_font.is_empty() { &spec.body_font } else { &spec.footer_font });
+    let title_px = if spec.title_px > 0.0 { spec.title_px } else { (height as f32 * 0.045).clamp(18.0, 72.0) };
+    let footer_px = if spec.footer_px > 0.0 { spec.footer_px } else { (height as f32 * 0.032).clamp(16.0, 42.0) };
+    let wanted = if spec.body_px > 0.0 { spec.body_px } else { height as f32 * 0.08 };
+    let body_px = fit_body_px(body_font, &spec.lines, width, height, wanted);
     let max_w = (width as f32 * 0.86) as i32;
-    let wrapped = wrap_lines(font, &spec.lines, body_px, max_w);
+    let wrapped = wrap_lines(body_font, &spec.lines, body_px, max_w);
     let line_gap = (body_px * 0.28) as i32;
     let body_h = wrapped.len() as i32 * (body_px as i32 + line_gap);
     let mut y = ((height as i32 - body_h) / 2).max(title_px as i32 + 24);
+    let body_color = paint_color(&spec.body_color);
     if !spec.title.is_empty() {
-        blit_line(canvas, font, &spec.title, title_px,  (height as f32 * 0.08) as i32, [255, 255, 255], false);
+        blit_line(canvas, title_font, &spec.title, title_px, (height as f32 * 0.08) as i32, paint_color(&spec.title_color), false);
     }
     for (index, line) in wrapped.iter().enumerate() {
         let highlight = spec.highlight == index as i32;
-        blit_line(canvas, font, line, body_px, y, [255, 255, 255], highlight);
+        blit_line(canvas, body_font, line, body_px, y, body_color, highlight);
         y += body_px as i32 + line_gap;
     }
     if !spec.footer.is_empty() {
         blit_line(
             canvas,
-            font,
+            footer_font,
             &spec.footer,
             footer_px,
             height as i32 - (height as f32 * 0.08) as i32,
-            [220, 220, 220],
+            paint_color(&spec.footer_color),
             false,
         );
     }
+}
+
+fn paint_color(value: &str) -> [u8; 3] {
+    if value.trim().is_empty() { [255, 255, 255] } else { parse_color(value) }
 }
 
 fn fit_body_px(font: &Font, lines: &[String], width: u32, height: u32, max_px: f32) -> f32 {

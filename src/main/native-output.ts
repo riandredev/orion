@@ -3,6 +3,7 @@ import { existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { join } from 'path'
 import type { ProjectionStageState, ProjectionWirePayload } from '../shared/projection-mixer'
+import type { ProjectionTextStyle, ProjectionTypography } from '../shared/projection-typography'
 
 export type NativeDisplay = {
   id: number
@@ -25,6 +26,15 @@ type NativeSlide = {
   footer: string
   highlight: number
   kind: string
+  bodyFont?: string
+  titleFont?: string
+  footerFont?: string
+  bodyPx?: number
+  titlePx?: number
+  footerPx?: number
+  bodyColor?: string
+  titleColor?: string
+  footerColor?: string
 }
 
 let child: ChildProcessWithoutNullStreams | null = null
@@ -96,15 +106,56 @@ function send(message: unknown): boolean {
   }
 }
 
-export function presentNativeStage(displays: NativeDisplay[], state: ProjectionStageState): boolean {
-  if (!nativeOutputRequested() || displays.length === 0) return false
-  if (!stageUsesNativeOutput(state)) return false
-  if (!send({ op: 'configure', displays })) return false
-  return send({
+export function presentNativeStage(
+  displays: NativeDisplay[],
+  state: ProjectionStageState,
+  typography: ProjectionTypography
+): Promise<boolean> {
+  if (!nativeOutputRequested() || displays.length === 0) return Promise.resolve(false)
+  if (!stageUsesNativeOutput(state)) return Promise.resolve(false)
+  const proc = ensureHelper()
+  if (!proc) return Promise.resolve(false)
+  const ready = waitForMarker(proc)
+  const configured = write(proc, { op: 'configure', displays })
+  const staged = configured && write(proc, {
     op: 'stage',
-    base: toSlide(state.base),
-    overlay: toSlide(state.overlay)
+    base: toSlide(state.base, typography),
+    overlay: toSlide(state.overlay, typography)
   })
+  if (!staged) return Promise.resolve(false)
+  return ready
+}
+
+function waitForMarker(proc: ChildProcessWithoutNullStreams): Promise<boolean> {
+  return new Promise((resolve) => {
+    let pending = ''
+    const finish = (ok: boolean): void => {
+      clearTimeout(timer)
+      proc.stdout.off('data', onData)
+      proc.off('exit', onExit)
+      resolve(ok)
+    }
+    const onData = (chunk: Buffer): void => {
+      pending += chunk.toString()
+      if (pending.includes('shown')) finish(true)
+      else if (pending.includes('failed')) finish(false)
+    }
+    const onExit = (): void => finish(false)
+    const timer = setTimeout(() => finish(false), 1500)
+    proc.stdout.on('data', onData)
+    proc.once('exit', onExit)
+  })
+}
+
+function write(proc: ChildProcessWithoutNullStreams, message: unknown): boolean {
+  try {
+    proc.stdin.write(`${JSON.stringify(message)}\n`)
+    return true
+  } catch (error) {
+    console.error('orion-output: write failed', error)
+    failed = true
+    return false
+  }
 }
 
 export function hideNativeOutput(): void {
@@ -122,7 +173,7 @@ export function shutdownNativeOutput(): void {
   }, 400)
 }
 
-function toSlide(payload: ProjectionWirePayload | null): NativeSlide | null {
+function toSlide(payload: ProjectionWirePayload | null, typography: ProjectionTypography): NativeSlide | null {
   if (!payload) return null
   switch (payload.type) {
     case 'image':
@@ -140,42 +191,77 @@ function toSlide(payload: ProjectionWirePayload | null): NativeSlide | null {
         kind: 'image'
       }
     case 'hymn':
-      return {
-        animation: payload.animation || 'cut',
-        durationMs: payload.durationMs || 0,
-        ...backdrop(payload),
-        title: [payload.number ? String(payload.number) : '', payload.title].filter(Boolean).join('  '),
-        lines: payload.lines,
-        footer: payload.author || '',
-        highlight: -1,
-        kind: 'hymn'
-      }
+      return styled(
+        {
+          animation: payload.animation || 'cut',
+          durationMs: payload.durationMs || 0,
+          ...backdrop(payload),
+          title: [payload.number ? String(payload.number) : '', payload.title].filter(Boolean).join('  '),
+          lines: payload.lines,
+          footer: payload.author || '',
+          highlight: -1,
+          kind: 'hymn'
+        },
+        typography.hymns.number,
+        typography.hymns.lyrics,
+        typography.hymns.author
+      )
     case 'bible':
-      return {
-        animation: payload.animation || 'cut',
-        durationMs: payload.durationMs || 0,
-        ...backdrop(payload),
-        title: payload.locationLabel || payload.reference,
-        lines: payload.verses.map((verse) => `${verse.number}  ${verse.text}`),
-        footer: payload.translationLabel,
-        highlight: payload.verses.findIndex((verse) => verse.number === payload.highlightVerse),
-        kind: 'bible'
-      }
+      return styled(
+        {
+          animation: payload.animation || 'cut',
+          durationMs: payload.durationMs || 0,
+          ...backdrop(payload),
+          title: payload.locationLabel || payload.reference,
+          lines: payload.verses.map((verse) => `${verse.number}  ${verse.text}`),
+          footer: payload.translationLabel,
+          highlight: payload.verses.findIndex((verse) => verse.number === payload.highlightVerse),
+          kind: 'bible'
+        },
+        typography.bible.reference,
+        typography.bible.verse,
+        typography.bible.translation
+      )
     case 'dictionary':
-      return {
-        animation: 'cut',
-        durationMs: 0,
-        ...backdrop(payload),
-        title: [payload.strongs, payload.lemma].filter(Boolean).join('  '),
-        lines: [payload.transliteration, payload.gloss, payload.partOfSpeech, payload.definition].filter(
-          (line): line is string => Boolean(line)
-        ),
-        footer: payload.language,
-        highlight: -1,
-        kind: 'dictionary'
-      }
+      return styled(
+        {
+          animation: 'cut',
+          durationMs: 0,
+          ...backdrop(payload),
+          title: [payload.strongs, payload.lemma].filter(Boolean).join('  '),
+          lines: [payload.transliteration, payload.gloss, payload.partOfSpeech, payload.definition].filter(
+            (line): line is string => Boolean(line)
+          ),
+          footer: payload.language,
+          highlight: -1,
+          kind: 'dictionary'
+        },
+        typography.dictionary.lemma,
+        typography.dictionary.definition,
+        typography.dictionary.details
+      )
     default:
       return null
+  }
+}
+
+function styled(
+  slide: NativeSlide,
+  title: ProjectionTextStyle,
+  body: ProjectionTextStyle,
+  footer: ProjectionTextStyle
+): NativeSlide {
+  return {
+    ...slide,
+    titleFont: title.fontId,
+    titlePx: title.sizePx,
+    titleColor: title.color,
+    bodyFont: body.fontId,
+    bodyPx: body.sizePx,
+    bodyColor: body.color,
+    footerFont: footer.fontId,
+    footerPx: footer.sizePx,
+    footerColor: footer.color
   }
 }
 

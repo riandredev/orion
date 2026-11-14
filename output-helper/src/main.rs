@@ -197,6 +197,7 @@ impl App {
             && displays.iter().all(|spec| self.outputs.values().any(|output| output.display_id == spec.id));
         if same {
             self.rebuild();
+            self.report_windows();
             return;
         }
         self.outputs.clear();
@@ -229,6 +230,7 @@ impl App {
                 .with_window_level(level);
             let Ok(window) = event_loop.create_window(attrs) else { continue };
             window.set_cursor_visible(!spec.topmost);
+            window.set_visible(true);
             let window = Arc::new(window);
             let Ok(surface) = instance.create_surface(window.clone()) else { continue };
             if !self.ensure_gpu(&instance, &surface) {
@@ -249,9 +251,10 @@ impl App {
             surface.configure(&gpu.device, &config);
             let base = blank_layer(gpu);
             let id = window.id();
-            self.outputs.insert(id, Output { window, surface, config, display_id: spec.id, shown: false, base, overlay: None });
+            self.outputs.insert(id, Output { window, surface, config, display_id: spec.id, shown: true, base, overlay: None });
         }
         self.rebuild();
+        self.report_windows();
     }
 
     fn rebuild(&mut self) {
@@ -277,6 +280,16 @@ impl App {
             }
             output.window.request_redraw();
         }
+        self.report_windows();
+    }
+
+    fn report_windows(&self) {
+        if self.outputs.is_empty() {
+            println!("failed");
+        } else {
+            println!("shown");
+        }
+        let _ = std::io::Write::flush(&mut std::io::stdout());
     }
 
     fn render(&mut self, id: WindowId) {

@@ -46,6 +46,24 @@ pub struct SlideSpec {
     pub highlight: i32,
     #[serde(default)]
     pub kind: String,
+    #[serde(default)]
+    pub body_font: String,
+    #[serde(default)]
+    pub title_font: String,
+    #[serde(default)]
+    pub footer_font: String,
+    #[serde(default)]
+    pub body_px: f32,
+    #[serde(default)]
+    pub title_px: f32,
+    #[serde(default)]
+    pub footer_px: f32,
+    #[serde(default)]
+    pub body_color: String,
+    #[serde(default)]
+    pub title_color: String,
+    #[serde(default)]
+    pub footer_color: String,
 }
 
 fn default_contain() -> String {
@@ -64,7 +82,7 @@ fn default_topmost() -> bool {
 impl SlideSpec {
     pub fn content_key(&self) -> String {
         format!(
-            "{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             self.image_path,
             self.fit,
             self.dim,
@@ -73,7 +91,16 @@ impl SlideSpec {
             self.lines.join("\n"),
             self.footer,
             self.highlight,
-            self.kind
+            self.kind,
+            self.body_font,
+            self.title_font,
+            self.footer_font,
+            self.body_px,
+            self.title_px,
+            self.footer_px,
+            self.body_color,
+            self.title_color,
+            self.footer_color
         )
     }
 }
