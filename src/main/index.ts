@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, net, protocol, screen, session, shell, webContents } from 'electron'
 import { createHash } from 'crypto'
 import { pathToFileURL } from 'url'
-import { existsSync } from 'fs'
+import { createReadStream, existsSync } from 'fs'
+import { Readable } from 'stream'
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'fs/promises'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { basename, extname, join } from 'path'
@@ -487,12 +488,89 @@ protocol.registerSchemesAsPrivileged([
   }
 ])
 
-app.whenReady().then(async () => {
-  protocol.handle('orion-file', (request) => {
-    const pathname = decodeURIComponent(new URL(request.url).pathname)
-    const filePath = process.platform === 'win32' ? pathname.replace(/^\//, '') : pathname
-    return net.fetch(pathToFileURL(filePath).href)
+function orionFileMime(filePath: string): string {
+  switch (extname(filePath).toLowerCase()) {
+    case '.mp4':
+    case '.m4v':
+      return 'video/mp4'
+    case '.webm':
+      return 'video/webm'
+    case '.ogv':
+      return 'video/ogg'
+    case '.mov':
+      return 'video/quicktime'
+    case '.mkv':
+      return 'video/x-matroska'
+    case '.avi':
+      return 'video/x-msvideo'
+    case '.mp3':
+      return 'audio/mpeg'
+    case '.wav':
+      return 'audio/wav'
+    case '.ogg':
+      return 'audio/ogg'
+    case '.m4a':
+      return 'audio/mp4'
+    case '.flac':
+      return 'audio/flac'
+    default:
+      return 'application/octet-stream'
+  }
+}
+
+function orionFilePath(requestUrl: string): string {
+  const pathname = decodeURIComponent(new URL(requestUrl).pathname)
+  return process.platform === 'win32' ? pathname.replace(/^\//, '') : pathname
+}
+
+/** Video seeking needs 206 responses. A full 200 body marks the file as not seekable. */
+async function orionFileResponse(request: Request): Promise<Response> {
+  const filePath = orionFilePath(request.url)
+  const range = request.headers.get('range')
+  if (!range) return net.fetch(pathToFileURL(filePath).href)
+  let size = 0
+  try {
+    size = (await stat(filePath)).size
+  } catch {
+    return new Response('Not found', { status: 404 })
+  }
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(range.trim())
+  if (!match || size <= 0) {
+    return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } })
+  }
+  let start: number
+  let end: number
+  if (match[1] === '') {
+    const suffix = Number(match[2])
+    if (!Number.isFinite(suffix) || suffix <= 0) {
+      return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } })
+    }
+    start = Math.max(0, size - suffix)
+    end = size - 1
+  } else {
+    start = Number(match[1])
+    end = match[2] === '' ? size - 1 : Number(match[2])
+  }
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start >= size || end < start) {
+    return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } })
+  }
+  end = Math.min(end, size - 1)
+  const node = createReadStream(filePath, { start, end })
+  node.on('error', () => node.destroy())
+  const body = Readable.toWeb(node) as ReadableStream
+  return new Response(body, {
+    status: 206,
+    headers: {
+      'Accept-Ranges': 'bytes',
+      'Content-Type': orionFileMime(filePath),
+      'Content-Length': String(end - start + 1),
+      'Content-Range': `bytes ${start}-${end}/${size}`
+    }
   })
+}
+
+app.whenReady().then(async () => {
+  protocol.handle('orion-file', (request) => orionFileResponse(request))
   const edition = readEdition()
   if (process.platform === 'win32') {
     app.setAppUserModelId(edition.appUserModelId)

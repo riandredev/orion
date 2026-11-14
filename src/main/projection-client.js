@@ -215,16 +215,20 @@ let libraryMediaEpoch = -1
 function nudgeOutputMedia(el, command) {
   const time = Number(command.time)
   if (command.action === 'seek' || command.action === 'pause') {
-    if (Number.isFinite(time) && Math.abs(time - (el.currentTime || 0)) > 0.05) {
-      try {
-        el.currentTime = time
-      } catch {
-        /* not seekable yet */
+    const apply = () => {
+      if (Number.isFinite(time) && Math.abs(time - (el.currentTime || 0)) > 0.05) {
+        try {
+          el.currentTime = time
+        } catch {
+          /* not seekable yet */
+        }
       }
+      el.playbackRate = 1
+      if (command.action === 'pause') el.pause()
+      else if (el.paused) void el.play().catch(() => {})
     }
-    el.playbackRate = 1
-    if (command.action === 'pause') el.pause()
-    else if (el.paused) void el.play().catch(() => {})
+    if (el.readyState < 1) el.addEventListener('loadedmetadata', apply, { once: true })
+    apply()
     return
   }
   const drift = time - (el.currentTime || 0)

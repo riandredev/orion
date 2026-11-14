@@ -50,7 +50,8 @@ export function stageUsesNativeOutput(state: ProjectionStageState): boolean {
 
 function payloadSupported(payload: ProjectionWirePayload | null): boolean {
   if (!payload) return true
-  return payload.type === 'image' || payload.type === 'bible' || payload.type === 'hymn' || payload.type === 'dictionary'
+  // Text slides stay on the Electron projection page so fonts, layout, and previews match settings.
+  return payload.type === 'image'
 }
 
 function helperPath(): string | null {

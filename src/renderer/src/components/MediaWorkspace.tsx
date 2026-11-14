@@ -482,6 +482,12 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     const onSeeking = (): void => {
       window.clearInterval(timer)
       timer = 0
+      send('seek')
+    }
+    const onSeekTime = (): void => {
+      if (!el.seeking) return
+      holdUntil = Date.now() + 450
+      send('seek')
     }
     const onSeeked = (): void => {
       holdUntil = Date.now() + 450
@@ -494,6 +500,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     el.addEventListener('playing', start)
     el.addEventListener('pause', stop)
     el.addEventListener('seeking', onSeeking)
+    el.addEventListener('timeupdate', onSeekTime)
     el.addEventListener('seeked', onSeeked)
     if (el.paused && startOnPresent.current) {
       startOnPresent.current = false
@@ -505,6 +512,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
       el.removeEventListener('playing', start)
       el.removeEventListener('pause', stop)
       el.removeEventListener('seeking', onSeeking)
+      el.removeEventListener('timeupdate', onSeekTime)
       el.removeEventListener('seeked', onSeeked)
     }
   }, [live, preview?.path])
