@@ -23,6 +23,7 @@ type NativeSlide = {
   lines: string[]
   footer: string
   highlight: number
+  kind: string
 }
 
 let child: ChildProcessWithoutNullStreams | null = null
@@ -134,7 +135,8 @@ function toSlide(payload: ProjectionWirePayload | null): NativeSlide | null {
         title: '',
         lines: [],
         footer: '',
-        highlight: -1
+        highlight: -1,
+        kind: 'image'
       }
     case 'hymn':
       return {
@@ -144,7 +146,8 @@ function toSlide(payload: ProjectionWirePayload | null): NativeSlide | null {
         title: [payload.number ? String(payload.number) : '', payload.title].filter(Boolean).join('  '),
         lines: payload.lines,
         footer: payload.author || '',
-        highlight: -1
+        highlight: -1,
+        kind: 'hymn'
       }
     case 'bible':
       return {
@@ -154,7 +157,8 @@ function toSlide(payload: ProjectionWirePayload | null): NativeSlide | null {
         title: payload.locationLabel || payload.reference,
         lines: payload.verses.map((verse) => `${verse.number}  ${verse.text}`),
         footer: payload.translationLabel,
-        highlight: payload.verses.findIndex((verse) => verse.number === payload.highlightVerse)
+        highlight: payload.verses.findIndex((verse) => verse.number === payload.highlightVerse),
+        kind: 'bible'
       }
     case 'dictionary':
       return {
@@ -166,7 +170,8 @@ function toSlide(payload: ProjectionWirePayload | null): NativeSlide | null {
           (line): line is string => Boolean(line)
         ),
         footer: payload.language,
-        highlight: -1
+        highlight: -1,
+        kind: 'dictionary'
       }
     default:
       return null
@@ -189,6 +194,14 @@ function backdrop(payload: {
 
 function mediaPath(value: string | undefined): string {
   if (!value) return ''
+  if (value.startsWith('orion-file:')) {
+    try {
+      const pathname = decodeURIComponent(new URL(value).pathname)
+      return process.platform === 'win32' ? pathname.replace(/^\//, '') : pathname
+    } catch {
+      return ''
+    }
+  }
   if (value.startsWith('file:')) {
     try {
       return fileURLToPath(value)

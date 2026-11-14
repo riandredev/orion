@@ -13,10 +13,11 @@ use image::RgbaImage;
 use protocol::{motion_kind, Command, DisplaySpec, SlideSpec};
 use raster::{raster_slide, Fonts};
 use winit::application::ApplicationHandler;
-use winit::dpi::PhysicalSize;
+use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
-use winit::window::{Fullscreen, Window, WindowId, WindowLevel};
+use winit::platform::windows::WindowAttributesExtWindows;
+use winit::window::{Window, WindowId, WindowLevel};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -67,6 +68,7 @@ struct Output {
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
     display_id: i64,
+    shown: bool,
     base: Layer,
     overlay: Option<Layer>,
 }
@@ -208,12 +210,17 @@ impl App {
                 (pos.x - spec.x).abs() + (pos.y - spec.y).abs()
             });
             let Some(monitor) = monitor else { continue };
+            let position = monitor.position();
+            let monitor_size = monitor.size();
             let attrs = Window::default_attributes()
                 .with_title("Orion Output")
                 .with_decorations(false)
                 .with_resizable(false)
-                .with_window_level(WindowLevel::AlwaysOnTop)
-                .with_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
+                .with_visible(false)
+                .with_skip_taskbar(true)
+                .with_position(PhysicalPosition::new(position.x, position.y))
+                .with_inner_size(PhysicalSize::new(monitor_size.width.max(1), monitor_size.height.max(1)))
+                .with_window_level(WindowLevel::AlwaysOnTop);
             let Ok(window) = event_loop.create_window(attrs) else { continue };
             window.set_cursor_visible(false);
             let window = Arc::new(window);
@@ -222,7 +229,7 @@ impl App {
                 return;
             }
             let gpu = self.gpu.as_ref().unwrap();
-            let size = window.inner_size();
+            let size = monitor_size;
             let config = wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 format: gpu.format,
@@ -236,7 +243,7 @@ impl App {
             surface.configure(&gpu.device, &config);
             let base = blank_layer(gpu);
             let id = window.id();
-            self.outputs.insert(id, Output { window, surface, config, display_id: spec.id, base, overlay: None });
+            self.outputs.insert(id, Output { window, surface, config, display_id: spec.id, shown: false, base, overlay: None });
         }
         self.rebuild();
     }
@@ -267,6 +274,7 @@ impl App {
     }
 
     fn render(&mut self, id: WindowId) {
+        let already = {
         let Some(gpu) = self.gpu.as_ref() else { return };
         let Some(output) = self.outputs.get(&id) else { return };
         let frame = match output.surface.get_current_texture() {
@@ -304,6 +312,14 @@ impl App {
         }
         gpu.queue.submit(Some(encoder.finish()));
         frame.present();
+        output.shown
+        };
+        if !already {
+            if let Some(output) = self.outputs.get_mut(&id) {
+                output.shown = true;
+                output.window.set_visible(true);
+            }
+        }
     }
 
     fn animating(&self) -> bool {

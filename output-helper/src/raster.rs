@@ -6,28 +6,66 @@ use image::{imageops, Rgba, RgbaImage};
 use crate::protocol::{parse_color, SlideSpec};
 
 pub struct Fonts {
-    regular: Font,
+    hymn: Font,
+    bible: Font,
+    plain: Font,
 }
 
 impl Fonts {
     pub fn load() -> Option<Self> {
-        let candidates = [
-            r"C:\Windows\Fonts\georgia.ttf",
+        let plain = load_file_font(&[
             r"C:\Windows\Fonts\segoeui.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
-            "/System/Library/Fonts/Supplemental/Georgia.ttf",
-        ];
-        for path in candidates {
-            if let Ok(bytes) = std::fs::read(path) {
-                if let Ok(regular) = Font::from_bytes(bytes, fontdue::FontSettings::default()) {
-                    eprintln!("orion-output: text font {path}");
-                    return Some(Self { regular });
-                }
+            r"C:\Windows\Fonts\arial.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]);
+        let hymn = load_file_font(&[
+            r"C:\Windows\Fonts\ARIALN.TTF",
+            r"C:\Windows\Fonts\arialn.ttf",
+            r"C:\Windows\Fonts\ARIALNB.TTF",
+            r"C:\Windows\Fonts\segoeui.ttf",
+            r"C:\Windows\Fonts\arial.ttf",
+        ]);
+        let bible = load_garamond().or_else(|| {
+            load_file_font(&[
+                r"C:\Windows\Fonts\georgia.ttf",
+                r"C:\Windows\Fonts\times.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+            ])
+        });
+        match (hymn, bible, plain) {
+            (Some(hymn), Some(bible), Some(plain)) => Some(Self { hymn, bible, plain }),
+            _ => {
+                eprintln!("orion-output: no text font found");
+                None
             }
         }
-        eprintln!("orion-output: no text font found");
-        None
     }
+
+    fn face<'a>(&'a self, kind: &str) -> &'a Font {
+        match kind {
+            "hymn" => &self.hymn,
+            "bible" => &self.bible,
+            _ => &self.plain,
+        }
+    }
+}
+
+fn load_garamond() -> Option<Font> {
+    let bytes = include_bytes!("../fonts/EBGaramond-Regular.ttf");
+    let font = Font::from_bytes(bytes.as_slice(), fontdue::FontSettings::default()).ok()?;
+    eprintln!("orion-output: text font EB Garamond");
+    Some(font)
+}
+
+fn load_file_font(paths: &[&str]) -> Option<Font> {
+    for path in paths {
+        let Ok(bytes) = std::fs::read(path) else { continue };
+        if let Ok(font) = Font::from_bytes(bytes, fontdue::FontSettings::default()) {
+            eprintln!("orion-output: text font {path}");
+            return Some(font);
+        }
+    }
+    None
 }
 
 pub struct SlideBitmap {
@@ -146,26 +184,28 @@ fn blit_image(canvas: &mut RgbaImage, path: &Path, fit: &str, dim: f32) {
 
 fn draw_text(canvas: &mut RgbaImage, fonts: &Fonts, spec: &SlideSpec) {
     let (width, height) = canvas.dimensions();
-    let title_px = (height as f32 * 0.045).clamp(18.0, 64.0);
-    let footer_px = (height as f32 * 0.028).clamp(14.0, 40.0);
-    let body_px = (height as f32 / (spec.lines.len().max(1) as f32 + 4.5)).clamp(22.0, height as f32 * 0.09);
+    let font = fonts.face(&spec.kind);
+    let title_px = (height as f32 * if spec.kind == "bible" { 0.05 } else { 0.045 }).clamp(18.0, 72.0);
+    let footer_px = (height as f32 * 0.032).clamp(16.0, 42.0);
+    let max_px = if spec.kind == "bible" { height as f32 * 0.16 } else { height as f32 * 0.1 };
+    let body_px = fit_body_px(font, &spec.lines, width, height, max_px);
     let max_w = (width as f32 * 0.86) as i32;
-    let wrapped = wrap_lines(&fonts.regular, &spec.lines, body_px, max_w);
+    let wrapped = wrap_lines(font, &spec.lines, body_px, max_w);
     let line_gap = (body_px * 0.28) as i32;
     let body_h = wrapped.len() as i32 * (body_px as i32 + line_gap);
     let mut y = ((height as i32 - body_h) / 2).max(title_px as i32 + 24);
     if !spec.title.is_empty() {
-        blit_line(canvas, &fonts.regular, &spec.title, title_px,  (height as f32 * 0.08) as i32, [255, 255, 255], false);
+        blit_line(canvas, font, &spec.title, title_px,  (height as f32 * 0.08) as i32, [255, 255, 255], false);
     }
     for (index, line) in wrapped.iter().enumerate() {
         let highlight = spec.highlight == index as i32;
-        blit_line(canvas, &fonts.regular, line, body_px, y, [255, 255, 255], highlight);
+        blit_line(canvas, font, line, body_px, y, [255, 255, 255], highlight);
         y += body_px as i32 + line_gap;
     }
     if !spec.footer.is_empty() {
         blit_line(
             canvas,
-            &fonts.regular,
+            font,
             &spec.footer,
             footer_px,
             height as i32 - (height as f32 * 0.08) as i32,
@@ -173,6 +213,26 @@ fn draw_text(canvas: &mut RgbaImage, fonts: &Fonts, spec: &SlideSpec) {
             false,
         );
     }
+}
+
+fn fit_body_px(font: &Font, lines: &[String], width: u32, height: u32, max_px: f32) -> f32 {
+    let max_w = (width as f32 * 0.86) as i32;
+    let max_h = height as f32 * 0.62;
+    let mut px = max_px.max(28.0);
+    for _ in 0..14 {
+        let wrapped = wrap_lines(font, lines, px, max_w);
+        let gap = px * 0.28;
+        let block = wrapped.len() as f32 * (px + gap);
+        let too_wide = wrapped.iter().any(|line| measure(font, line, px) > max_w);
+        if !too_wide && block <= max_h {
+            return px;
+        }
+        px = (px * 0.88).max(22.0);
+        if px <= 22.0 {
+            return px;
+        }
+    }
+    px
 }
 
 fn wrap_lines(font: &Font, lines: &[String], px: f32, max_w: i32) -> Vec<String> {
@@ -213,16 +273,16 @@ fn measure(font: &Font, text: &str, px: f32) -> i32 {
 fn blit_line(canvas: &mut RgbaImage, font: &Font, text: &str, px: f32, baseline: i32, color: [u8; 3], highlight: bool) {
     let width = measure(font, text, px);
     let mut pen = (canvas.width() as i32 - width) / 2;
-    let shadow = if highlight { 3 } else { 2 };
+    let shadow = if highlight { 4 } else { 3 };
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, px);
-        stamp(canvas, &bitmap, metrics.width, metrics.height, pen + metrics.xmin, baseline - metrics.ymin - metrics.height as i32, [0, 0, 0], shadow);
+        stamp(canvas, &bitmap, metrics.width, metrics.height, pen + metrics.xmin, baseline - metrics.ymin - metrics.height as i32, [0, 0, 0], shadow, true);
         pen += metrics.advance_width as i32;
     }
     pen = (canvas.width() as i32 - width) / 2;
     for ch in text.chars() {
         let (metrics, bitmap) = font.rasterize(ch, px);
-        stamp(canvas, &bitmap, metrics.width, metrics.height, pen + metrics.xmin, baseline - metrics.ymin - metrics.height as i32, color, 0);
+        stamp(canvas, &bitmap, metrics.width, metrics.height, pen + metrics.xmin, baseline - metrics.ymin - metrics.height as i32, color, 0, false);
         pen += metrics.advance_width as i32;
     }
 }
@@ -236,11 +296,12 @@ fn stamp(
     origin_y: i32,
     color: [u8; 3],
     spread: i32,
+    solid: bool,
 ) {
     let (cw, ch) = canvas.dimensions();
     for oy in -spread..=spread {
         for ox in -spread..=spread {
-            if spread > 0 && ox == 0 && oy == 0 {
+            if !solid && spread > 0 && ox == 0 && oy == 0 {
                 continue;
             }
             for row in 0..gh {

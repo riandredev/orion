@@ -42,6 +42,8 @@ pub struct SlideSpec {
     pub footer: String,
     #[serde(default = "default_highlight")]
     pub highlight: i32,
+    #[serde(default)]
+    pub kind: String,
 }
 
 fn default_contain() -> String {
@@ -57,7 +59,7 @@ fn default_highlight() -> i32 {
 impl SlideSpec {
     pub fn content_key(&self) -> String {
         format!(
-            "{}|{}|{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}|{}",
             self.image_path,
             self.fit,
             self.dim,
@@ -65,7 +67,8 @@ impl SlideSpec {
             self.title,
             self.lines.join("\n"),
             self.footer,
-            self.highlight
+            self.highlight,
+            self.kind
         )
     }
 }

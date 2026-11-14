@@ -553,9 +553,19 @@ function placeOnDisplayFullscreen(win: BrowserWindow, display: Display): void {
       return
     }
     win.setBounds(display.bounds)
-    showOutputOpaque(win)
+    try {
+      win.setOpacity(0)
+    } catch {
+      /* opacity is unavailable on this window */
+    }
+    if (!win.isVisible()) win.showInactive()
     if (!isNativeFullscreen(win)) win.setFullScreen(true)
     keepMainAppFocused()
+    setTimeout(() => {
+      if (win.isDestroyed() || fullscreenEpoch.get(win) !== epoch) return
+      showOutputOpaque(win)
+      keepMainAppFocused()
+    }, 220)
   }
   apply()
   if (process.platform === 'linux' || process.platform === 'darwin') {
