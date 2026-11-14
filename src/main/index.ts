@@ -1,5 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain, screen, session, shell, webContents } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, session, shell, webContents } from 'electron'
 import { createHash } from 'crypto'
+import { pathToFileURL } from 'url'
 import { existsSync } from 'fs'
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'fs/promises'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
@@ -59,6 +60,7 @@ import {
   ensurePersonalHymnal
 } from './hymnals'
 import { rasterizeMetafiles } from './metafile-raster'
+import { shutdownNativeOutput } from './native-output'
 import { applyProjection, closeAllProjectionWindows, getMainAppWindow, getPresentationUiState, getStackState, registerProjectionIpc, repositionProjectionWindows, runProjectionCommand, setMainAppWindow } from './projection'
 import { exportProfileFileToDialog, importProfileFileFromDialog } from './profile-files'
 import { exportSequenceFileToDialog, importSequenceFileFromDialog } from './sequence-files'
@@ -119,7 +121,13 @@ async function listImagesInOrderFolder(
   const images = files
     .filter((f) => IMAGE_EXT.has(f.slice(f.lastIndexOf('.')).toLowerCase()))
     .map((name) => ({ name, path: join(folderPath, name) }))
-  return images.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+  return Promise.all(
+    images.map(async (image) => ({
+      ...image,
+      thumb: await orderThumb(image.path)
+    }))
+  )
 }
 
 function sanitizeOrderFolderName(raw: string): string | null {
@@ -275,6 +283,38 @@ function withThumbSlot<T>(job: () => Promise<T>): Promise<T> {
     if (thumbJobs < 3) start()
     else thumbWaiters.push(start)
   })
+}
+
+async function orderThumb(filePath: string): Promise<string> {
+  const target = filePath.trim()
+  if (!target || !isPathUnderRoot(target, orderImagesRoot())) return target
+  const thumb = await withThumbSlot(async () => {
+    let info
+    try {
+      info = await stat(target)
+    } catch {
+      return null
+    }
+    if (!info.isFile()) return null
+    const key = createHash('sha1').update(`order|${target}|${info.mtimeMs}|${info.size}`).digest('hex')
+    const dir = join(app.getPath('userData'), 'order-thumbs')
+    const dest = join(dir, `${key}.jpg`)
+    if (existsSync(dest)) return dest
+    try {
+      await mkdir(dir, { recursive: true })
+      const image = await loadImage(target)
+      const scale = Math.min(1, 360 / Math.max(1, image.width))
+      const width = Math.max(1, Math.round(image.width * scale))
+      const height = Math.max(1, Math.round(image.height * scale))
+      const canvas = createCanvas(width, height)
+      canvas.getContext('2d').drawImage(image, 0, 0, width, height)
+      await writeFile(dest, canvas.toBuffer('image/jpeg', 62))
+      return dest
+    } catch {
+      return null
+    }
+  })
+  return thumb || target
 }
 
 async function backgroundThumb(filePath: string): Promise<string | null> {
@@ -433,7 +473,26 @@ if (process.platform === 'linux') {
 }
 app.commandLine.appendSwitch('disable-features', disabledChromiumFeatures.join(','))
 
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'orion-file',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+      bypassCSP: true
+    }
+  }
+])
+
 app.whenReady().then(async () => {
+  protocol.handle('orion-file', (request) => {
+    const pathname = decodeURIComponent(new URL(request.url).pathname)
+    const filePath = process.platform === 'win32' ? pathname.replace(/^\//, '') : pathname
+    return net.fetch(pathToFileURL(filePath).href)
+  })
   const edition = readEdition()
   if (process.platform === 'win32') {
     app.setAppUserModelId(edition.appUserModelId)
@@ -694,6 +753,7 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   closeAllProjectionWindows()
+  shutdownNativeOutput()
   closePresenterViewOnQuit()
   if (process.platform !== 'darwin') {
     app.quit()

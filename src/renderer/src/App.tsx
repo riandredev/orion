@@ -168,11 +168,11 @@ import {
 import type { SequenceDropBody } from './lib/sequence-drag'
 import { setSequenceInbox } from './lib/sequence-inbox'
 import { loadSequenceBundleContent } from './lib/sequence-bundle-setting'
+import { displayFileUrl } from './lib/file-url'
 import { currentBibleSequenceDraft } from './lib/sequence-sources'
 
 function filePathToUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
 }
 
 function sequenceCursorForOutput(
@@ -2428,7 +2428,7 @@ export default function App(): ReactElement {
 
     const orderPreviewUrl =
       stageBase?.type === 'image'
-        ? stageBase.mediaUrl
+        ? displayFileUrl(stageBase.mediaUrl)
         : activeImage
           ? filePathToUrl(activeImage.path)
           : undefined
@@ -2470,7 +2470,7 @@ export default function App(): ReactElement {
         subtitle = presentationDeck?.title ?? 'Presentation'
       } else if (hymnsLive && stageOverlay?.type === 'hymn') {
         isLive = true
-        if (stageBase?.type === 'image' && stageBase.mediaUrl) previewUrl = stageBase.mediaUrl
+        if (stageBase?.type === 'image' && stageBase.mediaUrl) previewUrl = displayFileUrl(stageBase.mediaUrl)
         subtitle = `${stageOverlay.number} · ${stageOverlay.title} · ${hymnProjectionCornerLabel(stageOverlay.stanzaKind, stageOverlay.verse, stageOverlay.versePart, stageOverlay.versePartCount)}`
       } else if (hymnsLive && stageBase?.type === 'hymn') {
         isLive = true

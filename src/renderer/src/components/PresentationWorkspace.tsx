@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react'
+import { displayFileUrl } from '../lib/file-url'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   PresentationDeckDetail,
@@ -18,8 +19,7 @@ import { AdwTooltip } from './AdwTooltip'
 import { writeSequenceDrag } from '../lib/sequence-drag'
 
 function filePathToUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
 }
 
 function importProgressCaption(progress: PresentationImportProgress | null): string | undefined {

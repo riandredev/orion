@@ -1,4 +1,5 @@
 import { useEffect, useState, type DragEvent, type ReactElement } from 'react'
+import { displayFileUrl } from '../lib/file-url'
 import { createPortal } from 'react-dom'
 import { AdwAlertDialog } from './AdwAlertDialog'
 import {
@@ -15,8 +16,7 @@ import { SlideThumb } from './SlideThumb'
 import type { AppIconName } from './icons'
 
 function filePathToUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
 }
 
 const kindIcon: Record<ServiceSequenceItem['kind'], AppIconName> = {

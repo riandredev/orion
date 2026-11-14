@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactElement } from 'react'
+import { displayFileUrl } from '../lib/file-url'
 import type { BackgroundImportProgress } from '../../../shared/background-import'
 import type { OrderFolderImage } from '../env'
 import {
@@ -87,8 +88,7 @@ function LibraryThumb({
 }
 
 function pathToFileUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
 }
 
 const CATEGORIES: {

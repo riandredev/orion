@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactEle
 import type { OrionDisplayInfo } from '../../../shared/displays'
 import type { PresentationUiState } from '../../../shared/presentation-ui-state'
 import { projectionDisplayIds } from '../lib/display-projection'
+import { displayFileUrl } from '../lib/file-url'
 import { publishLibraryMedia } from '../lib/library-media-sync'
 import { OUTPUT_MEDIA_VOLUME } from '../../../shared/output-audio'
 import { loadPlaybackSettings } from '../lib/playback-settings'
@@ -131,8 +132,7 @@ function loadThumb(): OrderThumbSize {
 }
 
 function filePathToUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
 }
 
 function MediaTile({

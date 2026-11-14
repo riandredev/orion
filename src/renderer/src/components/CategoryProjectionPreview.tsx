@@ -4,10 +4,10 @@ import type { ProjectionContentInsetCategory } from '../../../shared/projection-
 import { resolveCategoryBackground, useBackgroundSettings, type BackgroundCategoryId } from '../lib/background-settings'
 import { useProjectionContentInsetsByCategory } from '../lib/projection-content-insets-settings'
 import { BackgroundStagePreview } from './BackgroundStagePreview'
+import { displayFileUrl } from '../lib/file-url'
 
 function fileUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
 }
 
 export function CategoryProjectionPreview({

@@ -2,6 +2,7 @@ import { Icon } from '@iconify/react'
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
 import type { OrderFolderImage, OrderFolderInfo } from '../env'
+import { displayFileUrl } from '../lib/file-url'
 import {
   dropMarkerRect,
   hitTestColumnDrop,
@@ -60,8 +61,11 @@ function dragOrderImage(event: DragEvent<HTMLButtonElement>, folder: string, ima
 }
 
 function pathToFileUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
+}
+
+function thumbUrl(image: OrderFolderImage): string {
+  return pathToFileUrl(image.thumb || image.path)
 }
 
 function OrderBrowser({
@@ -185,7 +189,7 @@ function OrderBrowser({
                     onContextMenu={(event) => onImageMenu(event, active.folder.name, image)}
                     title={image.name}
                   >
-                    <img src={pathToFileUrl(image.path)} alt="" />
+                    <img src={thumbUrl(image)} alt="" />
                     {showImageNames ? <span>{image.name}</span> : null}
                   </button>
                 </li>
@@ -207,7 +211,7 @@ function OrderBrowser({
                     onContextMenu={(event) => onImageMenu(event, active.folder.name, image)}
                     title={image.name}
                   >
-                    <img src={pathToFileUrl(image.path)} alt="" />
+                    <img src={thumbUrl(image)} alt="" />
                     {showImageNames ? <span>{image.name}</span> : null}
                   </button>
                 </li>
@@ -536,7 +540,7 @@ export function OrderKanbanBoard({
                           >
                             <img
                               className="kanban-image__img"
-                              src={pathToFileUrl(image.path)}
+                              src={thumbUrl(image)}
                               alt=""
                               loading="lazy"
                             />
@@ -622,7 +626,7 @@ export function OrderKanbanBoard({
                 <div className="kanban-column-ghost__grid">
                   {dragFolder.images.slice(0, 6).map((image) => (
                     <div key={image.path} className="kanban-column-ghost__thumb">
-                      <img src={pathToFileUrl(image.path)} alt="" />
+                      <img src={thumbUrl(image)} alt="" />
                     </div>
                   ))}
                 </div>

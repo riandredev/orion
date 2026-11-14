@@ -29,6 +29,8 @@ module.exports = {
     '!hymnals/**',
     '!images',
     '!images/**',
+    '!output-helper',
+    '!output-helper/**',
     '!build/content-standard',
     '!build/content-standard/**',
     '!**/*.tsbuildinfo',
@@ -39,7 +41,8 @@ module.exports = {
     { from: 'build/edition-standard.json', to: 'edition.json' },
     { from: 'bundles/catalog.json', to: 'content/bundles-catalog.json' },
     { from: 'build/content-standard/hymnals', to: 'content/hymnals' },
-    { from: 'bibles/eng-kjv', to: 'content/bibles/eng-kjv' }
+    { from: 'bibles/eng-kjv', to: 'content/bibles/eng-kjv' },
+    { from: 'output-helper/target/release/orion-output.exe', to: 'orion-output.exe' }
   ],
   asarUnpack: ['**/*.node', '**/7zip-bin/**'],
   npmRebuild: false,

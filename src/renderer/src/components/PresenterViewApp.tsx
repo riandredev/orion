@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
 import type { PresenterViewState } from '../../../shared/presenter-view-state'
 import { blurShortcutTarget } from '../lib/focus'
+import { displayFileUrl } from '../lib/file-url'
 import { PresentationStage } from './PresentationStage'
 import { SlideThumb } from './SlideThumb'
 import { AppIcon } from './AppIcon'
 
 function filePathToUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
 }
 
 export function PresenterViewApp(): ReactElement {

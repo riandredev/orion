@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { displayFileUrl } from '../lib/file-url'
 import { bibleBlockMarginVars, bibleProjPartClasses } from '../../../shared/bible-block-layout'
 import { cssDimOverlay } from '../../../shared/dim-overlay'
 import { projectionContentInsetsPreviewVars } from '../../../shared/projection-content-insets'
@@ -29,8 +30,7 @@ import { LineHeightField, TextPanelFields, TextShadowField, TypeStyleFields } fr
 
 function fileUrl(filePath: string | null): string | undefined {
   if (!filePath) return undefined
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
 }
 
 export function BibleSettingsPanel(): ReactElement {

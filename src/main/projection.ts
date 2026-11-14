@@ -16,6 +16,13 @@ import { appIcon } from './app-icon'
 import { is } from './env'
 import { rememberDeckMediaClock, type DeckMediaClock } from './deck-media-clock'
 import { imagePathToMediaUrl, sanitizeProjectionPayload, sanitizeStackContent } from './projection-paths'
+import {
+  hideNativeOutput,
+  nativeOutputRequested,
+  presentNativeStage,
+  shutdownNativeOutput,
+  stageUsesNativeOutput
+} from './native-output'
 import { bibleLocationFromReference } from '../shared/bible-projection-display'
 import {
   clampProjectionContentInsetsByCategory,
@@ -279,6 +286,21 @@ function outputAlreadyShowing(win: BrowserWindow, displayId: number): boolean {
   return coversDisplay(win, display)
 }
 
+function releaseChromiumOutputs(): void {
+  suppressCloseHandler = true
+  try {
+    cancelAllRenderWaits()
+    const toDestroy = [...projectionWindows.values()]
+    projectionWindows.clear()
+    windowModes.clear()
+    for (const win of toDestroy) {
+      if (!win.isDestroyed()) forceDestroyWindow(win)
+    }
+  } finally {
+    suppressCloseHandler = false
+  }
+}
+
 async function commitStageToOutputs(displayIds: number[]): Promise<void> {
   if (!mixer.hasActiveLayers()) {
     closeAllProjectionWindows()
@@ -286,6 +308,29 @@ async function commitStageToOutputs(displayIds: number[]): Promise<void> {
   }
 
   const targetIds = resolveTargetDisplayIds(displayIds)
+  if (nativeOutputRequested()) {
+    const state = stageStateFor()
+    if (stageUsesNativeOutput(state)) {
+      const displays = targetIds.flatMap((id) => {
+        const display = getElectronDisplay(id)
+        if (!display) return []
+        return [{
+          id,
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        }]
+      })
+      if (presentNativeStage(displays, state)) {
+        releaseChromiumOutputs()
+        return
+      }
+    } else {
+      hideNativeOutput()
+    }
+  }
+
   for (const displayId of targetIds) {
     const existing = projectionWindows.get(displayId)
     const keepPlacement =
@@ -1430,6 +1475,7 @@ export function applyProjection(
 }
 
 export function closeAllProjectionWindows(): void {
+  hideNativeOutput()
   outputEpoch += 1
   finishStillSettled()
   suppressCloseHandler = true

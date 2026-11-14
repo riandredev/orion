@@ -16,6 +16,7 @@ export type OrderFolderInfo = {
 export type OrderFolderImage = {
   name: string
   path: string
+  thumb?: string
 }
 
 export type OrionPaths = {

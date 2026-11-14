@@ -1,4 +1,5 @@
 import { parse, type ImageElement, type Presentation, type SlideElement } from '@pagus-kit/core'
+import { displayFileUrl } from './file-url'
 import { buildFontSubstitutes, generateFontCss, renderSlide } from '@pagus-kit/renderer'
 import { parseIworkDocument, type IworkScene, type IworkVisualObject } from 'iwork-viewer'
 import { prepareKeynotePackage } from '../../../shared/keynote-package'
@@ -69,8 +70,7 @@ type KeySession = {
 export type LiveSession = PptxSession | KeySession
 
 function fileUrl(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+/g, '/')
-  return `file:///${normalized.replace(/^\//, '')}`
+  return displayFileUrl(filePath)
 }
 
 function joinPath(dir: string, name: string): string {
