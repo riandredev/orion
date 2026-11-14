@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, session, shell, webContents } from 'electron'
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, net, protocol, screen, session, shell, webContents } from 'electron'
 import { createHash } from 'crypto'
 import { pathToFileURL } from 'url'
 import { existsSync } from 'fs'
@@ -498,6 +498,9 @@ app.whenReady().then(async () => {
     app.setAppUserModelId(edition.appUserModelId)
   }
   await seedPackagedLibraries()
+  globalShortcut.register('Control+Alt+Escape', () => {
+    void runProjectionCommand({ type: 'clear-all' }, [])
+  })
   await installLinuxDesktopEntry()
   scheduleAppUpdateCheck()
 
@@ -752,6 +755,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  globalShortcut.unregister('Control+Alt+Escape')
   closeAllProjectionWindows()
   shutdownNativeOutput()
   closePresenterViewOnQuit()

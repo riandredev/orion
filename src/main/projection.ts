@@ -319,7 +319,8 @@ async function commitStageToOutputs(displayIds: number[]): Promise<void> {
           x: display.bounds.x,
           y: display.bounds.y,
           width: display.bounds.width,
-          height: display.bounds.height
+          height: display.bounds.height,
+          topmost: !isOperatorDisplay(display)
         }]
       })
       if (presentNativeStage(displays, state)) {
@@ -478,6 +479,16 @@ function boundsMatchDisplay(win: BrowserWindow, display: Display): boolean {
   }
 }
 
+function operatorDisplay(): Display | null {
+  const main = mainAppWindow
+  if (!main || main.isDestroyed()) return null
+  return screen.getDisplayMatching(main.getBounds())
+}
+
+function isOperatorDisplay(display: Display): boolean {
+  return operatorDisplay()?.id === display.id
+}
+
 function isNativeFullscreen(win: BrowserWindow): boolean {
   try {
     return win.isFullScreen()
@@ -522,7 +533,18 @@ function placeOnDisplayFullscreen(win: BrowserWindow, display: Display): void {
     if (win.isDestroyed() || fullscreenEpoch.get(win) !== epoch) return
     if (coversDisplay(win, display)) {
       showOutputOpaque(win)
-      keepMainAppFocused()
+      if (!isOperatorDisplay(display)) keepMainAppFocused()
+      return
+    }
+    if (isOperatorDisplay(display)) {
+      try {
+        win.setFullScreen(false)
+      } catch {
+        /* already leaving fullscreen */
+      }
+      win.setAlwaysOnTop(false)
+      win.setBounds(display.bounds)
+      showOutputOpaque(win)
       return
     }
     if (process.platform === 'darwin') {

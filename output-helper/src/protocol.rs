@@ -17,6 +17,8 @@ pub struct DisplaySpec {
     pub y: i32,
     pub width: u32,
     pub height: u32,
+    #[serde(default = "default_topmost")]
+    pub topmost: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -54,6 +56,9 @@ fn default_black() -> String {
 }
 fn default_highlight() -> i32 {
     -1
+}
+fn default_topmost() -> bool {
+    true
 }
 
 impl SlideSpec {

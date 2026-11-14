@@ -212,17 +212,23 @@ impl App {
             let Some(monitor) = monitor else { continue };
             let position = monitor.position();
             let monitor_size = monitor.size();
+            let level = if spec.topmost {
+                WindowLevel::AlwaysOnTop
+            } else {
+                WindowLevel::Normal
+            };
             let attrs = Window::default_attributes()
                 .with_title("Orion Output")
                 .with_decorations(false)
                 .with_resizable(false)
                 .with_visible(false)
+                .with_active(spec.topmost)
                 .with_skip_taskbar(true)
                 .with_position(PhysicalPosition::new(position.x, position.y))
                 .with_inner_size(PhysicalSize::new(monitor_size.width.max(1), monitor_size.height.max(1)))
-                .with_window_level(WindowLevel::AlwaysOnTop);
+                .with_window_level(level);
             let Ok(window) = event_loop.create_window(attrs) else { continue };
-            window.set_cursor_visible(false);
+            window.set_cursor_visible(!spec.topmost);
             let window = Arc::new(window);
             let Ok(surface) = instance.create_surface(window.clone()) else { continue };
             if !self.ensure_gpu(&instance, &surface) {

@@ -10,6 +10,7 @@ export type NativeDisplay = {
   y: number
   width: number
   height: number
+  topmost?: boolean
 }
 
 type NativeSlide = {
