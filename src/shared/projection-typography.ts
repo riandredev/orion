@@ -230,7 +230,7 @@ export const TEXT_SHADOW_BLUR_MAX = 2
 export const TEXT_SHADOW_SIZE_MIN = 0
 export const TEXT_SHADOW_SIZE_MAX = 200
 export const TEXT_SHADOW_OPACITY_MIN = 0
-export const TEXT_SHADOW_OPACITY_MAX = 100
+export const TEXT_SHADOW_OPACITY_MAX = 200
 
 export type TextShadowStyle = {
   x: number
@@ -268,8 +268,17 @@ export function projectionTextShadowCss(shadow: TextShadowStyle): string {
     return text.replace(/0+$/, '').replace(/\.$/, '')
   }
   const scale = Math.min(TEXT_SHADOW_SIZE_MAX, Math.max(0, shadow.size)) / 100
-  const alpha = Math.min(TEXT_SHADOW_OPACITY_MAX, Math.max(0, shadow.opacity)) / 100
-  return `${n(shadow.x * scale)}em ${n(shadow.y * scale)}em ${n(shadow.blur * scale)}em rgba(0,0,0,${n(alpha)})`
+  const opacity = Math.min(TEXT_SHADOW_OPACITY_MAX, Math.max(0, shadow.opacity))
+  const alpha = Math.min(1, opacity / 100)
+  // CSS clamps one shadow at alpha 1, and a larger blur spreads that ink
+  // thinner, so 200% still looks gray. Repeat the layer past the old ceiling.
+  const extra = Math.round(Math.max(0, scale - 1) * 2 + Math.max(0, opacity - 100) / 25)
+  const soft = `${n(shadow.x * scale)}em ${n(shadow.y * scale)}em ${n(shadow.blur * scale)}em rgba(0,0,0,${n(alpha)})`
+  const layers = Array.from({ length: 1 + extra }, () => soft)
+  if (opacity >= 100 || scale >= 1.5) {
+    layers.push(`${n(shadow.x * scale)}em ${n(shadow.y * scale)}em 0 rgba(0,0,0,${n(alpha)})`)
+  }
+  return layers.join(', ')
 }
 
 export type ProjectionLineHeight = {

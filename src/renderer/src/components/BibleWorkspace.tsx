@@ -32,7 +32,6 @@ import { BibleSearchBar } from './BibleSearchBar'
 import type { AppIconName } from './icons'
 
 type BibleScope = 'entire' | 'ot' | 'nt'
-type BibleSearchMode = 'phrase' | 'reference' | 'word'
 
 type HistoryEntry = {
   id: string
@@ -50,12 +49,6 @@ const scopeOptions = [
   { value: 'entire' as const, label: 'Entire Bible' },
   { value: 'ot' as const, label: 'Old Testament' },
   { value: 'nt' as const, label: 'New Testament' }
-]
-
-const modeOptions = [
-  { value: 'phrase' as const, label: 'Contains phrase' },
-  { value: 'reference' as const, label: 'Reference' },
-  { value: 'word' as const, label: 'Any word' }
 ]
 
 const HISTORY_HEIGHT_KEY = 'orion-bible-history-height'
@@ -137,7 +130,6 @@ export function BibleWorkspace({
   const [chapter, setChapter] = useState(1)
   const [verse, setVerse] = useState(1)
   const [scope, setScope] = useState<BibleScope>('entire')
-  const [mode, setMode] = useState<BibleSearchMode>('phrase')
   const { bibles, importNew, downloadCatalog, remove } = useInstalledBibles()
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [online, setOnline] = useState(
@@ -149,7 +141,6 @@ export function BibleWorkspace({
   const [verses, setVerses] = useState<{ number: number; text: string }[]>([])
   const [chapterLoading, setChapterLoading] = useState(false)
   const [chapterError, setChapterError] = useState<string | null>(null)
-  const [autoSearch, setAutoSearch] = useState(true)
   const [historyOpen, setHistoryOpen] = useState(true)
   const [historyHeight, setHistoryHeight] = useState(loadHistoryHeight)
   const [historyResize, setHistoryResize] = useState<{
@@ -636,9 +627,6 @@ export function BibleWorkspace({
             afrikaansBookNames={afrikaansBooks}
             passageKey={`${bookId}:${chapter}:${verse}`}
             scope={scope}
-            mode={mode}
-            autoSearch={autoSearch}
-            onAutoSearchChange={setAutoSearch}
             onNavigate={navigateToPassage}
             onProjectPassage={projectSearchedPassage}
           />
@@ -677,15 +665,6 @@ export function BibleWorkspace({
               options={scopeOptions}
               aria-label="Search scope"
               onChange={setScope}
-            />
-          </label>
-          <label className="order-ribbon__field order-ribbon__field--select">
-            <span className="adw-section-label">Mode</span>
-            <AdwSelect
-              value={mode}
-              options={modeOptions}
-              aria-label="Search mode"
-              onChange={setMode}
             />
           </label>
         </div>

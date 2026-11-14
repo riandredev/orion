@@ -12,15 +12,13 @@ import {
   buildBibleSearchSuggestions,
   hitsToSuggestions,
   inferBibleSearchMode,
-  bibleReferenceHasExplicitVerse,
   parseBibleReference,
-  type BibleSearchMode,
+  bibleReferenceHasExplicitVerse,
   type BibleSearchScope,
   type BibleSearchSuggestion
 } from '../../../shared/bible-search'
 import { getBookDisplayName } from '../data/bible-books'
 import { searchBibleText } from '../lib/bible-library-api'
-import { AdwTooltip } from './AdwTooltip'
 import { AppIcon } from './AppIcon'
 
 type BibleSearchBarProps = {
@@ -28,9 +26,6 @@ type BibleSearchBarProps = {
   afrikaansBookNames: boolean
   passageKey: string
   scope: BibleSearchScope
-  mode: BibleSearchMode
-  autoSearch: boolean
-  onAutoSearchChange: (value: boolean) => void
   onNavigate: (target: { bookId: string; chapter: number; verse: number }) => void
   onProjectPassage: (target: { bookId: string; chapter: number; verse: number }) => void
 }
@@ -43,9 +38,6 @@ export function BibleSearchBar({
   afrikaansBookNames,
   passageKey,
   scope,
-  mode,
-  autoSearch,
-  onAutoSearchChange,
   onNavigate,
   onProjectPassage
 }: BibleSearchBarProps): ReactElement {
@@ -67,10 +59,7 @@ export function BibleSearchBar({
     setOpen(false)
   }, [passageKey])
 
-  const effectiveMode = useMemo(
-    () => (autoSearch ? inferBibleSearchMode(query) : mode),
-    [autoSearch, mode, query]
-  )
+  const effectiveMode = useMemo(() => inferBibleSearchMode(query), [query])
 
   const emitNavigate = useCallback(
     (target: { bookId: string; chapter: number; verse: number }) => {
@@ -124,7 +113,11 @@ export function BibleSearchBar({
     const q = query.trim()
     if (!q) return
     if (effectiveMode === 'reference' || bibleReferenceHasExplicitVerse(q)) {
-      if (applyReferenceQuery(q, true)) return
+      const project = bibleReferenceHasExplicitVerse(q)
+      if (applyReferenceQuery(q, project)) {
+        if (project) inputRef.current?.blur()
+        return
+      }
       if (suggestions[activeIndex]) {
         applySuggestion(suggestions[activeIndex])
         return
@@ -178,7 +171,7 @@ export function BibleSearchBar({
   }, [afrikaansBookNames, effectiveMode, query, scope, translationId])
 
   useEffect(() => {
-    if (!autoSearch || effectiveMode !== 'reference') return
+    if (effectiveMode !== 'reference') return
     const q = query.trim()
     if (!q) return
     const parsed = parseBibleReference(q)
@@ -189,7 +182,7 @@ export function BibleSearchBar({
       applyReferenceQuery(q)
     }, AUTO_REF_DEBOUNCE_MS)
     return () => window.clearTimeout(timer)
-  }, [applyReferenceQuery, autoSearch, effectiveMode, query])
+  }, [applyReferenceQuery, effectiveMode, query])
 
   function onSubmit(e: FormEvent): void {
     e.preventDefault()
@@ -241,20 +234,6 @@ export function BibleSearchBar({
           }}
           onKeyDown={onInputKeyDown}
         />
-        <AdwTooltip text={autoSearch ? 'Smart auto-search on' : 'Smart auto-search off'}>
-          <button
-            type="button"
-            className={
-              autoSearch
-                ? 'bible-search-bar__auto bible-search-bar__auto--on'
-                : 'bible-search-bar__auto'
-            }
-            onClick={() => onAutoSearchChange(!autoSearch)}
-            aria-pressed={autoSearch}
-          >
-            Auto
-          </button>
-        </AdwTooltip>
       </div>
 
       {showPanel ? (

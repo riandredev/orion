@@ -110,23 +110,6 @@
   color: var(--adw-fg-muted);
 }
 
-.bible-search-bar__auto {
-  flex-shrink: 0;
-  border: none;
-  border-radius: var(--adw-radius-xs);
-  padding: 2px 7px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--adw-fg-muted);
-}
-
-.bible-search-bar__auto--on {
-  background: rgba(53, 132, 228, 0.25);
-  color: var(--adw-accent-hover);
-}
-
 .bible-search-bar__submit {
   width: 30px;
   min-width: 30px;

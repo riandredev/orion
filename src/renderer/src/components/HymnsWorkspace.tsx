@@ -180,20 +180,21 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
   const projectRef = useRef(onProjectStanza)
   projectRef.current = onProjectStanza
 
-  const projectSearchedHymn = useCallback((): void => {
+  const projectSearchedHymn = useCallback((): boolean => {
     const q = query.trim()
-    if (!q) return
+    if (!q) return false
     const exact = /^\d+$/.test(q) ? listEntries.find((hymn) => hymn.number === Number(q)) : undefined
     const match = exact ?? listEntries[0]
-    if (!match) return
+    if (!match) return false
     if (entry?.id === match.id && selectedId === match.id) {
       projectPending.current = null
       onProjectStanza?.()
-      return
+      return true
     }
     setProjectionStepIndexState(0)
     projectPending.current = match.id
     setSelectedId(match.id)
+    return true
   }, [entry?.id, listEntries, onProjectStanza, query, selectedId, setSelectedId])
 
   const projectionSteps = useMemo(
@@ -779,7 +780,7 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
                 onKeyDown={(event) => {
                   if (event.key !== 'Enter' || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return
                   event.preventDefault()
-                  projectSearchedHymn()
+                  if (projectSearchedHymn()) event.currentTarget.blur()
                 }}
                 aria-label="Hymn search"
               />
