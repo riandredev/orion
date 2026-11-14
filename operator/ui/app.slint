@@ -1,0 +1,247 @@
+import { HorizontalBox, ListView, VerticalBox } from "std-widgets.slint";
+
+export struct FolderItem {
+    name: string,
+    count: string,
+    selected: bool,
+}
+
+export struct Thumb {
+    source: image,
+    name: string,
+    selected: bool,
+    visible: bool,
+}
+
+export struct ThumbRow {
+    a: Thumb,
+    b: Thumb,
+    c: Thumb,
+    d: Thumb,
+}
+
+component ThumbCell inherits Rectangle {
+    in property <Thumb> thumb;
+    callback clicked();
+    callback open();
+    width: 168px;
+    visible: thumb.visible;
+    background: thumb.selected ? #3584e4 : #242424;
+    border-radius: 8px;
+    VerticalBox {
+        padding: 6px;
+        spacing: 4px;
+        Image {
+            source: thumb.source;
+            width: 156px;
+            height: 104px;
+            image-fit: contain;
+        }
+        Text {
+            text: thumb.name;
+            color: #ffffff;
+            font-size: 12px;
+            overflow: elide;
+            horizontal-alignment: TextHorizontalAlignment.center;
+        }
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+        double-clicked => { root.open(); }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "Orion";
+    preferred-width: 1200px;
+    preferred-height: 760px;
+    background: #1c1c1c;
+    in-out property <[FolderItem]> folders;
+    in-out property <[ThumbRow]> rows;
+    in-out property <string> status: "Native desk";
+    in-out property <int> tab: 0;
+    callback select-tab(int);
+    callback select-folder(int);
+    callback select-image(int);
+    callback project();
+    callback clear-output();
+    callback previous-image();
+    callback next-image();
+
+    VerticalBox {
+        padding: 0;
+        spacing: 0;
+
+        Rectangle {
+            height: 40px;
+            background: #111111;
+            HorizontalBox {
+                padding-left: 8px;
+                padding-right: 8px;
+                spacing: 4px;
+                alignment: LayoutAlignment.start;
+                for label[index] in ["Service order", "Hymns", "Bible", "Presentation", "Media", "Web", "Dictionary"]: Rectangle {
+                    vertical-stretch: 1;
+                    background: root.tab == index ? #2a2a2a : transparent;
+                    border-radius: 6px;
+                    HorizontalBox {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        alignment: LayoutAlignment.center;
+                        Text {
+                            text: label;
+                            color: root.tab == index ? #ffffff : #bdbdbd;
+                            font-weight: root.tab == index ? 700 : 400;
+                            font-size: 14px;
+                        }
+                    }
+                    TouchArea {
+                        clicked => { root.select-tab(index); }
+                    }
+                }
+            }
+        }
+
+        if root.tab == 0: HorizontalBox {
+            padding: 0;
+            spacing: 0;
+            Rectangle {
+                width: 240px;
+                background: #161616;
+                VerticalBox {
+                    padding: 8px;
+                    spacing: 4px;
+                    alignment: LayoutAlignment.start;
+                    Text {
+                        text: "Folders";
+                        color: #9a9a9a;
+                        font-size: 12px;
+                        horizontal-alignment: left;
+                    }
+                    ListView {
+                        vertical-stretch: 1;
+                        for folder[index] in root.folders: Rectangle {
+                            height: 36px;
+                            background: folder.selected ? #3584e4 : transparent;
+                            border-radius: 6px;
+                            HorizontalBox {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                alignment: LayoutAlignment.start;
+                                Text {
+                                    text: folder.name;
+                                    color: #ffffff;
+                                    font-size: 14px;
+                                    overflow: elide;
+                                    vertical-alignment: TextVerticalAlignment.center;
+                                }
+                                Rectangle { horizontal-stretch: 1; }
+                                Text {
+                                    text: folder.count;
+                                    color: folder.selected ? #ffffff : #9a9a9a;
+                                    font-size: 13px;
+                                    vertical-alignment: TextVerticalAlignment.center;
+                                }
+                            }
+                            TouchArea {
+                                clicked => { root.select-folder(index); }
+                            }
+                        }
+                    }
+                }
+            }
+            VerticalBox {
+                padding: 12px;
+                spacing: 10px;
+                HorizontalBox {
+                    spacing: 8px;
+                    alignment: LayoutAlignment.start;
+                    Rectangle {
+                        background: #3584e4;
+                        border-radius: 8px;
+                        height: 34px;
+                        HorizontalBox {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            alignment: LayoutAlignment.center;
+                            Text {
+                                text: "Send to outputs";
+                                color: #ffffff;
+                                font-weight: 700;
+                                font-size: 14px;
+                            }
+                        }
+                        TouchArea {
+                            clicked => { root.project(); }
+                        }
+                    }
+                    Rectangle {
+                        border-width: 1px;
+                        border-color: #5a5a5a;
+                        border-radius: 8px;
+                        height: 34px;
+                        HorizontalBox {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            alignment: LayoutAlignment.center;
+                            Text {
+                                text: "Clear";
+                                color: #ffffff;
+                                font-size: 14px;
+                            }
+                        }
+                        TouchArea {
+                            clicked => { root.clear-output(); }
+                        }
+                    }
+                    Text {
+                        text: root.status;
+                        color: #bdbdbd;
+                        font-size: 13px;
+                        vertical-alignment: TextVerticalAlignment.center;
+                        overflow: elide;
+                    }
+                }
+                ListView {
+                    vertical-stretch: 1;
+                    for row[row-index] in root.rows: HorizontalBox {
+                        height: 148px;
+                        spacing: 8px;
+                        alignment: LayoutAlignment.start;
+                        ThumbCell {
+                            thumb: row.a;
+                            clicked => { root.select-image(row-index * 4); }
+                            open => { root.select-image(row-index * 4); root.project(); }
+                        }
+                        ThumbCell {
+                            thumb: row.b;
+                            clicked => { root.select-image(row-index * 4 + 1); }
+                            open => { root.select-image(row-index * 4 + 1); root.project(); }
+                        }
+                        ThumbCell {
+                            thumb: row.c;
+                            clicked => { root.select-image(row-index * 4 + 2); }
+                            open => { root.select-image(row-index * 4 + 2); root.project(); }
+                        }
+                        ThumbCell {
+                            thumb: row.d;
+                            clicked => { root.select-image(row-index * 4 + 3); }
+                            open => { root.select-image(row-index * 4 + 3); root.project(); }
+                        }
+                    }
+                }
+            }
+        }
+
+        if root.tab != 0: Rectangle {
+            background: #1c1c1c;
+            Text {
+                text: "This screen is not in the native desk yet.\nThe experimental Electron app still has it.\nService order already projects from this window.";
+                color: #d0d0d0;
+                font-size: 16px;
+                horizontal-alignment: TextHorizontalAlignment.center;
+                wrap: word-wrap;
+            }
+        }
+    }
+}
