@@ -405,6 +405,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
       },
       back: () => {
         playerRef.current?.pause()
+        if (live) void clearPresentationLayer('presentation').then(onProjected)
         setPreview(null)
         setPlaying(false)
       },
@@ -445,7 +446,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
         touchProfileSettings()
       }
     })
-  }, [folderName, goLive, importMedia, live, playing, preview, soundOnThisPc, sortDir, sortKey, thumbSize, togglePlay, view])
+  }, [folderName, goLive, importMedia, live, onProjected, playing, preview, soundOnThisPc, sortDir, sortKey, thumbSize, togglePlay, view])
 
   useEffect(() => {
     const el = playerRef.current
@@ -560,6 +561,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     goLive,
     back: () => {
       playerRef.current?.pause()
+      if (live) void clearPresentationLayer('presentation').then(onProjected)
       setPreview(null)
       setPlaying(false)
     }
