@@ -72,10 +72,7 @@ export function nudgeMediaElement(el: HTMLMediaElement, command: DeckMediaComman
       el.playbackRate = 1
     }
   }
-  if (command.action === 'pause') {
-    el.playbackRate = 1
-    el.pause()
-  } else if (command.action === 'play' && el.paused) {
+  if (el.paused) {
     void el.play().catch(() => {})
   }
 }

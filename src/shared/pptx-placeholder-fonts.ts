@@ -5,6 +5,10 @@ type PlaceholderStyle = {
   fill: string
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
+}
+
 const TITLE_TYPES = new Set(['title', 'ctrTitle'])
 const BODY_TYPES = new Set(['body', 'subTitle'])
 
@@ -63,17 +67,17 @@ export async function inheritPlaceholderFonts(bytes: ArrayBuffer | Uint8Array): 
   try {
     zip = await JSZip.loadAsync(bytes)
   } catch {
-    return bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    return bytes instanceof ArrayBuffer ? bytes : toArrayBuffer(bytes)
   }
   const masterFile = zip.file('ppt/slideMasters/slideMaster1.xml')
   if (!masterFile) {
-    return bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    return bytes instanceof ArrayBuffer ? bytes : toArrayBuffer(bytes)
   }
   const master = await masterFile.async('string')
   const title = styleFrom(master, 'title') ?? styleFrom(master, 'ctrTitle')
   const body = styleFrom(master, 'body') ?? styleFrom(master, 'subTitle')
   if (!title && !body) {
-    return bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    return bytes instanceof ArrayBuffer ? bytes : toArrayBuffer(bytes)
   }
   const layouts = Object.keys(zip.files).filter((name) => /ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(name))
   let changed = false
@@ -87,7 +91,7 @@ export async function inheritPlaceholderFonts(bytes: ArrayBuffer | Uint8Array): 
     changed = true
   }
   if (!changed) {
-    return bytes instanceof ArrayBuffer ? bytes : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    return bytes instanceof ArrayBuffer ? bytes : toArrayBuffer(bytes)
   }
   return zip.generateAsync({ type: 'arraybuffer' })
 }
