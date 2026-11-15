@@ -125,7 +125,7 @@ export async function switchUpdateChannel(
   }
   const current = readUpdateChannel()
   if (current.channel === channel) return { ok: true }
-  const label = channel === 'experimental' ? 'experimental' : 'stable'
+  const label = channel === 'experimental' ? 'experimental' : 'release'
   const response = await ask({
     type: 'question',
     title: 'Orion',

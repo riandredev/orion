@@ -2345,6 +2345,10 @@ body.projector-shell--resizing {
   color: var(--adw-fg-muted);
 }
 
+.settings-about__switch {
+  margin-bottom: 16px;
+}
+
 .settings-about__choices {
   display: flex;
   gap: 8px;
