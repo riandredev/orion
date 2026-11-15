@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent, type ReactElement } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type ReactElement } from 'react'
 import { displayFileUrl } from '../lib/file-url'
 import { createPortal } from 'react-dom'
 import { AdwAlertDialog } from './AdwAlertDialog'
@@ -138,6 +138,35 @@ export function SequencePanel({
   const [slidePaths, setSlidePaths] = useState<Record<string, string[]>>({})
   const [brokenThumbs, setBrokenThumbs] = useState<Record<string, true>>({})
   const [hover, setHover] = useState<{ id: string; rect: DOMRect } | null>(null)
+  const [orderThumbs, setOrderThumbs] = useState<Record<string, string>>({})
+  const orderThumbRequests = useRef(new Set<string>())
+
+  const orderImageKey = items
+    .filter((item) => item.kind === 'order-image')
+    .map((item) => item.path)
+    .join('\0')
+
+  useEffect(() => {
+    const paths = orderImageKey ? orderImageKey.split('\0') : []
+    const missing = paths.filter((path) => !orderThumbRequests.current.has(path))
+    if (missing.length === 0) return
+    for (const path of missing) orderThumbRequests.current.add(path)
+    let cancelled = false
+    void Promise.all(
+      missing.map(async (path) => [path, await window.orion.orderThumb(path)] as const)
+    ).then((rows) => {
+      if (cancelled) return
+      setOrderThumbs((prev) => {
+        const next = { ...prev }
+        for (const [path, thumb] of rows) next[path] = thumb
+        return next
+      })
+    })
+    return () => {
+      cancelled = true
+      for (const path of missing) orderThumbRequests.current.delete(path)
+    }
+  }, [orderImageKey])
 
   const presentationKey = items
     .filter((item) => item.kind === 'presentation')
@@ -277,7 +306,7 @@ export function SequencePanel({
               const title = sequenceItemTitle(item)
               const thumbPath =
                 item.kind === 'order-image'
-                  ? item.path
+                  ? orderThumbs[item.path]
                   : item.kind === 'presentation'
                     ? deckMeta[item.deckId]?.coverPath
                     : undefined
@@ -365,7 +394,9 @@ export function SequencePanel({
             const stepIndex = cursor.itemIndex < items.length && items[cursor.itemIndex]?.id === item.id ? cursor.stepIndex : 0
             let imageUrl: string | null = null
             let slideDeck: { deckId: string; ext: string } | null = null
-            if (item.kind === 'order-image') imageUrl = filePathToUrl(item.path)
+            if (item.kind === 'order-image' && orderThumbs[item.path]) {
+              imageUrl = filePathToUrl(orderThumbs[item.path])
+            }
             if (item.kind === 'presentation') {
               const path = [slidePaths[item.deckId]?.[stepIndex], slidePaths[item.deckId]?.[0], deckMeta[item.deckId]?.coverPath].find(
                 (entry) => entry && !brokenThumbs[entry]

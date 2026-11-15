@@ -31,6 +31,8 @@ module.exports = {
     '!images/**',
     '!output-helper',
     '!output-helper/**',
+    '!operator',
+    '!operator/**',
     '!build/content-standard',
     '!build/content-standard/**',
     '!**/*.tsbuildinfo',

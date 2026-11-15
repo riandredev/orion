@@ -26,6 +26,7 @@ const api = {
     ipcRenderer.invoke('orion:list-order-folders'),
   listOrderFolderImages: (folderName: string): Promise<OrderFolderImage[]> =>
     ipcRenderer.invoke('orion:list-order-folder-images', folderName),
+  orderThumb: (filePath: string): Promise<string> => ipcRenderer.invoke('orion:order-thumb', filePath),
   createOrderFolder: (
     name: string
   ): Promise<{ ok: true; name: string } | { ok: false; message: string }> =>

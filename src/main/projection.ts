@@ -730,6 +730,9 @@ async function placeStillCaptureWindow(win: BrowserWindow, width: number, height
 
 function enqueueStillCapture(displayId: number): void {
   if (!outputPreviewOpen) return
+  // Windows photographs the live output when it settles. A second hidden
+  // projection page would draw the same frame again.
+  if (!linuxOffscreenCapture) return
   stillQueueDepth += 1
   stillQueue = stillQueue
     .then(() => {
@@ -890,7 +893,11 @@ async function captureOutputPreview(win: BrowserWindow, displayId: number): Prom
       image = painted && !painted.isEmpty() ? painted : null
     }
     if (!image) image = await win.webContents.capturePage()
-    if (win.isDestroyed() || image.isEmpty()) return
+    if ((!image || image.isEmpty()) && !win.isDestroyed()) {
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      if (!win.isDestroyed()) image = await win.webContents.capturePage()
+    }
+    if (win.isDestroyed() || !image || image.isEmpty()) return
     if (previewEpoch.get(displayId) !== epoch) return
     const size = image.getSize()
     const framed = size.width > 960 ? image.resize({ width: 960 }) : image

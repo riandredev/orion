@@ -288,7 +288,8 @@ function withThumbSlot<T>(job: () => Promise<T>): Promise<T> {
 
 async function orderThumb(filePath: string): Promise<string> {
   const target = filePath.trim()
-  if (!target || !isPathUnderRoot(target, orderImagesRoot())) return target
+  const ext = extname(target).toLowerCase()
+  if (!target || !IMAGE_EXT.has(ext) || !existsSync(target)) return target
   const thumb = await withThumbSlot(async () => {
     let info
     try {
@@ -586,6 +587,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('orion:list-order-folder-images', (_event, folderName: string) =>
     listImagesInOrderFolder(folderName)
   )
+  ipcMain.handle('orion:order-thumb', (_event, filePath: string) => orderThumb(String(filePath ?? '')))
   ipcMain.handle('orion:create-order-folder', (_event, name: string) => createOrderFolder(String(name ?? '')))
   ipcMain.handle('orion:import-order-images', (_event, folderName: string) =>
     importImagesIntoOrderFolder(String(folderName ?? ''))

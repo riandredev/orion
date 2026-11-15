@@ -32,6 +32,7 @@ export type BibleChapterDto = import('../../shared/bible-types').BibleChapterDto
 export type OrionApi = {
   listOrderFolders: () => Promise<OrderFolderInfo[]>
   listOrderFolderImages: (folderName: string) => Promise<OrderFolderImage[]>
+  orderThumb: (filePath: string) => Promise<string>
   createOrderFolder: (name: string) => Promise<{ ok: true; name: string } | { ok: false; message: string }>
   importOrderImages: (
     folderName: string
