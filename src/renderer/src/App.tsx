@@ -422,6 +422,7 @@ function TabWorkspace({
   thumbSize,
   showImageNames,
   onNewFolder,
+  onImportImages,
   onProjectToOutputs,
   onHymnsProjectStanza,
   onHymnsGoLive,
@@ -461,6 +462,7 @@ function TabWorkspace({
   thumbSize: OrderThumbSize
   showImageNames: boolean
   onNewFolder: () => void
+  onImportImages: (folderName: string) => Promise<void>
   onProjectToOutputs: () => void
   onHymnsProjectStanza: () => void
   onHymnsGoLive: () => void
@@ -548,10 +550,7 @@ function TabWorkspace({
           thumbSize={thumbSize}
           showImageNames={showImageNames}
           onNewFolder={onNewFolder}
-          onImportImages={async (folderName) => {
-            const result = await window.orion.importOrderImages(folderName)
-            if (result.ok && result.added > 0) await reloadOrderLibrary(folderName)
-          }}
+          onImportImages={onImportImages}
         />
       )}
       {keep('bible', <BibleWorkspace onProjectToOutputs={onProjectToOutputs} />)}
@@ -2699,6 +2698,10 @@ export default function App(): ReactElement {
               thumbSize={orderThumbSize}
               showImageNames={orderShowNames}
               onNewFolder={() => setNewFolderSignal((n) => n + 1)}
+              onImportImages={async (folderName) => {
+                const result = await window.orion.importOrderImages(folderName)
+                if (result.ok && result.added > 0) await reloadOrderLibrary(folderName)
+              }}
               onProjectToOutputs={() => {
                 void goBibleLive()
               }}
