@@ -1,8 +1,30 @@
-import type { ReactElement } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 import logoUrl from '../../../../images/orion-logo.png'
 import packageJson from '../../../../package.json'
 
+type ReleaseLine = 'stable' | 'experimental'
+
 export function AboutSettingsPanel(): ReactElement {
+  const [channel, setChannel] = useState<ReleaseLine>('stable')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    void window.orion.getUpdateChannel?.().then((value) => {
+      if (value === 'stable' || value === 'experimental') setChannel(value)
+    })
+  }, [])
+
+  async function choose(next: ReleaseLine): Promise<void> {
+    if (busy || next === channel) return
+    setBusy(true)
+    setMessage('')
+    const result = await window.orion.switchUpdateChannel(next)
+    setBusy(false)
+    if (result.ok) return
+    if (result.message) setMessage(result.message)
+  }
+
   return (
     <div className="settings-panel settings-about">
       <div className="settings-about__hero">
@@ -18,6 +40,37 @@ export function AboutSettingsPanel(): ReactElement {
         <div className="settings-about__row">
           <span className="settings-about__label">Version</span>
           <span className="settings-about__value">{packageJson.version}</span>
+        </div>
+        <div className="settings-about__row">
+          <span className="settings-about__label">Release</span>
+          <div className="settings-about__choices">
+            <button
+              type="button"
+              className={channel === 'stable' ? 'adw-button adw-button--suggested' : 'adw-button adw-button--flat'}
+              aria-pressed={channel === 'stable'}
+              disabled={busy}
+              onClick={() => void choose('stable')}
+            >
+              Stable
+            </button>
+            <button
+              type="button"
+              className={
+                channel === 'experimental' ? 'adw-button adw-button--suggested' : 'adw-button adw-button--flat'
+              }
+              aria-pressed={channel === 'experimental'}
+              disabled={busy}
+              onClick={() => void choose('experimental')}
+            >
+              Experimental
+            </button>
+          </div>
+          <p className="adw-caption settings-about__note">
+            {busy
+              ? 'Downloading the release. Orion will restart when it is ready.'
+              : 'Experimental is the lighter build. Switching downloads that release and restarts Orion.'}
+          </p>
+          {message ? <p className="adw-caption settings-about__note">{message}</p> : null}
         </div>
         <div className="settings-about__row">
           <span className="settings-about__label">License</span>

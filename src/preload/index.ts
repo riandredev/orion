@@ -358,6 +358,14 @@ const api = {
   setGuestAudioMuted: (webContentsId: number, muted: boolean): void => {
     ipcRenderer.send('orion:set-guest-audio-muted', { webContentsId, muted })
   },
+  flushStorage: (): void => {
+    ipcRenderer.sendSync('orion:flush-storage')
+  },
+  getUpdateChannel: (): Promise<'stable' | 'experimental'> => ipcRenderer.invoke('orion:get-update-channel'),
+  switchUpdateChannel: (
+    channel: 'stable' | 'experimental'
+  ): Promise<{ ok: true } | { ok: false; message: string }> =>
+    ipcRenderer.invoke('orion:switch-update-channel', channel),
   onPresentationStepFromPresenter: (callback: (delta: number) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, delta: number): void => {
       callback(delta)

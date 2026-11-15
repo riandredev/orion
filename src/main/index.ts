@@ -9,7 +9,7 @@ import { WEB_BROWSER_USER_AGENT } from '../shared/web-browser'
 import type { OrionProjectionCommand, OrionStackState } from '../shared/projection-stack'
 import { displayInfoFromElectron, sortDisplays } from './displays'
 import { appIcon, applyLinuxWindowIdentity, installLinuxDesktopEntry, linuxWindowClass } from './app-icon'
-import { scheduleAppUpdateCheck } from './app-updates'
+import { readUpdateChannel, scheduleAppUpdateCheck, switchUpdateChannel } from './app-updates'
 import { seedPackagedLibraries } from './content-seed'
 import { readEdition } from './edition'
 import {
@@ -678,6 +678,17 @@ app.whenReady().then(async () => {
     async (_event, deckId: string | null, slideIndex: number, buildStep?: number) => {
       await syncPresenterSlideFromMain(deckId, slideIndex, buildStep ?? 0)
     }
+  )
+  ipcMain.on('orion:flush-storage', (event) => {
+    try {
+      event.sender.session.flushStorageData()
+    } catch {
+      /* the window is already closing */
+    }
+  })
+  ipcMain.handle('orion:get-update-channel', () => readUpdateChannel().channel)
+  ipcMain.handle('orion:switch-update-channel', (_event, channel: unknown) =>
+    switchUpdateChannel(channel === 'experimental' ? 'experimental' : 'stable')
   )
   registerDisplayListeners()
   applyLinuxWindowIdentity()

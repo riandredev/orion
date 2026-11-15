@@ -13,7 +13,11 @@ export type ReleaseAsset = {
   url?: string
   size: number
   digest?: string | null
+  id?: number
+  updated_at?: string
 }
+
+export type UpdateChannel = 'stable' | 'experimental'
 
 export type ReleaseInfo = {
   tag_name: string
@@ -67,13 +71,15 @@ export function installerRequestUrls(asset: ReleaseAsset): string[] {
 export function selectUpdate(
   releases: ReleaseInfo[],
   platform: NodeJS.Platform,
-  currentVersion: string
+  currentVersion: string,
+  options?: { latest?: boolean }
 ): SelectedUpdate | null {
   let best: SelectedUpdate | null = null
   for (const release of releases) {
     if (release.draft || release.prerelease) continue
     const version = versionFromTag(release.tag_name)
-    if (!version || compareVersions(version, currentVersion) <= 0) continue
+    if (!version) continue
+    if (!options?.latest && compareVersions(version, currentVersion) <= 0) continue
     const name = installerAssetName(version, platform)
     const asset = name ? release.assets?.find((item) => item.name === name) : undefined
     if (!asset?.browser_download_url) continue
@@ -86,6 +92,37 @@ export function selectUpdate(
     }
   }
   return best
+}
+
+const EXPERIMENTAL_TAG = 'experimental'
+
+/** The rolling experimental installer. `force` is used when the user switches to that line. */
+export function selectExperimentalUpdate(
+  releases: ReleaseInfo[],
+  platform: NodeJS.Platform,
+  currentVersion: string,
+  installed: { assetId?: number; assetUpdatedAt?: string } | null,
+  force: boolean
+): SelectedUpdate | null {
+  if (platform !== 'win32') return null
+  const release = releases.find((item) => !item.draft && item.tag_name === EXPERIMENTAL_TAG)
+  const asset = release?.assets?.find(
+    (item) => /experimental-windows-setup\.exe$/i.test(item.name) && item.browser_download_url
+  )
+  if (!release || !asset) return null
+  const sameBuild =
+    installed?.assetUpdatedAt != null && asset.updated_at != null
+      ? installed.assetUpdatedAt === asset.updated_at
+      : installed?.assetId != null && asset.id != null && installed.assetId === asset.id
+  const version = /^Orion-(.+)-windows-setup\.exe$/i.exec(asset.name)?.[1] ?? 'experimental'
+  if (!force && (sameBuild || ((!installed?.assetId && !installed?.assetUpdatedAt) && version === currentVersion))) {
+    return null
+  }
+  return {
+    version,
+    notes: summarizeNotes(release.body),
+    asset
+  }
 }
 
 export function summarizeNotes(body: string | null | undefined): string {
