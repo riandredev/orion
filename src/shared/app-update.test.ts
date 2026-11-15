@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { installerRequestUrls, selectUpdate, type ReleaseInfo } from './app-update'
+import {
+  installerRequestUrls,
+  selectExperimentalUpdate,
+  selectUpdate,
+  type ReleaseInfo
+} from './app-update'
 
 const releases: ReleaseInfo[] = [
   {
@@ -76,6 +81,78 @@ describe('selectUpdate', () => {
       'https://github.com/riandredev/orion/releases/download/v1.0.5-panorama/Orion-Panorama-1.0.5-windows-setup.exe',
       'https://api.github.com/repos/riandredev/orion/releases/assets/1'
     ])
+  })
+
+  it('can install the newest stable release even when the current build is newer', () => {
+    const selected = selectUpdate(
+      [
+        {
+          tag_name: 'v1.0.16',
+          assets: [
+            {
+              name: 'Orion-1.0.16-windows-setup.exe',
+              browser_download_url: 'https://example.test/stable.exe',
+              size: 12
+            }
+          ]
+        }
+      ],
+      'win32',
+      '1.1.0-experimental',
+      { latest: true }
+    )
+    expect(selected?.version).toBe('1.0.16')
+    expect(selectUpdate(
+      [
+        {
+          tag_name: 'v1.0.16',
+          assets: [
+            {
+              name: 'Orion-1.0.16-windows-setup.exe',
+              browser_download_url: 'https://example.test/stable.exe',
+              size: 12
+            }
+          ]
+        }
+      ],
+      'win32',
+      '1.1.0'
+    )).toBeNull()
+  })
+
+  it('selects the experimental Windows installer and skips the build already installed', () => {
+    const releases: ReleaseInfo[] = [
+      {
+        tag_name: 'experimental',
+        prerelease: true,
+        assets: [
+          {
+            id: 9,
+            updated_at: '2026-11-15T07:00:00Z',
+            name: 'Orion-1.1.0-experimental-windows-setup.exe',
+            browser_download_url: 'https://example.test/experimental.exe',
+            size: 40
+          }
+        ]
+      }
+    ]
+    expect(selectExperimentalUpdate(releases, 'win32', '1.0.16', null, true)?.asset.name).toBe(
+      'Orion-1.1.0-experimental-windows-setup.exe'
+    )
+    expect(selectExperimentalUpdate(releases, 'win32', '1.1.0-experimental', null, false)).toBeNull()
+    expect(
+      selectExperimentalUpdate(releases, 'win32', '1.1.0-experimental', { assetId: 9 }, false)
+    ).toBeNull()
+    expect(
+      selectExperimentalUpdate(
+        releases,
+        'win32',
+        '1.1.0-experimental',
+        { assetId: 4, assetUpdatedAt: '2026-11-14T00:00:00Z' },
+        false
+      )?.asset.id
+    ).toBe(9)
+    expect(selectExperimentalUpdate(releases, 'linux', '1.0.16', null, true)).toBeNull()
   })
 
   it('picks the installer for the current platform', () => {

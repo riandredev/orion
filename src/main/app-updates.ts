@@ -1,12 +1,20 @@
 import { app, dialog, type BrowserWindow, type MessageBoxOptions } from 'electron'
 import { spawn } from 'child_process'
 import { createHash } from 'crypto'
-import { createWriteStream } from 'fs'
+import { createWriteStream, readFileSync, writeFileSync } from 'fs'
 import { chmod, copyFile, mkdir, rename, rm, stat } from 'fs/promises'
 import { join } from 'path'
 import { Readable, Transform } from 'stream'
 import { pipeline } from 'stream/promises'
-import { installerRequestUrls, selectUpdate, type ReleaseAsset, type ReleaseInfo, type SelectedUpdate } from '../shared/app-update'
+import {
+  installerRequestUrls,
+  selectExperimentalUpdate,
+  selectUpdate,
+  type ReleaseAsset,
+  type ReleaseInfo,
+  type SelectedUpdate,
+  type UpdateChannel
+} from '../shared/app-update'
 import { getMainAppWindow } from './projection'
 
 const RELEASES_URL = 'https://api.github.com/repos/riandredev/orion/releases?per_page=20'
@@ -54,16 +62,103 @@ async function fetchReleases(): Promise<ReleaseInfo[]> {
   return Array.isArray(body) ? body : []
 }
 
+type ChannelState = {
+  channel: UpdateChannel
+  assetId?: number
+  assetUpdatedAt?: string
+}
+
+function channelPath(): string {
+  return join(app.getPath('userData'), 'update-channel.json')
+}
+
+export function readUpdateChannel(): ChannelState {
+  try {
+    const raw = JSON.parse(readFileSync(channelPath(), 'utf8')) as ChannelState
+    if (raw.channel === 'stable' || raw.channel === 'experimental') return raw
+  } catch {
+    /* The file is missing until the user picks a line. */
+  }
+  return { channel: app.getVersion().includes('experimental') ? 'experimental' : 'stable' }
+}
+
+function writeUpdateChannel(state: ChannelState): void {
+  writeFileSync(channelPath(), JSON.stringify(state))
+}
+
+function updateForChannel(releases: ReleaseInfo[], channel: UpdateChannel, force: boolean): SelectedUpdate | null {
+  const saved = readUpdateChannel()
+  if (channel === 'experimental') {
+    return selectExperimentalUpdate(
+      releases,
+      process.platform,
+      app.getVersion(),
+      { assetId: saved.assetId, assetUpdatedAt: saved.assetUpdatedAt },
+      force
+    )
+  }
+  return selectUpdate(releases, process.platform, app.getVersion(), { latest: force })
+}
+
 export async function checkForAppUpdate(): Promise<void> {
   if (!app.isPackaged || dismissed || pending) return
   try {
-    const selected = selectUpdate(await fetchReleases(), process.platform, app.getVersion())
+    const channel = readUpdateChannel().channel
+    const selected = updateForChannel(await fetchReleases(), channel, false)
     if (!selected) return
     pending = selected
     downloadedPath = null
     void promptAvailable(selected)
   } catch {
     /* Offline or rate-limited. The next launch checks again. */
+  }
+}
+
+export async function switchUpdateChannel(
+  channel: UpdateChannel
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (channel !== 'stable' && channel !== 'experimental') {
+    return { ok: false, message: 'Unknown release line.' }
+  }
+  if (!app.isPackaged) {
+    return { ok: false, message: 'Release switching is available in the installed app.' }
+  }
+  const current = readUpdateChannel()
+  if (current.channel === channel) return { ok: true }
+  const label = channel === 'experimental' ? 'experimental' : 'stable'
+  const response = await ask({
+    type: 'question',
+    title: 'Orion',
+    message: `Switch to the ${label} release?`,
+    detail: 'Orion downloads that release and restarts.',
+    buttons: ['Download and restart', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true
+  })
+  if (response !== 0) return { ok: false, message: '' }
+  try {
+    const selected = updateForChannel(await fetchReleases(), channel, true)
+    if (!selected) {
+      return {
+        ok: false,
+        message:
+          channel === 'experimental'
+            ? 'The experimental Windows installer is not published yet.'
+            : 'No stable installer is published.'
+      }
+    }
+    writeUpdateChannel({ channel })
+    abort?.abort()
+    abort = null
+    pending = selected
+    downloadedPath = null
+    dismissed = false
+    const installed = await downloadUpdate(true)
+    if (!installed) return { ok: false, message: 'The release could not be downloaded.' }
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : 'The release could not be downloaded.' }
   }
 }
 
@@ -194,8 +289,8 @@ async function downloadInstaller(asset: ReleaseAsset, dest: string, parent: Abor
   throw lastError ?? new Error('The download did not start.')
 }
 
-async function downloadUpdate(): Promise<void> {
-  if (!pending || abort) return
+async function downloadUpdate(installNow = false): Promise<boolean> {
+  if (!pending || abort) return false
   const update = pending
   const controller = new AbortController()
   abort = controller
@@ -209,11 +304,16 @@ async function downloadUpdate(): Promise<void> {
     await downloadInstaller(update.asset, dest, controller.signal)
     downloadedPath = dest
     setDownloadProgress(null)
+    if (installNow) {
+      await installUpdate()
+      return true
+    }
     await promptReady(update.version)
+    return true
   } catch (error) {
     await rm(dest, { force: true })
     setDownloadProgress(null)
-    if (controller.signal.aborted) return
+    if (controller.signal.aborted) return false
     const message = error instanceof Error ? error.message : 'The update could not be downloaded.'
     const response = await ask({
       type: 'error',
@@ -229,7 +329,8 @@ async function downloadUpdate(): Promise<void> {
   } finally {
     abort = null
   }
-  if (retry) await downloadUpdate()
+  if (retry) return downloadUpdate(installNow)
+  return false
 }
 
 async function promptAvailable(update: SelectedUpdate): Promise<void> {
@@ -281,6 +382,12 @@ async function promptReady(version: string): Promise<void> {
 
 async function installUpdate(): Promise<void> {
   if (!downloadedPath || !pending) return
+  const saved = readUpdateChannel()
+  writeUpdateChannel({
+    channel: saved.channel,
+    assetId: pending.asset.id,
+    assetUpdatedAt: pending.asset.updated_at
+  })
   const file = downloadedPath
   if (process.platform === 'win32') {
     const child = spawn(file, ['/S', '--force-run'], { detached: true, stdio: 'ignore' })

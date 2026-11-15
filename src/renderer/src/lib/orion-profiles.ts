@@ -72,7 +72,7 @@ export function applySettingsSnapshot(
       const val = snapshot[key]
       if (val == null) {
         if (mode === 'replace') localStorage.removeItem(key)
-      } else {
+      } else if (mode === 'replace' || localStorage.getItem(key) == null) {
         localStorage.setItem(key, val)
       }
     } catch {
@@ -255,8 +255,16 @@ export function applyActiveProfileOnLaunch(): void {
     return
   }
   cachedRegistry = stored
-  applySettingsSnapshot(getActiveProfile().settings, 'fill')
-  persistActiveProfileSnapshot()
+  const live = collectCurrentSettingsSnapshot()
+  const saved = getActiveProfile().settings
+  if (Object.keys(live).length === 0 && Object.keys(saved).length > 0) {
+    applySettingsSnapshot(saved, 'replace')
+  } else {
+    // The live keys are the settings the user just changed. Copying an older
+    // profile snapshot back over them is what dropped those changes on relaunch.
+    persistActiveProfileSnapshot()
+  }
+  applyWindowPreference()
 }
 
 registerProfileAutosave(() => {

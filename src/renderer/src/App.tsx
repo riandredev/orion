@@ -767,6 +767,7 @@ export default function App(): ReactElement {
   useEffect(() => {
     const onUnload = (): void => {
       persistActiveProfileSnapshot()
+      window.orion.flushStorage?.()
     }
     window.addEventListener('beforeunload', onUnload)
     return () => window.removeEventListener('beforeunload', onUnload)

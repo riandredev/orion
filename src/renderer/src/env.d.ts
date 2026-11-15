@@ -208,6 +208,11 @@ export type OrionApi = {
     epoch: number
   }) => void
   setGuestAudioMuted: (webContentsId: number, muted: boolean) => void
+  flushStorage: () => void
+  getUpdateChannel: () => Promise<'stable' | 'experimental'>
+  switchUpdateChannel: (
+    channel: 'stable' | 'experimental'
+  ) => Promise<{ ok: true } | { ok: false; message: string }>
   onPresenterSlideFromWindow: (
     callback: (payload: { deckId: string | null; slideIndex: number }) => void
   ) => () => void
