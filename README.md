@@ -19,7 +19,7 @@
 **Orion** is a cross-platform desktop application for running church services. It projects hymns, scripture, service order slides, and presentations to external displays—all controlled from one operator window.
 
 <p align="center">
-  <img src="images/hymn-image.jpg" alt="Hymn projection screenshot" width="600" />
+  <img src="images/orion-app.png" alt="Orion main window: service order sequence, image library, and two live projector outputs" width="800" />
 </p>
 
 ## Key Features
