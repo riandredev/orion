@@ -1,5 +1,6 @@
 import { app, dialog } from 'electron'
-import { cp, mkdir, readdir, readFile, writeFile } from 'fs/promises'
+import type { Dirent } from 'fs'
+import { chmod, cp, mkdir, readdir, readFile, writeFile } from 'fs/promises'
 import { basename, extname, join } from 'path'
 import { parseHymnalTextDocument } from '../shared/hymnal-stanza-format'
 import { enrichHymnSummaries, hymnSummaryFromEntry } from '../shared/hymnal-summary'
@@ -47,6 +48,37 @@ export function normalizeBundledHymnalMeta(meta: HymnalMeta): HymnalMeta {
 
 function userHymnalsRoot(): string {
   return join(app.getPath('userData'), 'hymnals')
+}
+
+/**
+ * Packaged content under resources/ is often mode 444 on Linux. fs.cp preserves
+ * those bits, so the userData copy must be made writable before hymn edits save.
+ */
+async function ensureWritableTree(dir: string): Promise<void> {
+  await chmod(dir, 0o755).catch(() => undefined)
+  let entries: Dirent[]
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) await ensureWritableTree(path)
+    else await chmod(path, 0o644).catch(() => undefined)
+  }
+}
+
+function hymnWriteError(err: unknown): Error {
+  if (err && typeof err === 'object' && 'code' in err) {
+    const code = String((err as { code?: string }).code)
+    if (code === 'EACCES' || code === 'EPERM') {
+      return new Error(
+        'Could not save the hymn because the hymnal files are read-only. Try again; Orion copies the book into your user folder first.'
+      )
+    }
+  }
+  return err instanceof Error ? err : new Error('Could not save hymn')
 }
 
 function slugId(label: string): string {
@@ -134,14 +166,19 @@ async function materializeHymnalForEditing(hymnalId: string): Promise<CachedHymn
   if (!builtin) return loaded
   const dest = join(userHymnalsRoot(), hymnalId)
   await mkdir(userHymnalsRoot(), { recursive: true })
-  await cp(builtin.dir, dest, { recursive: true })
-  const materialized = await loadHymnalFromDir(hymnalId, dest, 'user')
-  if (!materialized) throw new Error('Could not prepare hymnal for editing')
-  const meta: HymnalMeta = { ...materialized.meta, source: 'user' }
-  await writeFile(join(dest, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8')
-  materialized.meta = meta
-  cache.set(hymnalId, materialized)
-  return materialized
+  try {
+    await cp(builtin.dir, dest, { recursive: true, force: true })
+    await ensureWritableTree(dest)
+    const materialized = await loadHymnalFromDir(hymnalId, dest, 'user')
+    if (!materialized) throw new Error('Could not prepare hymnal for editing')
+    const meta: HymnalMeta = { ...materialized.meta, source: 'user' }
+    await writeFile(join(dest, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8')
+    materialized.meta = meta
+    cache.set(hymnalId, materialized)
+    return materialized
+  } catch (err) {
+    throw hymnWriteError(err)
+  }
 }
 
 export async function listInstalledHymnals(): Promise<HymnalMeta[]> {
@@ -319,13 +356,18 @@ export async function importHymnalFolderFromDialog(): Promise<HymnalMeta | null>
   const id = `${slugId(folderName)}-${Date.now().toString(36)}`
   const dest = join(userHymnalsRoot(), id)
   await mkdir(userHymnalsRoot(), { recursive: true })
-  await cp(src, dest, { recursive: true })
-  const loaded = await loadHymnalFromDir(id, dest, 'user')
-  if (!loaded) throw new Error('Folder must contain meta.json, index.json, and hymns.json')
-  const meta = { ...loaded.meta, id, source: 'user' as const }
-  await writeFile(join(dest, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8')
-  cache.set(id, { ...loaded, meta })
-  return meta
+  try {
+    await cp(src, dest, { recursive: true, force: true })
+    await ensureWritableTree(dest)
+    const loaded = await loadHymnalFromDir(id, dest, 'user')
+    if (!loaded) throw new Error('Folder must contain meta.json, index.json, and hymns.json')
+    const meta = { ...loaded.meta, id, source: 'user' as const }
+    await writeFile(join(dest, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8')
+    cache.set(id, { ...loaded, meta })
+    return meta
+  } catch (err) {
+    throw hymnWriteError(err)
+  }
 }
 
 export function invalidateHymnalCache(hymnalId?: string): void {
@@ -341,9 +383,15 @@ async function persistCachedHymnal(loaded: CachedHymnal): Promise<void> {
   const dir = join(userHymnalsRoot(), loaded.meta.id)
   const summaries: HymnSummary[] = hymns.map((h) => hymnSummaryFromEntry(h))
   const meta: HymnalMeta = { ...loaded.meta, hymnCount: hymns.length }
-  await writeFile(join(dir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8')
-  await writeFile(join(dir, 'index.json'), JSON.stringify({ summaries } satisfies HymnalIndexFile), 'utf8')
-  await writeFile(join(dir, 'hymns.json'), JSON.stringify({ hymns } satisfies HymnalHymnsFile), 'utf8')
+  try {
+    await mkdir(dir, { recursive: true })
+    await ensureWritableTree(dir)
+    await writeFile(join(dir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8')
+    await writeFile(join(dir, 'index.json'), JSON.stringify({ summaries } satisfies HymnalIndexFile), 'utf8')
+    await writeFile(join(dir, 'hymns.json'), JSON.stringify({ hymns } satisfies HymnalHymnsFile), 'utf8')
+  } catch (err) {
+    throw hymnWriteError(err)
+  }
   loaded.meta = meta
   loaded.summaries = summaries
 }
