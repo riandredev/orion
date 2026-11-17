@@ -19,6 +19,10 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Stage bundled hymnals
+        run: |
+          mkdir -p build/content-standard/hymnals
+          cp -a hymnals/adventist-1-afrikaans hymnals/adventist-2-english-new build/content-standard/hymnals/
       - name: Build the universal disk image
         run: npm run dist:mac
         env:
