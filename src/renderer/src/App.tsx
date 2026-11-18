@@ -425,6 +425,7 @@ function TabWorkspace({
   onProjectToOutputs,
   onHymnsProjectStanza,
   onHymnsGoLive,
+  hymnsLive,
   mediaDisplays,
   mediaLivePath,
   onMediaProjected,
@@ -464,6 +465,7 @@ function TabWorkspace({
   onProjectToOutputs: () => void
   onHymnsProjectStanza: () => void
   onHymnsGoLive: () => void
+  hymnsLive: boolean
   mediaDisplays: OrionDisplayInfo[]
   mediaLivePath: string | null
   onMediaProjected: (ui: PresentationUiState) => void
@@ -558,7 +560,11 @@ function TabWorkspace({
       {keep('dictionary', <DictionaryWorkspace />)}
       {keep(
         'hymns',
-        <HymnsWorkspace onProjectStanza={onHymnsProjectStanza} onGoLive={onHymnsGoLive} />
+        <HymnsWorkspace
+          onProjectStanza={onHymnsProjectStanza}
+          onGoLive={onHymnsGoLive}
+          hymnsLive={hymnsLive}
+        />
       )}
       {keep('presentation', presentationNode)}
       {keep(
@@ -2704,6 +2710,7 @@ export default function App(): ReactElement {
               }}
               onHymnsProjectStanza={onHymnsProjectStanza}
               onHymnsGoLive={onHymnsGoLive}
+              hymnsLive={hymnsLive}
               mediaDisplays={connectedDisplays}
               mediaLivePath={mediaOutputPath}
               onMediaProjected={applyProgram}

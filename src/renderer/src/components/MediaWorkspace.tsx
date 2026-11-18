@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactElement } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactElement
+} from 'react'
 import type { OrionDisplayInfo } from '../../../shared/displays'
 import type { PresentationUiState } from '../../../shared/presentation-ui-state'
 import { projectionDisplayIds } from '../lib/display-projection'
@@ -15,6 +23,7 @@ import { clearPresentationLayer, presentMediaFile } from '../lib/projection'
 import { writeSequenceDrag } from '../lib/sequence-drag'
 import { AppIcon } from './AppIcon'
 import { AdwAlertDialog } from './AdwAlertDialog'
+import { AdwContextMenu, AdwContextMenuItem } from './AdwContextMenu'
 import type { OrderLibraryView, OrderThumbSize } from './OrderBlockRibbon'
 
 type MediaFolder = { name: string; itemCount: number }
@@ -25,6 +34,10 @@ type MediaItem = {
   size: number
   modifiedMs: number
 }
+
+type MediaContextMenu =
+  | { kind: 'item'; x: number; y: number; item: MediaItem; folder: string }
+  | { kind: 'empty'; x: number; y: number; folder: string }
 
 const VIEW_KEY = 'orion-media-view-2'
 const THUMB_KEY = 'orion-media-thumb-size'
@@ -197,6 +210,8 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
   const [folderError, setFolderError] = useState<string | null>(null)
   const [folderBusy, setFolderBusy] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<MediaItem | null>(null)
+  const [menu, setMenu] = useState<MediaContextMenu | null>(null)
   const [error, setError] = useState<string | null>(null)
   const playerRef = useRef<HTMLMediaElement | null>(null)
   const libraryEpoch = useRef(0)
@@ -394,7 +409,9 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
       sortDir,
       importMedia,
       removeMedia: () => {
-        if (preview) setConfirmRemove(true)
+        if (!preview) return
+        setPendingDelete(preview)
+        setConfirmRemove(true)
       },
       togglePlay,
       goLive,
@@ -452,7 +469,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     const el = playerRef.current
     if (!el) return
     el.muted = !soundOnThisPc
-    el.volume = soundOnThisPc ? (live ? OUTPUT_MEDIA_VOLUME : 1) : 0
+    el.volume = soundOnThisPc ? OUTPUT_MEDIA_VOLUME : 0
   }, [live, preview?.path, soundOnThisPc])
 
   useEffect(() => {
@@ -672,6 +689,44 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
     })
   }
 
+  const openItemMenu = (event: ReactMouseEvent, item: MediaItem, folder: string): void => {
+    event.preventDefault()
+    event.stopPropagation()
+    setMenu({ kind: 'item', x: event.clientX, y: event.clientY, item, folder })
+  }
+
+  const openEmptyMenu = (event: ReactMouseEvent, folder: string): void => {
+    if (!folder) return
+    event.preventDefault()
+    setMenu({ kind: 'empty', x: event.clientX, y: event.clientY, folder })
+  }
+
+  const askDeleteMedia = (): void => {
+    if (!menu || menu.kind !== 'item') return
+    setPendingDelete(menu.item)
+    setConfirmRemove(true)
+    setMenu(null)
+  }
+
+  const deletePendingMedia = (): void => {
+    if (!pendingDelete) return
+    const item = pendingDelete
+    setConfirmRemove(false)
+    setPendingDelete(null)
+    void window.orion.removeMedia(item.path).then((ok) => {
+      if (!ok) {
+        setError('Could not delete that file.')
+        return
+      }
+      if (livePath === item.path) void clearPresentationLayer('presentation').then(onProjected)
+      if (preview?.path === item.path) {
+        setPreview(null)
+        setPlaying(false)
+      }
+      return refreshFolders(folderName ?? undefined)
+    })
+  }
+
   const fileButton = (item: MediaItem, className: string, folder: string): ReactElement => (
     <button
       type="button"
@@ -680,6 +735,7 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
       draggable
       onDragStart={(event) => dragMedia(event, item, folder)}
       onClick={() => openFile(item)}
+      onContextMenu={(event) => openItemMenu(event, item, folder)}
     >
       <MediaTile item={item} onDuration={rememberDuration} />
       <span className="kanban-image__label">{item.name}</span>
@@ -753,7 +809,10 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
                   </button>
                 </div>
                 {files.length === 0 ? (
-                  <div className="kanban-column__empty-state">
+                  <div
+                    className="kanban-column__empty-state"
+                    onContextMenu={(event) => openEmptyMenu(event, folder.name)}
+                  >
                     <AppIcon name="video" size={24} />
                     <p className="adw-caption">No media in this folder</p>
                     <button
@@ -765,7 +824,10 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
                     </button>
                   </div>
                 ) : (
-                  <ul className={`kanban-column__grid kanban-column__grid--${thumbSize}`}>
+                  <ul
+                    className={`kanban-column__grid kanban-column__grid--${thumbSize}`}
+                    onContextMenu={(event) => openEmptyMenu(event, folder.name)}
+                  >
                     {files.map((item) => (
                       <li key={item.path}>{fileButton(item, 'kanban-image', folder.name)}</li>
                     ))}
@@ -816,7 +878,12 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
               </ul>
             )}
           </div>
-          <div className="order-browser__images">
+          <div
+            className="order-browser__images"
+            onContextMenu={(event) => {
+              if (folderName) openEmptyMenu(event, folderName)
+            }}
+          >
             {!folderName ? (
               <p className="adw-caption order-browser__status">Select a folder</p>
             ) : items.length === 0 ? (
@@ -873,6 +940,9 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
                           if (folderName) dragMedia(event, item, folderName)
                         }}
                         onClick={() => openFile(item)}
+                        onContextMenu={(event) => {
+                          if (folderName) openItemMenu(event, item, folderName)
+                        }}
                       >
                         <MediaTile item={item} onDuration={rememberDuration} />
                         <span className="media-list__name">{item.name}</span>
@@ -926,26 +996,37 @@ export function MediaWorkspace({ displays, livePath, onProjected }: MediaWorkspa
       />
       <AdwAlertDialog
         open={confirmRemove}
-        title="Remove media"
-        confirmLabel="Remove"
+        title="Delete media?"
+        confirmLabel="Delete"
         destructive
-        onCancel={() => setConfirmRemove(false)}
-        onConfirm={() => {
-          if (!preview) return
-          const path = preview.path
+        onCancel={() => {
           setConfirmRemove(false)
-          void window.orion.removeMedia(path).then((ok) => {
-            if (!ok) {
-              setError('Could not remove that file.')
-              return
-            }
-            if (livePath === path) void clearPresentationLayer('presentation').then(onProjected)
-            setPreview(null)
-            return refreshFolders(folderName ?? undefined)
-          })
+          setPendingDelete(null)
         }}
-        body={<p>Remove “{preview?.name}” from this folder.</p>}
+        onConfirm={() => deletePendingMedia()}
+        body={
+          <p>
+            Delete “{pendingDelete?.name ?? preview?.name}” from this folder. The file is removed from
+            disk.
+          </p>
+        }
       />
+      {menu ? (
+        <AdwContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)}>
+          {menu.kind === 'item' ? (
+            <AdwContextMenuItem label="Delete" destructive onSelect={askDeleteMedia} />
+          ) : (
+            <AdwContextMenuItem
+              label="Add media"
+              onSelect={() => {
+                const folder = menu.folder
+                setMenu(null)
+                importMediaInto(folder)
+              }}
+            />
+          )}
+        </AdwContextMenu>
+      ) : null}
     </div>
   )
 }

@@ -24,7 +24,9 @@ import {
 import { listHymnVerseNumbers, normalizeHymnEntry } from '../../../shared/hymnal-line-split'
 import { formatHymnListMeta, countHymnStanzas } from '../../../shared/hymnal-summary'
 import { lyricSlidePart, stanzaDisplayTagWithPart } from '../../../shared/hymnal-stanza-format'
+import { pickHymnMusicPath } from '../../../shared/hymn-music'
 import type { HymnEntry, HymnSummary, HymnalStanzaTagStyle } from '../../../shared/hymnal-types'
+import { displayFileUrl } from '../lib/file-url'
 import { fetchHymnEntry, fetchHymnalIndex, deleteHymnEntry } from '../lib/hymnals-api'
 import {
   loadHymnalStanzaTagStyle,
@@ -68,9 +70,15 @@ const tagStyleOptions = [
 type HymnsWorkspaceProps = {
   onProjectStanza?: () => void
   onGoLive?: () => void
+  /** When hymn output leaves the projectors, accompaniment must stop. */
+  hymnsLive?: boolean
 }
 
-export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProps): ReactElement {
+export function HymnsWorkspace({
+  onProjectStanza,
+  onGoLive,
+  hymnsLive = false
+}: HymnsWorkspaceProps): ReactElement {
   const sessionSeed = getHymnsWorkspaceSession()
   const { hymnals, refresh, importFile, importFolder, importBibsoftMdb } = useInstalledHymnals()
   const hymnalOptions = useMemo(() => hymnalSelectOptions(hymnals), [hymnals])
@@ -100,6 +108,9 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [pins, setPins] = useState<HymnPin[]>(() => loadHymnPins())
   const [pinsOnly, setPinsOnly] = useState(false)
+  const [musicPath, setMusicPath] = useState<string | null>(null)
+  const [musicPlaying, setMusicPlaying] = useState(false)
+  const musicRef = useRef<HTMLAudioElement | null>(null)
   const listScrollRef = useRef<HTMLUListElement>(null)
   const entryLoadGen = useRef(0)
   const hymnCue = useHymnSequenceCue()
@@ -334,6 +345,55 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
     },
     [disabledVerseNumbers, hymnalId, includeEnd, includeRefrain, includeTitle, selectedId]
   )
+
+  const stopHymnMusic = useCallback(() => {
+    const audio = musicRef.current
+    if (audio) {
+      audio.pause()
+      audio.currentTime = 0
+    }
+    setMusicPlaying(false)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!entry) {
+      setMusicPath(null)
+      stopHymnMusic()
+      return
+    }
+    const hymnNumber = entry.number
+    void window.orion.listMediaFolder('Music').then((files) => {
+      if (cancelled) return
+      setMusicPath(pickHymnMusicPath(files, hymnNumber))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [entry?.id, entry?.number, stopHymnMusic])
+
+  useEffect(() => {
+    stopHymnMusic()
+  }, [entry?.id, stopHymnMusic])
+
+  useEffect(() => {
+    if (!hymnsLive) stopHymnMusic()
+  }, [hymnsLive, stopHymnMusic])
+
+  const toggleHymnMusic = useCallback(() => {
+    if (!musicPath) return
+    const audio = musicRef.current
+    if (!audio) return
+    if (!audio.paused) {
+      stopHymnMusic()
+      return
+    }
+    audio.src = displayFileUrl(musicPath)
+    void audio
+      .play()
+      .then(() => setMusicPlaying(true))
+      .catch(() => setMusicPlaying(false))
+  }, [musicPath, stopHymnMusic])
 
   useEffect(() => {
     if (!hymnalId) {
@@ -971,6 +1031,22 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
                   ) : null}
                 </div>
                 <div className="hymns-detail__actions">
+                  {musicPath ? (
+                    <button
+                      type="button"
+                      className={
+                        musicPlaying
+                          ? 'adw-button adw-button--flat hymns-detail__music hymns-detail__music--on'
+                          : 'adw-button adw-button--flat hymns-detail__music'
+                      }
+                      aria-pressed={musicPlaying}
+                      aria-label={musicPlaying ? 'Stop hymn music' : 'Play hymn music'}
+                      onClick={toggleHymnMusic}
+                    >
+                      <AppIcon name={musicPlaying ? 'clear' : 'music'} size={14} />
+                      {musicPlaying ? 'Stop' : 'Play'}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className={
@@ -1205,6 +1281,14 @@ export function HymnsWorkspace({ onProjectStanza, onGoLive }: HymnsWorkspaceProp
         destructive
         onCancel={() => setDeleteConfirm(false)}
         onConfirm={confirmDeleteHymn}
+      />
+      <audio
+        ref={musicRef}
+        preload="none"
+        onEnded={() => setMusicPlaying(false)}
+        onPause={() => {
+          if (musicRef.current?.currentTime === 0 || musicRef.current?.ended) setMusicPlaying(false)
+        }}
       />
     </div>
   )
