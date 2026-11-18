@@ -220,13 +220,15 @@
   color: var(--adw-accent);
 }
 
-.hymns-detail__pin {
+.hymns-detail__pin,
+.hymns-detail__music {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-.hymns-detail__pin--on {
+.hymns-detail__pin--on,
+.hymns-detail__music--on {
   color: var(--adw-accent);
 }
 
