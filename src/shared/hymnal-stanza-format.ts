@@ -140,8 +140,9 @@ export function parseHymnTextDocument(text: string): {
 
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trimEnd()
+    // Blank lines are editor spacing only — they must not end a stanza.
+    // Stanzas end on the next header (or EOF). Enter = a lyric line; empty Enter = ignored.
     if (!line.trim()) {
-      flush()
       continue
     }
     const numM = HEADER_NUMBER.exec(line.trim())

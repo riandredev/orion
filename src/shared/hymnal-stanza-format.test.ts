@@ -56,4 +56,22 @@ Sing`
     expect(parsed.stanzas).toHaveLength(2)
     expect(parsed.stanzas[1]?.kind).toBe('chorus')
   })
+
+  it('keeps lyric lines across blank editor spacing', () => {
+    const parsed = parseHymnEditorFields(
+      164,
+      'Test',
+      `{Refrain}
+Line one
+
+Line two
+
+
+[V1]
+Verse line`
+    )
+    expect(parsed.stanzas).toHaveLength(2)
+    expect(parsed.stanzas[0]?.lines).toEqual(['Line one', 'Line two'])
+    expect(parsed.stanzas[1]?.lines).toEqual(['Verse line'])
+  })
 })
