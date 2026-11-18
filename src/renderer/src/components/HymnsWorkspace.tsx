@@ -26,6 +26,7 @@ import { formatHymnListMeta, countHymnStanzas } from '../../../shared/hymnal-sum
 import { lyricSlidePart, stanzaDisplayTagWithPart } from '../../../shared/hymnal-stanza-format'
 import { pickHymnMusicPath } from '../../../shared/hymn-music'
 import type { HymnEntry, HymnSummary, HymnalStanzaTagStyle } from '../../../shared/hymnal-types'
+import { OUTPUT_MEDIA_VOLUME } from '../../../shared/output-audio'
 import { displayFileUrl } from '../lib/file-url'
 import { fetchHymnEntry, fetchHymnalIndex, deleteHymnEntry } from '../lib/hymnals-api'
 import {
@@ -389,6 +390,8 @@ export function HymnsWorkspace({
       return
     }
     audio.src = displayFileUrl(musicPath)
+    audio.volume = OUTPUT_MEDIA_VOLUME
+    audio.load()
     void audio
       .play()
       .then(() => setMusicPlaying(true))
