@@ -1,5 +1,5 @@
 import { app, dialog } from 'electron'
-import type { Dirent } from 'fs'
+import { existsSync, type Dirent } from 'fs'
 import { chmod, cp, mkdir, readdir, readFile, writeFile } from 'fs/promises'
 import { basename, extname, join } from 'path'
 import { parseHymnalTextDocument } from '../shared/hymnal-stanza-format'
@@ -13,8 +13,11 @@ import type {
   HymnalMeta,
   HymnSummary
 } from '../shared/hymnal-types'
+import { normalizeBundledHymnalMeta } from '../shared/hymnal-meta'
 import { defaultImportedHymnalId, readBibsoftMdbFile } from './bibsoft-mdb'
 import { hymnalsRoot } from './paths'
+
+export { normalizeBundledHymnalMeta } from '../shared/hymnal-meta'
 
 type CachedHymnal = {
   meta: HymnalMeta
@@ -33,17 +36,6 @@ function shouldExposeHymnal(meta: HymnalMeta): boolean {
   if (DEPRECATED_HYMNAL_IDS.has(meta.id)) return false
   if (meta.id === PERSONAL_HYMNAL_ID && meta.hymnCount === 0) return false
   return true
-}
-
-/** Display names for shipped Adventist books (stable folder ids). */
-export function normalizeBundledHymnalMeta(meta: HymnalMeta): HymnalMeta {
-  if (meta.id === 'adventist-1-afrikaans') {
-    return { ...meta, label: 'Afrikaans', abbr: 'Afrikaans', language: 'af', source: 'builtin' }
-  }
-  if (meta.id === 'adventist-2-english-new') {
-    return { ...meta, label: 'English', abbr: 'English', language: 'en', source: 'builtin' }
-  }
-  return meta
 }
 
 function userHymnalsRoot(): string {
@@ -167,7 +159,10 @@ async function materializeHymnalForEditing(hymnalId: string): Promise<CachedHymn
   const dest = join(userHymnalsRoot(), hymnalId)
   await mkdir(userHymnalsRoot(), { recursive: true })
   try {
-    await cp(builtin.dir, dest, { recursive: true, force: true })
+    // Never force-overwrite an existing user copy — that wiped Panorama hymn edits on save.
+    if (!existsSync(dest)) {
+      await cp(builtin.dir, dest, { recursive: true })
+    }
     await ensureWritableTree(dest)
     const materialized = await loadHymnalFromDir(hymnalId, dest, 'user')
     if (!materialized) throw new Error('Could not prepare hymnal for editing')
@@ -423,7 +418,14 @@ export async function upsertHymnEntry(
   let loaded = await ensureCached(hymnalId)
   if (!loaded) throw new Error('Hymnal not found')
   if (loaded.meta.source !== 'user') {
-    loaded = await materializeHymnalForEditing(hymnalId)
+    const userDir = join(userHymnalsRoot(), hymnalId)
+    if (existsSync(userDir)) {
+      const fromUser = await loadHymnalFromDir(hymnalId, userDir, 'user')
+      if (fromUser) loaded = fromUser
+      else loaded = await materializeHymnalForEditing(hymnalId)
+    } else {
+      loaded = await materializeHymnalForEditing(hymnalId)
+    }
   }
 
   const id =
@@ -446,7 +448,14 @@ export async function deleteHymnEntry(hymnalId: string, hymnId: string): Promise
   let loaded = await ensureCached(hymnalId)
   if (!loaded) return false
   if (loaded.meta.source !== 'user') {
-    loaded = await materializeHymnalForEditing(hymnalId)
+    const userDir = join(userHymnalsRoot(), hymnalId)
+    if (existsSync(userDir)) {
+      const fromUser = await loadHymnalFromDir(hymnalId, userDir, 'user')
+      if (fromUser) loaded = fromUser
+      else loaded = await materializeHymnalForEditing(hymnalId)
+    } else {
+      loaded = await materializeHymnalForEditing(hymnalId)
+    }
   }
   if (!loaded.hymnsById.delete(hymnId)) return false
   await persistCachedHymnal(loaded)
