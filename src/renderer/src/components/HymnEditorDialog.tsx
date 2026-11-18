@@ -143,7 +143,8 @@ export function HymnEditorDialog({
               {entry ? 'Edit hymn' : 'Add hymn'}
             </h2>
             <p className="adw-caption bible-library-dialog__subtitle">
-              Stanza headers: [V1], [V2], {'{Refrain}'}, {'{Chorus}'}, {'{Bridge}'} — one header per projected slide.
+              Stanza headers: [V1], [V2], {'{Refrain}'}, {'{Chorus}'}, {'{Bridge}'}. Each Enter starts a new projected
+              line; blank lines are ignored.
             </p>
           </div>
           <button
