@@ -232,6 +232,59 @@
   color: var(--adw-accent);
 }
 
+.hymns-music-controls {
+  display: inline-flex;
+  border: 1px solid var(--adw-border-strong);
+  border-radius: var(--adw-radius-xs);
+}
+
+.hymns-music-controls .hymns-detail__music {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.hymns-music-controls .hymns-music-controls__options {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-inline: 8px;
+  border-inline-start: 1px solid var(--adw-border-strong);
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.hymns-music-controls__popover {
+  position-area: block-end span-inline-start;
+  position-try-fallbacks: flip-block, flip-inline;
+  overflow: visible;
+  justify-self: end;
+  margin: 4px 0;
+  width: 12rem;
+  padding: 12px;
+  border: 1px solid var(--adw-border-strong);
+  border-radius: var(--adw-radius-xs);
+  background: var(--adw-popover-bg);
+  color: var(--adw-fg);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+}
+
+.hymns-music-controls__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.hymns-music-controls__row:first-child {
+  margin-bottom: 12px;
+}
+
+.adw-select.hymns-music-controls__speed {
+  min-width: 7rem;
+}
+
 .hymns-entry-list__item {
   display: grid;
   grid-template-columns: 2.25rem 1fr;

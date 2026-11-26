@@ -39,28 +39,36 @@ export function AdwSelect<T extends string>({
   const [open, setOpen] = useState(false)
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({})
   const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLUListElement>(null)
   const listId = useId()
   const selected = options.find((o) => o.value === value)
+  // A body portal would render underneath a native popover in the top layer.
+  const parentPopover = open ? rootRef.current?.closest<HTMLElement>('[popover]') : null
+  const portalRoot = open ? parentPopover ?? getModalPortalRoot() : null
 
   useLayoutEffect(() => {
-    if (!open) return
+    if (!portalRoot) return
     const place = (): void => {
-      const trigger = rootRef.current?.querySelector('button')
-      const portal = getModalPortalRoot()
+      const trigger = triggerRef.current
       if (!trigger) return
       const rect = trigger.getBoundingClientRect()
-      const portalRect = portal.getBoundingClientRect()
+      const portalRect = portalRoot.getBoundingClientRect()
       const menuHeight = Math.min(240, options.length * 32 + 8)
-      const spaceBelow = portalRect.bottom - rect.bottom
-      const openUp = spaceBelow < menuHeight + 8 && rect.top - portalRect.top > spaceBelow
+      const spaceBelow = (parentPopover ? window.innerHeight : portalRect.bottom) - rect.bottom
+      const spaceAbove = rect.top - (parentPopover ? 0 : portalRect.top)
+      const openUp = spaceBelow < menuHeight + 8 && spaceAbove > spaceBelow
+      const maxHeight = parentPopover ? Math.max(0, Math.min(240, (openUp ? spaceAbove : spaceBelow) - 8)) : undefined
       setMenuStyle({
         position: 'absolute',
         left: rect.left - portalRect.left,
         width: rect.width,
         top: openUp
-          ? Math.max(8, rect.top - portalRect.top - menuHeight - 4)
+          ? parentPopover
+            ? rect.top - portalRect.top - Math.min(menuHeight, maxHeight ?? menuHeight) - 4
+            : Math.max(8, rect.top - portalRect.top - menuHeight - 4)
           : rect.bottom - portalRect.top + 4,
+        maxHeight,
         right: 'auto',
         bottom: 'auto',
         zIndex: 2
@@ -73,7 +81,7 @@ export function AdwSelect<T extends string>({
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [open, options.length])
+  }, [portalRoot, parentPopover, options.length])
 
   useEffect(() => {
     if (!open) return
@@ -83,15 +91,25 @@ export function AdwSelect<T extends string>({
       setOpen(false)
     }
     const onDocKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key !== 'Escape') return
+      if (parentPopover) {
+        event.preventDefault()
+        triggerRef.current?.focus()
+      }
+      setOpen(false)
     }
+    const onPopoverToggle = (): void => {
+      if (!parentPopover?.matches(':popover-open')) setOpen(false)
+    }
+    parentPopover?.addEventListener('toggle', onPopoverToggle)
     document.addEventListener('mousedown', onDocPointer)
     document.addEventListener('keydown', onDocKey)
     return () => {
+      parentPopover?.removeEventListener('toggle', onPopoverToggle)
       document.removeEventListener('mousedown', onDocPointer)
       document.removeEventListener('keydown', onDocKey)
     }
-  }, [open])
+  }, [open, parentPopover])
 
   function onTriggerKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>): void {
     if (disabled) return
@@ -110,6 +128,7 @@ export function AdwSelect<T extends string>({
       className={`adw-select ${open ? 'adw-select--open' : ''} ${className}`.trim()}
     >
       <button
+        ref={triggerRef}
         type="button"
         className="adw-select__trigger"
         disabled={disabled}
@@ -128,7 +147,7 @@ export function AdwSelect<T extends string>({
           <AppIcon name="caretRight" size={14} />
         </span>
       </button>
-      {open && !disabled
+      {portalRoot && !disabled
         ? createPortal(
             <ul
               id={listId}
@@ -153,6 +172,7 @@ export function AdwSelect<T extends string>({
                       onClick={() => {
                         onChange(opt.value)
                         setOpen(false)
+                        if (parentPopover) triggerRef.current?.focus()
                       }}
                     >
                       {opt.icon ? <span className="adw-select__icon">{opt.icon}</span> : null}
@@ -162,7 +182,7 @@ export function AdwSelect<T extends string>({
                 )
               })}
             </ul>,
-            getModalPortalRoot()
+            portalRoot
           )
         : null}
     </div>

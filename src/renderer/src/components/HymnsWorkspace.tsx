@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -57,6 +58,7 @@ import {
 } from '../lib/hymn-pins'
 import { AdwSelect } from './AdwSelect'
 import { AdwActionRow } from './AdwActionRow'
+import { AdwScale } from './AdwScale'
 import { AdwSwitch } from './AdwSwitch'
 import { AdwAlertDialog } from './AdwAlertDialog'
 import { AppIcon } from './AppIcon'
@@ -67,6 +69,10 @@ const tagStyleOptions = [
   { value: 'short' as const, label: '[V1] tags' },
   { value: 'long' as const, label: 'Verse tags' }
 ]
+
+const hymnMusicSpeedOptions = [0.75, 0.85, 0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.25, 1.5, 1.75, 2].map(
+  (speed) => ({ value: String(speed), label: `${speed}×` })
+)
 
 type HymnsWorkspaceProps = {
   onProjectStanza?: () => void
@@ -109,8 +115,13 @@ export function HymnsWorkspace({
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [pins, setPins] = useState<HymnPin[]>(() => loadHymnPins())
   const [pinsOnly, setPinsOnly] = useState(false)
-  const [musicPath, setMusicPath] = useState<string | null>(null)
+  const [musicMatch, setMusicMatch] = useState<{ number: number; path: string | null } | null>(null)
+  const hymnNumber = entry?.number
+  const musicPath = musicMatch?.number === hymnNumber ? musicMatch?.path : null
   const [musicPlaying, setMusicPlaying] = useState(false)
+  const [musicSpeed, setMusicSpeed] = useState(1)
+  const [musicVolume, setMusicVolume] = useState(OUTPUT_MEDIA_VOLUME * 100)
+  const musicOptionsId = useId()
   const musicRef = useRef<HTMLAudioElement | null>(null)
   const listScrollRef = useRef<HTMLUListElement>(null)
   const entryLoadGen = useRef(0)
@@ -357,25 +368,25 @@ export function HymnsWorkspace({
   }, [])
 
   useEffect(() => {
+    if (hymnNumber == null) return
     let cancelled = false
-    if (!entry) {
-      setMusicPath(null)
-      stopHymnMusic()
-      return
-    }
-    const hymnNumber = entry.number
-    void window.orion.listMediaFolder('Music').then((files) => {
-      if (cancelled) return
-      setMusicPath(pickHymnMusicPath(files, hymnNumber))
-    })
+    setMusicMatch(null)
+    void window.orion.listMediaFolder('Music').then(
+      (files) => {
+        if (!cancelled) setMusicMatch({ number: hymnNumber, path: pickHymnMusicPath(files, hymnNumber) })
+      },
+      () => {
+        if (!cancelled) setMusicMatch(null)
+      }
+    )
     return () => {
       cancelled = true
     }
-  }, [entry?.id, entry?.number, stopHymnMusic])
+  }, [hymnNumber])
 
   useEffect(() => {
     stopHymnMusic()
-  }, [entry?.id, stopHymnMusic])
+  }, [entry?.id, hymnNumber, stopHymnMusic])
 
   useEffect(() => {
     if (!hymnsLive) stopHymnMusic()
@@ -390,13 +401,24 @@ export function HymnsWorkspace({
       return
     }
     audio.src = displayFileUrl(musicPath)
-    audio.volume = OUTPUT_MEDIA_VOLUME
     audio.load()
+    audio.playbackRate = musicSpeed
+    audio.volume = musicVolume / 100
     void audio
       .play()
       .then(() => setMusicPlaying(true))
       .catch(() => setMusicPlaying(false))
-  }, [musicPath, stopHymnMusic])
+  }, [musicPath, musicSpeed, musicVolume, stopHymnMusic])
+
+  const changeMusicSpeed = (speed: number): void => {
+    setMusicSpeed(speed)
+    if (musicRef.current) musicRef.current.playbackRate = speed
+  }
+
+  const changeMusicVolume = (volume: number): void => {
+    setMusicVolume(volume)
+    if (musicRef.current) musicRef.current.volume = volume / 100
+  }
 
   useEffect(() => {
     if (!hymnalId) {
@@ -1035,20 +1057,52 @@ export function HymnsWorkspace({
                 </div>
                 <div className="hymns-detail__actions">
                   {musicPath ? (
-                    <button
-                      type="button"
-                      className={
-                        musicPlaying
-                          ? 'adw-button adw-button--flat hymns-detail__music hymns-detail__music--on'
-                          : 'adw-button adw-button--flat hymns-detail__music'
-                      }
-                      aria-pressed={musicPlaying}
-                      aria-label={musicPlaying ? 'Stop hymn music' : 'Play hymn music'}
-                      onClick={toggleHymnMusic}
+                    <div
+                      key={musicPath}
+                      className="hymns-music-controls"
+                      role="group"
+                      aria-label="Hymn music"
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key.startsWith('Arrow')) event.stopPropagation()
+                      }}
                     >
-                      <AppIcon name={musicPlaying ? 'clear' : 'music'} size={14} />
-                      {musicPlaying ? 'Stop' : 'Play'}
-                    </button>
+                      <button
+                        type="button"
+                        className={`adw-button adw-button--flat hymns-detail__music${musicPlaying ? ' hymns-detail__music--on' : ''}`}
+                        aria-pressed={musicPlaying}
+                        aria-label={musicPlaying ? 'Stop hymn music' : 'Play hymn music'}
+                        onClick={toggleHymnMusic}
+                      >
+                        <AppIcon name={musicPlaying ? 'clear' : 'music'} size={14} />
+                        {musicPlaying ? 'Stop' : 'Play'}
+                      </button>
+                      <button
+                        type="button"
+                        className="adw-button adw-button--flat hymns-music-controls__options"
+                        popoverTarget={musicOptionsId}
+                        aria-label={`Hymn playback options, ${musicSpeed}× speed`}
+                        title="Playback speed and volume"
+                      >
+                        {musicSpeed}× <AppIcon name="caretDown" size={12} />
+                      </button>
+                      <div id={musicOptionsId} className="hymns-music-controls__popover" popover="auto">
+                        <div className="hymns-music-controls__row">
+                          <span>Speed</span>
+                          <AdwSelect
+                            className="hymns-music-controls__speed"
+                            aria-label="Playback speed"
+                            value={String(musicSpeed)}
+                            options={hymnMusicSpeedOptions}
+                            onChange={(speed) => changeMusicSpeed(Number(speed))}
+                          />
+                        </div>
+                        <div className="hymns-music-controls__row">
+                          <span>Volume</span>
+                          <span>{musicVolume}%</span>
+                        </div>
+                        <AdwScale value={musicVolume} onChange={changeMusicVolume} aria-label="Volume" />
+                      </div>
+                    </div>
                   ) : null}
                   <button
                     type="button"
