@@ -4,8 +4,8 @@
       "id": "panorama",
       "name": "SDA Panorama Church",
       "summary": "Service order folders, Adventist hymnals, Afrikaans and English Bibles, and the matching backgrounds.",
-      "version": "10",
-      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-10.zip",
+      "version": "11",
+      "downloadUrl": "https://github.com/riandredev/orion/releases/download/content/Orion-Bundle-panorama-11.zip",
       "preview": [
         {
           "label": "Service order",
@@ -132,6 +132,11 @@
               "folder": "Offergawe",
               "src": "preview/order/Offergawe/image1.jpg",
               "alt": "Offergawe slide"
+            },
+            {
+              "folder": "Nagmaal",
+              "src": "preview/order/Nagmaal/image6.jpg",
+              "alt": "Nagmaal slide"
             },
             {
               "folder": "Nagmaal",
